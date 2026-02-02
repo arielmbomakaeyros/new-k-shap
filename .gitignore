@@ -1,0 +1,175 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+.claude/
+
+# Environment variables
+.env
+.env.local
+.env.dev
+.env.test
+.env.prod
+.env.development
+.env.production
+.env.staging
+.env.backup
+
+# Build outputs
+dist/
+build/
+coverage/
+.nyc_output/
+.next/
+out/
+.nuxt/
+.svelte-kit/
+.nextjs/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+*.lnk
+
+# IDE and editor files
+.idea/
+*.swp
+*.swo
+*~
+.vscode/
+.atom/
+.sublime-project
+.sublime-workspace
+.vimrc
+.nova/
+.projectile
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+pnpm-debug.log*
+
+# Runtime
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+
+# Temporary folders
+temp/
+tmp/
+.tmptags
+
+# Platform files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Testing
+test-reports/
+junit.xml
+coverage.xml
+
+# CI/CD
+.circleci/config.yml
+.github/workflows/cache/
+
+# Local configuration files
+config/local.json
+config/default.json
+
+# Database
+*.db
+*.db-journal
+
+# Process files
+*.pid
+*.seed
+
+# Debug files
+debug/
+*.trace
+
+# Compiled files
+*.o
+*.pyc
+*.pyo
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Sensitive files
+secrets/
+credentials.json
+*.key
+*.pem
+id_rsa
+id_rsa.pub
+
+# Cache directories
+.cache/
+.nyc_output/
+.jscache/
+
+# Lock files (already handled by individual .gitignores)
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+
+# Uploads and user content
+uploads/
+**/uploads/
+
+# Documentation
+docs/_build/
+docs/_build/doctrees/
+docs/_build/html/
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# Editor temporary files
+*~
+.swp
+.swo
+
+# Local development
+local/
+dev/
+development/
+
+# Browser-sync
+.browser-sync*
+
+# Diagnostic reports
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# System files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db

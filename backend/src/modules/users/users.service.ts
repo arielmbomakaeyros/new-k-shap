@@ -1,0 +1,302 @@
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  ForbiddenException,
+  BadRequestException,
+} from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model, Types } from 'mongoose';
+import * as bcrypt from 'bcryptjs';
+import * as crypto from 'crypto';
+import { User } from '../../database/schemas/user.schema';
+import { Company } from '../../database/schemas/company.schema';
+import { EmailService } from '../../email/email.service';
+import { ConfigService } from '@nestjs/config';
+import { CreateUserDto, UpdateUserDto } from './dto';
+import { UserRole } from '../../database/schemas/enums';
+import { PaginationParams, PaginatedResponse } from '../../common/interfaces';
+
+@Injectable()
+export class UsersService {
+  constructor(
+    @InjectModel(User.name) private userModel: Model<User>,
+    @InjectModel(Company.name) private companyModel: Model<Company>,
+    private emailService: EmailService,
+    private configService: ConfigService,
+  ) {}
+
+  async create(dto: CreateUserDto, creatorUser: any): Promise<User> {
+    // Check if email already exists
+    const existingUser = await this.userModel.findOne({
+      email: dto.email.toLowerCase(),
+    });
+
+    if (existingUser) {
+      throw new ConflictException('User with this email already exists');
+    }
+
+    // Generate temporary password and activation token
+    const tempPassword = crypto.randomBytes(16).toString('hex');
+    const hashedPassword = await bcrypt.hash(tempPassword, 12);
+    const activationToken = crypto.randomBytes(32).toString('hex');
+    const activationExpiry = new Date();
+    activationExpiry.setHours(activationExpiry.getHours() + 24);
+
+    const user = new this.userModel({
+      ...dto,
+      email: dto.email.toLowerCase(),
+      password: hashedPassword,
+      company: creatorUser.company,
+      canLogin: false,
+      mustChangePassword: true,
+      activationToken,
+      activationTokenExpiry: activationExpiry,
+      createdBy: creatorUser._id,
+      notificationPreferences: {
+        email: true,
+        inApp: true,
+        disbursementCreated: true,
+        disbursementValidated: true,
+        disbursementRejected: true,
+        disbursementCompleted: true,
+        chatMessages: true,
+        systemAlerts: true,
+      },
+    });
+
+    await user.save();
+
+    // Update company user count
+    await this.companyModel.findByIdAndUpdate(creatorUser.company, {
+      $inc: { currentUserCount: 1 },
+    });
+
+    // Send activation email
+    const company = await this.companyModel.findById(creatorUser.company);
+    const activationUrl = `${this.configService.get('FRONTEND_URL')}/activate?token=${activationToken}`;
+
+    await this.emailService.send({
+      to: user.email,
+      subject: 'Welcome to K-shap - Activate Your Account',
+      template: 'welcome',
+      context: {
+        firstName: user.firstName,
+        companyName: company?.name || 'K-shap',
+        email: user.email,
+        activationUrl,
+      },
+    });
+
+    return user;
+  }
+
+  async findAll(
+    companyId: string,
+    pagination: PaginationParams,
+    filters?: { search?: string; role?: string; department?: string; isActive?: boolean },
+  ): Promise<PaginatedResponse<User>> {
+    const { page = 1, limit = 20, sortBy = 'createdAt', sortOrder = 'desc' } = pagination;
+    const skip = (page - 1) * limit;
+
+    const query: any = { company: companyId, isDeleted: false };
+
+    if (filters?.search) {
+      query.$or = [
+        { firstName: { $regex: filters.search, $options: 'i' } },
+        { lastName: { $regex: filters.search, $options: 'i' } },
+        { email: { $regex: filters.search, $options: 'i' } },
+      ];
+    }
+
+    if (filters?.role) {
+      query.systemRoles = filters.role;
+    }
+
+    if (filters?.department) {
+      query.departments = filters.department;
+    }
+
+    if (filters?.isActive !== undefined) {
+      query.isActive = filters.isActive;
+    }
+
+    const [users, total] = await Promise.all([
+      this.userModel
+        .find(query)
+        .select('-password -refreshToken -activationToken -passwordResetToken')
+        .populate('departments')
+        .populate('offices')
+        .populate('roles')
+        .sort({ [sortBy]: sortOrder === 'asc' ? 1 : -1 })
+        .skip(skip)
+        .limit(limit)
+        .exec(),
+      this.userModel.countDocuments(query),
+    ]);
+
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      data: users,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
+    };
+  }
+
+  async findById(id: string, companyId: string): Promise<User> {
+    const user = await this.userModel
+      .findById(id)
+      .where('company').equals(companyId)
+      .where('isDeleted').equals(false)
+      .select('-password -refreshToken -activationToken -passwordResetToken')
+      .populate('departments')
+      .populate('offices')
+      .populate('roles')
+      .exec();
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return user;
+  }
+
+  async update(
+    id: string,
+    dto: UpdateUserDto,
+    updaterUser: any,
+  ): Promise<User> {
+    const user = await this.userModel
+      .findById(id)
+      .where('company').equals(updaterUser.company)
+      .where('isDeleted').equals(false)
+      .exec();
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Prevent deactivating company super admin
+    if (
+      dto.isActive === false &&
+      user.systemRoles?.includes(UserRole.COMPANY_SUPER_ADMIN)
+    ) {
+      throw new ForbiddenException('Cannot deactivate company super admin');
+    }
+
+    Object.assign(user, dto);
+    user.updatedBy = updaterUser._id;
+
+    await user.save();
+
+    return this.findById(id, updaterUser.company);
+  }
+
+  async delete(id: string, deleterUser: any): Promise<void> {
+    const user = await this.userModel
+      .findById(id)
+      .where('company').equals(deleterUser.company)
+      .where('isDeleted').equals(false)
+      .exec();
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Prevent deleting company super admin
+    if (user.systemRoles?.includes(UserRole.COMPANY_SUPER_ADMIN)) {
+      throw new ForbiddenException('Cannot delete company super admin');
+    }
+
+    // Soft delete
+    user.isDeleted = true;
+    user.isActive = false;
+    user.deletedAt = new Date();
+    user.deletedBy = deleterUser._id;
+
+    const gracePeriodDate = new Date();
+    gracePeriodDate.setDate(gracePeriodDate.getDate() + 30);
+    user.permanentDeleteScheduledFor = gracePeriodDate;
+
+    await user.save();
+
+    // Update company user count
+    await this.companyModel.findByIdAndUpdate(deleterUser.company, {
+      $inc: { currentUserCount: -1 },
+    });
+  }
+
+  async restore(id: string, restorerUser: any): Promise<User> {
+    const user = await this.userModel
+      .findById(id)
+      .where('company').equals(restorerUser.company)
+      .where('isDeleted').equals(true)
+      .exec();
+
+    if (!user) {
+      throw new NotFoundException('Deleted user not found');
+    }
+
+    user.isDeleted = false;
+    user.isActive = true;
+    user.deletedAt = undefined as any;
+    user.deletedBy = undefined as any;
+    user.permanentDeleteScheduledFor = undefined as any;
+
+    await user.save();
+
+    // Update company user count
+    await this.companyModel.findByIdAndUpdate(restorerUser.company, {
+      $inc: { currentUserCount: 1 },
+    });
+
+    return this.findById(id, restorerUser.company);
+  }
+
+  async resendActivation(id: string, requesterUser: any): Promise<void> {
+    const user = await this.userModel
+      .findById(id)
+      .where('company').equals(requesterUser.company)
+      .where('isDeleted').equals(false)
+      .exec();
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.canLogin) {
+      throw new BadRequestException('User is already activated');
+    }
+
+    // Generate new activation token
+    const activationToken = crypto.randomBytes(32).toString('hex');
+    const activationExpiry = new Date();
+    activationExpiry.setHours(activationExpiry.getHours() + 24);
+
+    user.activationToken = activationToken;
+    user.activationTokenExpiry = activationExpiry;
+    await user.save();
+
+    // Send activation email
+    const company = await this.companyModel.findById(requesterUser.company);
+    const activationUrl = `${this.configService.get('FRONTEND_URL')}/activate?token=${activationToken}`;
+
+    await this.emailService.send({
+      to: user.email,
+      subject: 'K-shap - Activate Your Account',
+      template: 'user-activation',
+      context: {
+        firstName: user.firstName,
+        companyName: company?.name || 'K-shap',
+        activationUrl,
+      },
+    });
+  }
+}
