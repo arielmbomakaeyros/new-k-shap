@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useTranslation } from '@/node_modules/react-i18next';
 import { Button } from '@/components/ui/button';
+import { PasswordInput } from '@/src/components/ui/PasswordInput';
 import { useLogin } from '@/src/hooks/queries';
 // import { useLogin } from '@/hooks/queries/useAuth';
 
@@ -60,20 +61,15 @@ export function LoginForm() {
       </div>
 
       <div>
-        <label htmlFor="password" className="block text-sm font-medium text-foreground">
-          {t('auth.password')}
-        </label>
-        <input
-          {...register('password')}
-          type="password"
+        <PasswordInput
           id="password"
           placeholder="••••••••"
-          className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-foreground placeholder-muted-foreground"
+          className="mt-1"
+          label={t('auth.password')}
+          error={errors.password?.message?.toString()}
+          {...register('password')}
           disabled={isPending}
         />
-        {errors.password && (
-          <p className="mt-1 text-sm text-destructive">{errors.password.message}</p>
-        )}
       </div>
 
       <Button type="submit" className="w-full" disabled={isPending}>

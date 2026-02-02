@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useTranslation } from '@/node_modules/react-i18next';
 import { Button } from '@/components/ui/button';
+import { PasswordInput } from '@/src/components/ui/PasswordInput';
 // import { useAuthStore } from '@/store/authStore';
 // import { useApi } from '@/hooks/useApi';
 import { useRouter } from 'next/navigation';
@@ -164,35 +165,25 @@ export function SignupForm() {
       </div>
 
       <div>
-        <label htmlFor="password" className="block text-sm font-medium text-foreground">
-          {t('auth.password')}
-        </label>
-        <input
-          {...register('password')}
-          type="password"
+        <PasswordInput
           id="password"
           placeholder="••••••••"
-          className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-foreground placeholder-muted-foreground"
+          className="mt-1"
+          label={t('auth.password')}
+          error={errors.password?.message?.toString()}
+          {...register('password')}
         />
-        {errors.password && (
-          <p className="mt-1 text-sm text-destructive">{errors.password.message}</p>
-        )}
       </div>
 
       <div>
-        <label htmlFor="confirmPassword" className="block text-sm font-medium text-foreground">
-          Confirm Password
-        </label>
-        <input
-          {...register('confirmPassword')}
-          type="password"
+        <PasswordInput
           id="confirmPassword"
           placeholder="••••••••"
-          className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-foreground placeholder-muted-foreground"
+          className="mt-1"
+          label={t('auth.confirmPassword')}
+          error={errors.confirmPassword?.message?.toString()}
+          {...register('confirmPassword')}
         />
-        {errors.confirmPassword && (
-          <p className="mt-1 text-sm text-destructive">{errors.confirmPassword.message}</p>
-        )}
       </div>
 
       <Button type="submit" className="w-full" disabled={isLoading}>

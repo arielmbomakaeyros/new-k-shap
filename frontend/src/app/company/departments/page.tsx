@@ -83,20 +83,20 @@ function DepartmentsContent() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Departments</h1>
+            <h1 className="text-3xl font-bold gradient-text">Departments</h1>
             <p className="mt-2 text-muted-foreground">
               Organize your company into departments
             </p>
           </div>
-          <Button onClick={() => setShowForm(!showForm)}>
+          <Button onClick={() => setShowForm(!showForm)} className="btn-3d gradient-bg-primary text-white">
             {showForm ? '- Cancel' : '+ Add Department'}
           </Button>
         </div>
 
         {/* Add Department Form */}
         {showForm && (
-          <div className="rounded-lg border border-border bg-card p-6">
-            <h2 className="text-lg font-semibold text-foreground">Create New Department</h2>
+          <div className="glass-card rounded-xl p-6">
+            <h2 className="text-lg font-semibold gradient-text">Create New Department</h2>
             <div className="mt-4 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-foreground">
@@ -156,7 +156,7 @@ function DepartmentsContent() {
 
         {/* Empty State */}
         {departments.length === 0 && (
-          <div className="rounded-lg border border-border bg-muted/50 py-12 text-center">
+          <div className="glass-card rounded-xl py-12 text-center">
             <p className="text-muted-foreground">No departments found. Create your first department.</p>
           </div>
         )}
@@ -164,8 +164,8 @@ function DepartmentsContent() {
         {/* Departments Grid */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {departments.map((dept) => (
-            <div key={dept.id} className="rounded-lg border border-border bg-card p-6">
-              <h3 className="text-lg font-semibold text-foreground">{dept.name}</h3>
+            <div key={dept.id} className="glass-card rounded-xl p-6 group">
+              <h3 className="text-lg font-semibold gradient-text group-hover:opacity-80 transition-opacity">{dept.name}</h3>
               {dept.description && (
                 <p className="mt-1 text-sm text-muted-foreground">{dept.description}</p>
               )}

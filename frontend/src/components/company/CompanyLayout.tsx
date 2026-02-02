@@ -8,6 +8,8 @@ import { useTranslation } from '@/node_modules/react-i18next';
 import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/src/store/authStore';
 import { LanguageSwitcher } from '../LanguageSwitcher';
+import { ThemeSwitcher } from '@/components/theme-switcher';
+// import { ThemeSwitcher } from '../theme-switcher';
 // import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 
 const companyNavigation = [
@@ -36,13 +38,13 @@ export function CompanyLayout({ children, companyName = 'Company' }: CompanyLayo
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen">
       {/* Header */}
-      <header className="border-b border-border bg-card">
+      <header className="glass sticky top-0 z-50 border-b border-white/20">
         <div className="mx-auto max-w-7xl px-4 py-4 flex items-center justify-between sm:px-6 lg:px-8">
           <div className="flex items-center gap-4">
-            <Link href="/company" className="flex items-center gap-2">
-              <h1 className="text-2xl font-bold text-primary">K-shap</h1>
+            <Link href="/" className="flex items-center gap-2 cursor-pointer">
+              <h1 className="text-2xl font-bold gradient-text">K-shap</h1>
             </Link>
             <div className="hidden sm:block">
               <p className="text-sm text-muted-foreground">Company Settings</p>
@@ -52,6 +54,7 @@ export function CompanyLayout({ children, companyName = 'Company' }: CompanyLayo
           <div className="flex items-center gap-4">
             <span className="text-sm text-muted-foreground">{user?.firstName} {user?.lastName}</span>
             <LanguageSwitcher />
+            <ThemeSwitcher />
             <Button variant="outline" size="sm" onClick={handleLogout}>
               {t('navigation.logout')}
             </Button>
@@ -61,16 +64,16 @@ export function CompanyLayout({ children, companyName = 'Company' }: CompanyLayo
 
       <div className="flex min-h-[calc(100vh-80px)]">
         {/* Sidebar */}
-        <aside className="w-64 border-r border-border bg-card">
+        <aside className="w-64 glass-subtle border-r border-white/20">
           <nav className="space-y-1 p-4">
             {companyNavigation.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 cursor-pointer ${
                   pathname === item.href
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-foreground hover:bg-muted'
+                    ? 'gradient-bg-primary text-white shadow-md glow-primary'
+                    : 'text-foreground hover:bg-white/20 dark:hover:bg-white/10'
                 }`}
               >
                 <span>{item.icon}</span>
@@ -80,18 +83,18 @@ export function CompanyLayout({ children, companyName = 'Company' }: CompanyLayo
           </nav>
 
           {/* Quick Links */}
-          <div className="border-t border-border p-4">
+          <div className="border-t border-white/20 p-4">
             <p className="text-xs font-semibold text-muted-foreground uppercase">Quick Links</p>
             <div className="mt-3 space-y-2">
               <Link
                 href="/dashboard"
-                className="block text-xs text-primary hover:underline"
+                className="block text-xs gradient-text hover:opacity-80 transition-opacity cursor-pointer"
               >
                 Back to Main Dashboard
               </Link>
               <Link
                 href="/company/settings"
-                className="block text-xs text-primary hover:underline"
+                className="block text-xs gradient-text hover:opacity-80 transition-opacity cursor-pointer"
               >
                 Company Settings
               </Link>

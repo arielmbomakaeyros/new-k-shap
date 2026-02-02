@@ -1,31 +1,27 @@
 'use client';
 
 import { useTranslation } from '@/node_modules/react-i18next';
-// import { ForgotPasswordForm } from '@/components/auth/ForgotPasswordForm';
 import Link from 'next/link';
-import { LanguageSwitcher } from '@/src/components/LanguageSwitcher';
 import { ForgotPasswordForm } from '@/src/components/auth/ForgotPasswordForm';
-// import { LanguageSwitcher } from '@/components/LanguageSwitcher';
+import { PublicLayout } from '@/src/components/layout/PublicLayout';
+import { motion } from 'framer-motion';
 
 export default function ForgotPasswordPage() {
   const { t } = useTranslation();
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-background to-muted">
-      {/* Header */}
-      <header className="border-b border-border">
-        <nav className="mx-auto max-w-7xl px-4 py-6 flex items-center justify-between sm:px-6 lg:px-8">
-          <h1 className="text-2xl font-bold text-primary">K-shap</h1>
-          <LanguageSwitcher />
-        </nav>
-      </header>
-
-      <div className="flex min-h-screen items-center justify-center px-4">
-        <div className="w-full max-w-md rounded-lg border border-border bg-card p-8">
-          <h1 className="text-2xl font-bold text-foreground">Reset Password</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Remember your password?{' '}
-            <Link href="/auth/login" className="text-primary hover:underline">
+    <PublicLayout>
+      <div className="flex flex-grow items-center justify-center px-4 py-12">
+        <motion.div
+          className="w-full max-w-md rounded-xl border border-border bg-card/50 backdrop-blur-lg p-8 shadow-lg"
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+        >
+          <h1 className="text-3xl font-bold text-foreground text-center">{t('auth.resetPassword')}</h1>
+          <p className="mt-2 text-md text-muted-foreground text-center">
+            {t('auth.rememberPassword')}{' '}
+            <Link href="/auth/login" className="text-primary hover:underline cursor-pointer">
               {t('auth.login')}
             </Link>
           </p>
@@ -33,8 +29,8 @@ export default function ForgotPasswordPage() {
           <div className="mt-8">
             <ForgotPasswordForm />
           </div>
-        </div>
+        </motion.div>
       </div>
-    </main>
+    </PublicLayout>
   );
 }

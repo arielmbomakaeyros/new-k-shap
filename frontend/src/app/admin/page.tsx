@@ -1,13 +1,16 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { useTranslation } from '@/node_modules/react-i18next';
 import { Button } from '@/components/ui/button';
 import { AdminLayout } from '@/src/components/admin/AdminLayout';
 import { AdminStats } from '@/src/components/admin/AdminStats';
 import { ProtectedRoute } from '@/src/components/ProtectedRoute';
 import { useCompanies, useUsers } from '@/src/hooks/queries';
+import { ProtectedLayout } from '@/src/components/layout/ProtectedLayout';
 
 function AdminOverviewContent() {
+  const { t } = useTranslation();
   const router = useRouter();
 
   // Fetch real data
@@ -34,25 +37,25 @@ function AdminOverviewContent() {
 
   const stats = [
     {
-      label: 'Total Companies',
+      label: t('admin.totalCompanies', { defaultValue: 'Total Companies' }),
       value: isLoading ? '...' : companies?.length?.toString(),
       icon: '🏢',
       change: { value: newCompanies.length, isPositive: true },
     },
     {
-      label: 'Active Subscriptions',
+      label: t('admin.activeSubscriptions', { defaultValue: 'Active Subscriptions' }),
       value: isLoading ? '...' : activeSubscriptions?.toString(),
       icon: '💳',
       change: { value: Math.round((activeSubscriptions / Math.max(companies?.length, 1)) * 100), isPositive: true },
     },
     {
-      label: 'Total Users',
+      label: t('admin.totalUsers', { defaultValue: 'Total Users' }),
       value: isLoading ? '...' : users?.length?.toString(),
       icon: '👥',
       change: { value: users?.filter(u => u?.isActive)?.length, isPositive: true },
     },
     {
-      label: 'Expiring Soon',
+      label: t('admin.expiringSoon', { defaultValue: 'Expiring Soon' }),
       value: isLoading ? '...' : expiringSoon?.length.toString(),
       icon: '⚠️',
       change: { value: expiringSoon?.length, isPositive: false },
@@ -60,13 +63,13 @@ function AdminOverviewContent() {
   ];
 
   return (
-    <AdminLayout>
-      <div className="space-y-8">
+    <ProtectedLayout title={t('admin.platformOverview', { defaultValue: 'Platform Overview' })}>
+      <div className="space-y-8 mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         {/* Header */}
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Platform Overview</h1>
+          <h1 className="text-3xl font-bold text-foreground">{t('admin.platformOverview', { defaultValue: 'Platform Overview' })}</h1>
           <p className="mt-2 text-muted-foreground">
-            Monitor and manage all companies and subscriptions
+            {t('admin.monitorManage', { defaultValue: 'Monitor and manage all companies and subscriptions' })}
           </p>
         </div>
 
@@ -77,13 +80,13 @@ function AdminOverviewContent() {
         <div className="grid gap-8 lg:grid-cols-2">
           {/* Recent Companies */}
           <div className="rounded-lg border border-border bg-card p-6">
-            <h2 className="text-lg font-semibold text-foreground">Recent Companies</h2>
+            <h2 className="text-lg font-semibold text-foreground">{t('admin.recentCompanies')}</h2>
             {isLoading ? (
               <div className="mt-4 flex items-center justify-center py-8">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
               </div>
             ) : companies.length === 0 ? (
-              <p className="mt-4 text-sm text-muted-foreground">No companies yet</p>
+              <p className="mt-4 text-sm text-muted-foreground">{t('admin.noCompanies')}</p>
             ) : (
               <div className="mt-4 space-y-3">
                 {companies.slice(0, 5).map((company, index) => (
@@ -112,13 +115,13 @@ function AdminOverviewContent() {
               variant="outline"
               onClick={() => router.push('/admin/companies')}
             >
-              View All Companies
+              {t('admin.manageCompanies')}
             </Button>
           </div>
 
           {/* Subscription Alerts */}
           <div className="rounded-lg border border-border bg-card p-6">
-            <h2 className="text-lg font-semibold text-foreground">Subscription Alerts</h2>
+            <h2 className="text-lg font-semibold text-foreground">{t('admin.subscriptionAlerts')}</h2>
             {isLoading ? (
               <div className="mt-4 flex items-center justify-center py-8">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
@@ -127,28 +130,28 @@ function AdminOverviewContent() {
               <div className="mt-4 space-y-3">
                 {expiringSoon.map((company, index) => (
                   <div key={`expiring-${company.id || index}`} className="rounded-md bg-yellow-50 dark:bg-yellow-900/20 p-3 text-sm text-yellow-800 dark:text-yellow-200">
-                    <p className="font-semibold">{company.name} - Expiring Soon</p>
+                    <p className="font-semibold">{company.name} - {t('admin.expiringSoon')}</p>
                     <p className="text-xs">
-                      Subscription expires on {new Date(company.subscriptionEndDate!).toLocaleDateString()}
+                      {t('admin.expiresOn')} {new Date(company.subscriptionEndDate!).toLocaleDateString()}
                     </p>
                   </div>
                 ))}
                 {expiredCompanies.slice(0, 2).map((company, index) => (
                   <div key={`expired-${company.id || index}`} className="rounded-md bg-red-50 dark:bg-red-900/20 p-3 text-sm text-red-800 dark:text-red-200">
-                    <p className="font-semibold">{company.name} - Expired</p>
-                    <p className="text-xs">Subscription has expired</p>
+                    <p className="font-semibold">{company.name} - {t('admin.expired')}</p>
+                    <p className="text-xs">{t('admin.subscriptionExpired')}</p>
                   </div>
                 ))}
                 {newCompanies.slice(0, 2).map((company, index) => (
                   <div key={`new-${company.id || index}`} className="rounded-md bg-blue-50 dark:bg-blue-900/20 p-3 text-sm text-blue-800 dark:text-blue-200">
-                    <p className="font-semibold">{company.name} - New Signup</p>
+                    <p className="font-semibold">{company.name} - {t('admin.newSignup')}</p>
                     <p className="text-xs">
-                      Signed up on {new Date(company.createdAt).toLocaleDateString()}
+                      {t('admin.signUpOn')} {new Date(company.createdAt).toLocaleDateString()}
                     </p>
                   </div>
                 ))}
                 {expiringSoon.length === 0 && expiredCompanies.length === 0 && newCompanies.length === 0 && (
-                  <p className="text-sm text-muted-foreground">No alerts at this time</p>
+                  <p className="text-sm text-muted-foreground">{t('admin.alertsTime')}</p>
                 )}
               </div>
             )}
@@ -157,43 +160,43 @@ function AdminOverviewContent() {
               variant="outline"
               onClick={() => router.push('/admin/subscriptions')}
             >
-              View All Subscriptions
+              {t('admin.manageSubscriptions')}
             </Button>
           </div>
         </div>
 
         {/* Quick Actions */}
         <div className="rounded-lg border border-border bg-card p-6">
-          <h2 className="text-lg font-semibold text-foreground">Quick Actions</h2>
+          <h2 className="text-lg font-semibold text-foreground">{t('admin.quickActions')}</h2>
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <Button className="w-full" onClick={() => router.push('/admin/companies')}>
-              Manage Companies
+              {t('admin.manageCompanies')}
             </Button>
             <Button
               variant="outline"
               className="w-full bg-transparent"
               onClick={() => router.push('/admin/subscriptions')}
             >
-              Manage Subscriptions
+              {t('admin.manageSubscriptions')}
             </Button>
             <Button
               variant="outline"
               className="w-full bg-transparent"
               onClick={() => router.push('/admin/users')}
             >
-              Manage Users
+              {t('admin.manageUsers')}
             </Button>
             <Button
               variant="outline"
               className="w-full bg-transparent"
               onClick={() => router.push('/admin/settings')}
             >
-              System Settings
+              {t('admin.systemSettings')}
             </Button>
           </div>
         </div>
       </div>
-    </AdminLayout>
+    </ProtectedLayout>
   );
 }
 

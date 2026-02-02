@@ -84,20 +84,20 @@ function OfficesContent() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Offices</h1>
+            <h1 className="text-3xl font-bold gradient-text">Offices</h1>
             <p className="mt-2 text-muted-foreground">
               Manage your company's office locations
             </p>
           </div>
-          <Button onClick={() => setShowForm(!showForm)}>
+          <Button onClick={() => setShowForm(!showForm)} className="btn-3d gradient-bg-primary text-white">
             {showForm ? '- Cancel' : '+ Add Office'}
           </Button>
         </div>
 
         {/* Add Office Form */}
         {showForm && (
-          <div className="rounded-lg border border-border bg-card p-6">
-            <h2 className="text-lg font-semibold text-foreground">Create New Office</h2>
+          <div className="glass-card rounded-xl p-6">
+            <h2 className="text-lg font-semibold gradient-text">Create New Office</h2>
             <div className="mt-4 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-foreground">
@@ -162,7 +162,7 @@ function OfficesContent() {
 
         {/* Empty State */}
         {offices.length === 0 && (
-          <div className="rounded-lg border border-border bg-muted/50 py-12 text-center">
+          <div className="glass-card rounded-xl py-12 text-center">
             <p className="text-muted-foreground">No offices found. Create your first office.</p>
           </div>
         )}
@@ -170,10 +170,10 @@ function OfficesContent() {
         {/* Offices Grid */}
         <div className="grid gap-6 md:grid-cols-2">
           {offices.map((office) => (
-            <div key={office.id} className="rounded-lg border border-border bg-card p-6">
+            <div key={office.id} className="glass-card rounded-xl p-6 group">
               <div className="flex items-start justify-between">
                 <div>
-                  <h3 className="text-lg font-semibold text-foreground">{office.name}</h3>
+                  <h3 className="text-lg font-semibold gradient-text group-hover:opacity-80 transition-opacity">{office.name}</h3>
                   <p className="mt-1 text-sm text-muted-foreground">{office.location}</p>
                 </div>
                 <span className="text-2xl">🏢</span>
@@ -189,7 +189,7 @@ function OfficesContent() {
                 </p>
               )}
 
-              <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
+              <div className="mt-4 flex items-center justify-between border-t border-white/20 pt-4">
                 <div>
                   <p className="text-xs text-muted-foreground">Created</p>
                   <p className="text-sm font-medium text-foreground">
