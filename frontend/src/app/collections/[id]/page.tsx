@@ -2,8 +2,10 @@
 
 import { useRouter, useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { CollectionStatusBadge } from '@/components/collection/CollectionStatusBadge';
-import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { CollectionStatusBadge } from '@/src/components/collection/CollectionStatusBadge';
+import { ProtectedRoute } from '@/src/components/ProtectedRoute';
+// import { CollectionStatusBadge } from '@/components/collection/CollectionStatusBadge';
+// import { ProtectedRoute } from '@/components/ProtectedRoute';
 
 function CollectionDetailContent() {
   const router = useRouter();

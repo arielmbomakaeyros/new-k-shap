@@ -8,7 +8,16 @@ export class CompaniesService {
   constructor(@InjectModel(Company.name) private companyModel: Model<Company>) {}
 
   async create(createCompanyDto: any) {
-    const createdCompany = new this.companyModel(createCompanyDto);
+    // Generate slug from name
+    const slug = createCompanyDto.name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '');
+
+    const createdCompany = new this.companyModel({
+      ...createCompanyDto,
+      slug,
+    });
     return createdCompany.save();
   }
 
@@ -21,7 +30,13 @@ export class CompaniesService {
   }
 
   async update(id: string, updateCompanyDto: any) {
-    return this.companyModel.findByIdAndUpdate(id, updateCompanyDto, { new: true });
+    // Map subscriptionStatus to status for database
+    const updateData = { ...updateCompanyDto };
+    if (updateData.subscriptionStatus) {
+      updateData.status = updateData.subscriptionStatus;
+      delete updateData.subscriptionStatus;
+    }
+    return this.companyModel.findByIdAndUpdate(id, updateData, { new: true });
   }
 
   async remove(id: string) {

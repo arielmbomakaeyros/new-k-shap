@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { ProtectedRoute } from '@/src/components/ProtectedRoute';
+// import { ProtectedRoute } from '@/components/ProtectedRoute';
 
 function ReconciliationContent() {
   const [selectedPeriod, setSelectedPeriod] = useState('current_month');

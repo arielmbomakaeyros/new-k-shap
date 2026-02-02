@@ -81,8 +81,11 @@ export class UsersController {
     @Query('department') department?: string,
     @Query('isActive') isActive?: string,
   ) {
+    // Kaeyros admins (no company) can see all users; company users only see their company's users
+    const companyId = user.company ? user.company.toString() : null;
+
     return this.usersService.findAll(
-      user.company.toString(),
+      companyId,
       { page, limit, sortBy, sortOrder },
       {
         search,
@@ -109,7 +112,8 @@ export class UsersController {
     @Param('id', ParseObjectIdPipe) id: string,
     @CurrentUser() user: any,
   ) {
-    return this.usersService.findById(id, user.company.toString());
+    const companyId = user.company ? user.company.toString() : null;
+    return this.usersService.findById(id, companyId);
   }
 
   @Put(':id')

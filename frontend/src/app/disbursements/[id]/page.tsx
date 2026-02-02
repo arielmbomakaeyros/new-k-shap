@@ -7,10 +7,6 @@ import { StatusBadge } from '@/src/components/disbursement/StatusBadge';
 import { WorkflowTimeline } from '@/src/components/disbursement/WorkflowTimeline';
 import { ApprovalDialog } from '@/src/components/disbursement/ApprovalDialog';
 import { ProtectedRoute } from '@/src/components/ProtectedRoute';
-// import { StatusBadge } from '@/components/disbursement/StatusBadge';
-// import { WorkflowTimeline } from '@/components/disbursement/WorkflowTimeline';
-// import { ApprovalDialog } from '@/components/disbursement/ApprovalDialog';
-// import { ProtectedRoute } from '@/components/ProtectedRoute';
 
 function DisbursementDetailContent() {
   const router = useRouter();

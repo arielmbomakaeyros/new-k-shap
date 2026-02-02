@@ -20,6 +20,15 @@ export class Company extends BaseEntity {
   @Prop({ trim: true })
   address: string;
 
+  @Prop({ trim: true })
+  city: string;
+
+  @Prop({ trim: true })
+  country: string;
+
+  @Prop({ trim: true })
+  industry: string;
+
   @Prop({ type: String, enum: CompanyStatus, default: CompanyStatus.TRIAL })
   status: CompanyStatus;
 
@@ -79,6 +88,31 @@ export class Company extends BaseEntity {
 }
 
 export const CompanySchema = SchemaFactory.createForClass(Company);
+
+// Virtual field to map 'status' to 'subscriptionStatus' for frontend compatibility
+CompanySchema.virtual('subscriptionStatus').get(function() {
+  // Map 'trial' to 'active' for frontend display
+  if (this.status === 'trial') return 'active';
+  return this.status;
+});
+
+// Virtual to provide 'id' field from '_id'
+CompanySchema.virtual('id').get(function() {
+  return this._id?.toHexString();
+});
+
+// Ensure virtuals are included when converting to JSON/Object
+CompanySchema.set('toJSON', {
+  virtuals: true,
+  transform: (_doc, ret) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const obj = ret as any;
+    obj.id = obj._id?.toString();
+    delete obj.__v;
+    return obj;
+  },
+});
+CompanySchema.set('toObject', { virtuals: true });
 
 CompanySchema.index({ slug: 1 });
 CompanySchema.index({ status: 1, isDeleted: 1 });

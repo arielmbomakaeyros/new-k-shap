@@ -92,14 +92,18 @@ export class UsersService {
   }
 
   async findAll(
-    companyId: string,
+    companyId: string | null,
     pagination: PaginationParams,
     filters?: { search?: string; role?: string; department?: string; isActive?: boolean },
   ): Promise<PaginatedResponse<User>> {
     const { page = 1, limit = 20, sortBy = 'createdAt', sortOrder = 'desc' } = pagination;
     const skip = (page - 1) * limit;
 
-    const query: any = { company: companyId, isDeleted: false };
+    // If companyId is null (Kaeyros admin), show all users; otherwise filter by company
+    const query: any = { isDeleted: false };
+    if (companyId) {
+      query.company = companyId;
+    }
 
     if (filters?.search) {
       query.$or = [
@@ -150,16 +154,21 @@ export class UsersService {
     };
   }
 
-  async findById(id: string, companyId: string): Promise<User> {
-    const user = await this.userModel
+  async findById(id: string, companyId: string | null): Promise<User> {
+    let query = this.userModel
       .findById(id)
-      .where('company').equals(companyId)
       .where('isDeleted').equals(false)
       .select('-password -refreshToken -activationToken -passwordResetToken')
       .populate('departments')
       .populate('offices')
-      .populate('roles')
-      .exec();
+      .populate('roles');
+
+    // If companyId is provided, filter by company; Kaeyros admins can see any user
+    if (companyId) {
+      query = query.where('company').equals(companyId);
+    }
+
+    const user = await query.exec();
 
     if (!user) {
       throw new NotFoundException('User not found');
@@ -173,11 +182,16 @@ export class UsersService {
     dto: UpdateUserDto,
     updaterUser: any,
   ): Promise<User> {
-    const user = await this.userModel
+    let query = this.userModel
       .findById(id)
-      .where('company').equals(updaterUser.company)
-      .where('isDeleted').equals(false)
-      .exec();
+      .where('isDeleted').equals(false);
+
+    // If updater has a company, filter by it; Kaeyros admins can update any user
+    if (updaterUser.company) {
+      query = query.where('company').equals(updaterUser.company);
+    }
+
+    const user = await query.exec();
 
     if (!user) {
       throw new NotFoundException('User not found');
@@ -196,15 +210,21 @@ export class UsersService {
 
     await user.save();
 
-    return this.findById(id, updaterUser.company);
+    const companyId = updaterUser.company ? updaterUser.company.toString() : null;
+    return this.findById(id, companyId);
   }
 
   async delete(id: string, deleterUser: any): Promise<void> {
-    const user = await this.userModel
+    let query = this.userModel
       .findById(id)
-      .where('company').equals(deleterUser.company)
-      .where('isDeleted').equals(false)
-      .exec();
+      .where('isDeleted').equals(false);
+
+    // If deleter has a company, filter by it; Kaeyros admins can delete any user
+    if (deleterUser.company) {
+      query = query.where('company').equals(deleterUser.company);
+    }
+
+    const user = await query.exec();
 
     if (!user) {
       throw new NotFoundException('User not found');
@@ -227,18 +247,25 @@ export class UsersService {
 
     await user.save();
 
-    // Update company user count
-    await this.companyModel.findByIdAndUpdate(deleterUser.company, {
-      $inc: { currentUserCount: -1 },
-    });
+    // Update company user count (use the user's company, not deleter's)
+    if (user.company) {
+      await this.companyModel.findByIdAndUpdate(user.company, {
+        $inc: { currentUserCount: -1 },
+      });
+    }
   }
 
   async restore(id: string, restorerUser: any): Promise<User> {
-    const user = await this.userModel
+    let query = this.userModel
       .findById(id)
-      .where('company').equals(restorerUser.company)
-      .where('isDeleted').equals(true)
-      .exec();
+      .where('isDeleted').equals(true);
+
+    // If restorer has a company, filter by it; Kaeyros admins can restore any user
+    if (restorerUser.company) {
+      query = query.where('company').equals(restorerUser.company);
+    }
+
+    const user = await query.exec();
 
     if (!user) {
       throw new NotFoundException('Deleted user not found');
@@ -252,20 +279,28 @@ export class UsersService {
 
     await user.save();
 
-    // Update company user count
-    await this.companyModel.findByIdAndUpdate(restorerUser.company, {
-      $inc: { currentUserCount: 1 },
-    });
+    // Update company user count (use the user's company, not restorer's)
+    if (user.company) {
+      await this.companyModel.findByIdAndUpdate(user.company, {
+        $inc: { currentUserCount: 1 },
+      });
+    }
 
-    return this.findById(id, restorerUser.company);
+    const companyId = restorerUser.company ? restorerUser.company.toString() : null;
+    return this.findById(id, companyId);
   }
 
   async resendActivation(id: string, requesterUser: any): Promise<void> {
-    const user = await this.userModel
+    let query = this.userModel
       .findById(id)
-      .where('company').equals(requesterUser.company)
-      .where('isDeleted').equals(false)
-      .exec();
+      .where('isDeleted').equals(false);
+
+    // If requester has a company, filter by it; Kaeyros admins can resend for any user
+    if (requesterUser.company) {
+      query = query.where('company').equals(requesterUser.company);
+    }
+
+    const user = await query.exec();
 
     if (!user) {
       throw new NotFoundException('User not found');
@@ -284,8 +319,8 @@ export class UsersService {
     user.activationTokenExpiry = activationExpiry;
     await user.save();
 
-    // Send activation email
-    const company = await this.companyModel.findById(requesterUser.company);
+    // Send activation email (use the user's company for company name)
+    const company = user.company ? await this.companyModel.findById(user.company) : null;
     const activationUrl = `${this.configService.get('FRONTEND_URL')}/activate?token=${activationToken}`;
 
     await this.emailService.send({

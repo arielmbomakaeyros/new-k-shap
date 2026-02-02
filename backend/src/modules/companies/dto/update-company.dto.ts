@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsOptional, IsEmail, IsUrl, IsBoolean } from 'class-validator';
+import { IsString, IsOptional, IsEmail, IsUrl, IsBoolean, IsIn } from 'class-validator';
 
 export class UpdateCompanyDto {
   @ApiProperty({
@@ -55,6 +55,53 @@ export class UpdateCompanyDto {
   @IsString()
   @IsOptional()
   address?: string;
+
+  @ApiProperty({
+    description: 'Company city',
+    example: 'San Francisco',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  city?: string;
+
+  @ApiProperty({
+    description: 'Company country',
+    example: 'United States',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  country?: string;
+
+  @ApiProperty({
+    description: 'Company industry',
+    example: 'Technology',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  industry?: string;
+
+  @ApiProperty({
+    description: 'Subscription status',
+    example: 'active',
+    enum: ['active', 'inactive', 'suspended', 'expired'],
+    required: false,
+  })
+  @IsString()
+  @IsIn(['active', 'inactive', 'suspended', 'expired'])
+  @IsOptional()
+  subscriptionStatus?: 'active' | 'inactive' | 'suspended' | 'expired';
+
+  @ApiProperty({
+    description: 'Subscription end date',
+    example: '2025-12-31',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  subscriptionEndDate?: string;
 
   @ApiProperty({
     description: 'Whether the company is active',

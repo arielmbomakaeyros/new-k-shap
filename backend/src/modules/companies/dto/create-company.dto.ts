@@ -54,4 +54,31 @@ export class CreateCompanyDto {
   @IsString()
   @IsOptional()
   address?: string;
+
+  @ApiProperty({
+    description: 'Company city',
+    example: 'New York',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  city?: string;
+
+  @ApiProperty({
+    description: 'Company country',
+    example: 'United States',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  country?: string;
+
+  @ApiProperty({
+    description: 'Company industry',
+    example: 'Technology',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  industry?: string;
 }

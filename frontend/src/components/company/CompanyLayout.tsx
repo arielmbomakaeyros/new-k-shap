@@ -4,9 +4,11 @@ import { ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { useTranslation } from '@/node_modules/react-i18next';
-import { useAuthStore } from '@/store/authStore';
+// import { useAuthStore } from '@/store/authStore';
 import { Button } from '@/components/ui/button';
-import { LanguageSwitcher } from '@/components/LanguageSwitcher';
+import { useAuthStore } from '@/src/store/authStore';
+import { LanguageSwitcher } from '../LanguageSwitcher';
+// import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 
 const companyNavigation = [
   { name: 'Dashboard', href: '/company', icon: '📊' },

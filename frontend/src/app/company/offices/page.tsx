@@ -1,64 +1,85 @@
 'use client';
 
 import { useState } from 'react';
-import { CompanyLayout } from '@/components/company/CompanyLayout';
-import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { Button } from '@/components/ui/button';
-
-interface Office {
-  id: string;
-  name: string;
-  location: string;
-  address: string;
-  usersCount: number;
-  createdAt: Date;
-}
+import { CompanyLayout } from '@/src/components/company/CompanyLayout';
+import { ProtectedRoute } from '@/src/components/ProtectedRoute';
+import {
+  useOffices,
+  useCreateOffice,
+  useDeleteOffice,
+} from '@/src/hooks/queries';
 
 function OfficesContent() {
-  const [offices, setOffices] = useState<Office[]>([
-    {
-      id: '1',
-      name: 'Headquarters',
-      location: 'New York, USA',
-      address: '123 Business Ave, New York, NY 10001',
-      usersCount: 8,
-      createdAt: new Date('2024-01-10'),
-    },
-    {
-      id: '2',
-      name: 'Regional Office',
-      location: 'Los Angeles, USA',
-      address: '456 Commerce St, Los Angeles, CA 90001',
-      usersCount: 5,
-      createdAt: new Date('2024-02-01'),
-    },
-  ]);
-
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     location: '',
     address: '',
+    phone: '',
   });
 
-  const handleAddOffice = () => {
-    if (formData.name && formData.location && formData.address) {
-      const newOffice: Office = {
-        id: Math.random().toString(),
-        name: formData.name,
-        location: formData.location,
-        address: formData.address,
-        usersCount: 0,
-        createdAt: new Date(),
-      };
-      setOffices([...offices, newOffice]);
-      setFormData({ name: '', location: '', address: '' });
-      setShowForm(false);
+  // Fetch offices from API
+  const { data: officesData, isLoading, error } = useOffices();
+
+  // Mutations
+  const createMutation = useCreateOffice();
+  const deleteMutation = useDeleteOffice();
+
+  const handleAddOffice = async () => {
+    if (formData.name && formData.location) {
+      try {
+        await createMutation.mutateAsync({
+          name: formData.name,
+          location: formData.location,
+          address: formData.address || undefined,
+          phone: formData.phone || undefined,
+        });
+        setFormData({ name: '', location: '', address: '', phone: '' });
+        setShowForm(false);
+      } catch (error) {
+        console.error('Failed to create office:', error);
+      }
     }
   };
 
+  const handleDeleteOffice = async (id: string) => {
+    if (confirm('Are you sure you want to delete this office?')) {
+      try {
+        await deleteMutation.mutateAsync(id);
+      } catch (error) {
+        console.error('Failed to delete office:', error);
+      }
+    }
+  };
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <CompanyLayout companyName="Company">
+        <div className="flex items-center justify-center p-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <span className="ml-2 text-muted-foreground">Loading offices...</span>
+        </div>
+      </CompanyLayout>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <CompanyLayout companyName="Company">
+        <div className="rounded-lg border border-destructive bg-destructive/10 p-6 text-center">
+          <p className="text-destructive">Failed to load offices. Please try again.</p>
+        </div>
+      </CompanyLayout>
+    );
+  }
+
+  const offices = officesData?.data ?? [];
+
   return (
-    <CompanyLayout companyName="Acme Corporation">
+    <CompanyLayout companyName="Company">
       <div className="space-y-8">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -80,7 +101,7 @@ function OfficesContent() {
             <div className="mt-4 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-foreground">
-                  Office Name
+                  Office Name *
                 </label>
                 <input
                   type="text"
@@ -91,7 +112,7 @@ function OfficesContent() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-foreground">Location</label>
+                <label className="block text-sm font-medium text-foreground">Location *</label>
                 <input
                   type="text"
                   value={formData.location}
@@ -112,13 +133,37 @@ function OfficesContent() {
                   className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-foreground placeholder-muted-foreground"
                 />
               </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground">
+                  Phone Number
+                </label>
+                <input
+                  type="text"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  placeholder="+1 234 567 8900"
+                  className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-foreground placeholder-muted-foreground"
+                />
+              </div>
               <div className="flex gap-4">
-                <Button onClick={handleAddOffice}>Create Office</Button>
+                <Button
+                  onClick={handleAddOffice}
+                  disabled={createMutation.isPending || !formData.name || !formData.location}
+                >
+                  {createMutation.isPending ? 'Creating...' : 'Create Office'}
+                </Button>
                 <Button variant="outline" onClick={() => setShowForm(false)}>
                   Cancel
                 </Button>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Empty State */}
+        {offices.length === 0 && (
+          <div className="rounded-lg border border-border bg-muted/50 py-12 text-center">
+            <p className="text-muted-foreground">No offices found. Create your first office.</p>
           </div>
         )}
 
@@ -134,26 +179,37 @@ function OfficesContent() {
                 <span className="text-2xl">🏢</span>
               </div>
 
-              <p className="mt-3 text-sm text-muted-foreground">{office.address}</p>
+              {office.address && (
+                <p className="mt-3 text-sm text-muted-foreground">{office.address}</p>
+              )}
+
+              {office.phone && (
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Phone: {office.phone}
+                </p>
+              )}
 
               <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
                 <div>
-                  <p className="text-xs text-muted-foreground">Users in this office</p>
-                  <p className="text-lg font-bold text-foreground">{office.usersCount}</p>
+                  <p className="text-xs text-muted-foreground">Created</p>
+                  <p className="text-sm font-medium text-foreground">
+                    {new Date(office.createdAt).toLocaleDateString()}
+                  </p>
                 </div>
                 <div className="flex gap-2">
                   <Button size="sm" variant="outline">
                     Edit
                   </Button>
-                  <Button size="sm" variant="destructive">
-                    Delete
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => handleDeleteOffice(office.id)}
+                    disabled={deleteMutation.isPending}
+                  >
+                    {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
                   </Button>
                 </div>
               </div>
-
-              <p className="mt-3 text-xs text-muted-foreground">
-                Created: {office.createdAt.toLocaleDateString()}
-              </p>
             </div>
           ))}
         </div>

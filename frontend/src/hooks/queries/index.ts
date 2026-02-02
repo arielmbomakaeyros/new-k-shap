@@ -100,3 +100,10 @@ export {
   useDisbursementsSummary,
   useCollectionsSummary,
 } from './useReports';
+
+// Permissions hooks
+export {
+  usePermissions,
+  usePermission,
+  usePermissionsGrouped,
+} from './usePermissions';
