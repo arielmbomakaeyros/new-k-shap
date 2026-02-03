@@ -119,10 +119,10 @@ import { AuditLogInterceptor } from './common/interceptors/audit-log.interceptor
       provide: APP_GUARD,
       useClass: PermissionsGuard, // Third: Authorization
     },
-    // Global interceptors
+    // Global interceptors - AuditLogInterceptor is provided by AuditLogsModule
     {
       provide: APP_INTERCEPTOR,
-      useClass: AuditLogInterceptor, // Log all actions
+      useExisting: AuditLogInterceptor, // Log all write actions
     },
   ],
 })

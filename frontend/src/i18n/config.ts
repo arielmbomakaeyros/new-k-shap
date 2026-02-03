@@ -15,7 +15,8 @@ i18n
   .use(initReactI18next)
   .init({
     resources,
-    fallbackLng: 'en',
+    lng: 'fr', // Default language is French
+    fallbackLng: 'fr',
     interpolation: {
       escapeValue: false,
     },

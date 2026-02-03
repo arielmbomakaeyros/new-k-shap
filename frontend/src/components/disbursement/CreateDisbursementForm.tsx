@@ -9,23 +9,24 @@ import { Button } from '@/components/ui/button';
 import { useApi } from '@/src/hooks/useApi';
 // import { useApi } from '@/hooks/useApi';
 
-const disbursementSchema = z.object({
-  title: z.string().min(5, 'Title must be at least 5 characters'),
-  description: z.string().optional(),
-  amount: z.coerce.number().positive('Amount must be positive'),
-  currency: z.string().default('USD'),
-  payeeType: z.enum(['internal_staff', 'vendor', 'contractor', 'other']),
-  payeeName: z.string().min(2, 'Payee name is required'),
-  payeeEmail: z.string().email().optional(),
-  payeePhone: z.string().optional(),
-  departmentId: z.string().min(1, 'Department is required'),
-  officeId: z.string().min(1, 'Office is required'),
-  budget: z.string().optional(),
-  justification: z.string().min(10, 'Please provide detailed justification'),
-  documents: z.array(z.any()).optional(),
-});
+const disbursementSchema = (t: (key: string, options?: { [key: string]: string | number }) => string) =>
+  z.object({
+    title: z.string().min(5, t('validation.disbursement.titleMin', { min: 5 })),
+    description: z.string().optional(),
+    amount: z.coerce.number().positive(t('validation.disbursement.amountPositive')),
+    currency: z.string().default('USD'),
+    payeeType: z.enum(['internal_staff', 'vendor', 'contractor', 'other']),
+    payeeName: z.string().min(2, t('validation.disbursement.payeeNameRequired')),
+    payeeEmail: z.string().email().optional(),
+    payeePhone: z.string().optional(),
+    departmentId: z.string().min(1, t('validation.disbursement.departmentRequired')),
+    officeId: z.string().min(1, t('validation.disbursement.officeRequired')),
+    budget: z.string().optional(),
+    justification: z.string().min(10, t('validation.disbursement.justificationMin', { min: 10 })),
+    documents: z.array(z.any()).optional(),
+  });
 
-type DisbursementFormData = z.infer<typeof disbursementSchema>;
+type DisbursementFormData = z.infer<ReturnType<typeof disbursementSchema>>;
 
 interface CreateDisbursementFormProps {
   onSuccess?: () => void;
@@ -42,7 +43,7 @@ export function CreateDisbursementForm({ onSuccess }: CreateDisbursementFormProp
     formState: { errors },
     reset,
   } = useForm<DisbursementFormData>({
-    resolver: zodResolver(disbursementSchema),
+    resolver: zodResolver(disbursementSchema(t)),
   });
 
   const onSubmit = async (data: DisbursementFormData) => {
@@ -64,12 +65,12 @@ export function CreateDisbursementForm({ onSuccess }: CreateDisbursementFormProp
       <div className="grid gap-4 md:grid-cols-2">
         <div>
           <label className="block text-sm font-medium text-foreground">
-            {t('disbursement.title')}
+            {t('disbursements.title')}
           </label>
           <input
             {...register('title')}
             type="text"
-            placeholder="e.g., Office Supplies Purchase"
+            placeholder={t('disbursements.placeholders.title')}
             className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-foreground placeholder-muted-foreground"
           />
           {errors.title && <p className="mt-1 text-xs text-red-500">{errors.title.message}</p>}
@@ -77,14 +78,14 @@ export function CreateDisbursementForm({ onSuccess }: CreateDisbursementFormProp
 
         <div>
           <label className="block text-sm font-medium text-foreground">
-            {t('disbursement.amount')}
+            {t('disbursements.amount')}
           </label>
           <div className="flex gap-2 mt-1">
             <input
               {...register('amount')}
               type="number"
               step="0.01"
-              placeholder="0.00"
+              placeholder={t('disbursements.placeholders.amount')}
               className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-foreground placeholder-muted-foreground"
             />
             <select
@@ -102,11 +103,11 @@ export function CreateDisbursementForm({ onSuccess }: CreateDisbursementFormProp
 
       <div>
         <label className="block text-sm font-medium text-foreground">
-          {t('disbursement.description')}
+          {t('disbursements.description')}
         </label>
         <textarea
           {...register('description')}
-          placeholder="Optional description"
+          placeholder={t('disbursements.placeholders.description')}
           rows={3}
           className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-foreground placeholder-muted-foreground"
         />
@@ -115,28 +116,28 @@ export function CreateDisbursementForm({ onSuccess }: CreateDisbursementFormProp
       <div className="grid gap-4 md:grid-cols-2">
         <div>
           <label className="block text-sm font-medium text-foreground">
-            {t('disbursement.payeeType')}
+            {t('disbursements.payeeType')}
           </label>
           <select
             {...register('payeeType')}
             className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-foreground"
           >
-            <option value="internal_staff">Internal Staff</option>
-            <option value="vendor">Vendor</option>
-            <option value="contractor">Contractor</option>
-            <option value="other">Other</option>
+            <option value="internal_staff">{t('disbursements.payeeTypes.internal_staff')}</option>
+            <option value="vendor">{t('disbursements.payeeTypes.vendor')}</option>
+            <option value="contractor">{t('disbursements.payeeTypes.contractor')}</option>
+            <option value="other">{t('disbursements.payeeTypes.other')}</option>
           </select>
           {errors.payeeType && <p className="mt-1 text-xs text-red-500">{errors.payeeType.message}</p>}
         </div>
 
         <div>
           <label className="block text-sm font-medium text-foreground">
-            {t('disbursement.payeeName')}
+            {t('disbursements.payeeName')}
           </label>
           <input
             {...register('payeeName')}
             type="text"
-            placeholder="Name or company"
+            placeholder={t('disbursements.placeholders.payeeName')}
             className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-foreground placeholder-muted-foreground"
           />
           {errors.payeeName && <p className="mt-1 text-xs text-red-500">{errors.payeeName.message}</p>}
@@ -146,24 +147,24 @@ export function CreateDisbursementForm({ onSuccess }: CreateDisbursementFormProp
       <div className="grid gap-4 md:grid-cols-2">
         <div>
           <label className="block text-sm font-medium text-foreground">
-            {t('disbursement.payeeEmail')}
+            {t('disbursements.payeeEmail')}
           </label>
           <input
             {...register('payeeEmail')}
             type="email"
-            placeholder="email@example.com"
+            placeholder={t('disbursements.placeholders.payeeEmail')}
             className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-foreground placeholder-muted-foreground"
           />
         </div>
 
         <div>
           <label className="block text-sm font-medium text-foreground">
-            {t('disbursement.payeePhone')}
+            {t('disbursements.payeePhone')}
           </label>
           <input
             {...register('payeePhone')}
             type="tel"
-            placeholder="+1 (555) 000-0000"
+            placeholder={t('disbursements.placeholders.payeePhone')}
             className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-foreground placeholder-muted-foreground"
           />
         </div>
@@ -172,44 +173,44 @@ export function CreateDisbursementForm({ onSuccess }: CreateDisbursementFormProp
       <div className="grid gap-4 md:grid-cols-3">
         <div>
           <label className="block text-sm font-medium text-foreground">
-            {t('disbursement.department')}
+            {t('disbursements.department')}
           </label>
           <select
             {...register('departmentId')}
             className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-foreground"
           >
-            <option value="">Select Department</option>
-            <option value="dept-1">Finance</option>
-            <option value="dept-2">Operations</option>
-            <option value="dept-3">HR</option>
+            <option value="">{t('disbursements.departments.select')}</option>
+            <option value="dept-1">{t('disbursements.departments.finance')}</option>
+            <option value="dept-2">{t('disbursements.departments.operations')}</option>
+            <option value="dept-3">{t('disbursements.departments.hr')}</option>
           </select>
           {errors.departmentId && <p className="mt-1 text-xs text-red-500">{errors.departmentId.message}</p>}
         </div>
 
         <div>
           <label className="block text-sm font-medium text-foreground">
-            {t('disbursement.office')}
+            {t('disbursements.office')}
           </label>
           <select
             {...register('officeId')}
             className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-foreground"
           >
-            <option value="">Select Office</option>
-            <option value="office-1">New York</option>
-            <option value="office-2">Los Angeles</option>
-            <option value="office-3">Chicago</option>
+            <option value="">{t('disbursements.offices.select')}</option>
+            <option value="office-1">{t('disbursements.offices.new_york')}</option>
+            <option value="office-2">{t('disbursements.offices.los_angeles')}</option>
+            <option value="office-3">{t('disbursements.offices.chicago')}</option>
           </select>
           {errors.officeId && <p className="mt-1 text-xs text-red-500">{errors.officeId.message}</p>}
         </div>
 
         <div>
           <label className="block text-sm font-medium text-foreground">
-            {t('disbursement.budget')}
+            {t('disbursements.budget')}
           </label>
           <input
             {...register('budget')}
             type="text"
-            placeholder="Budget code (optional)"
+            placeholder={t('disbursements.placeholders.budget')}
             className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-foreground placeholder-muted-foreground"
           />
         </div>
@@ -217,11 +218,11 @@ export function CreateDisbursementForm({ onSuccess }: CreateDisbursementFormProp
 
       <div>
         <label className="block text-sm font-medium text-foreground">
-          {t('disbursement.justification')}
+          {t('disbursements.justification')}
         </label>
         <textarea
           {...register('justification')}
-          placeholder="Provide detailed justification for this disbursement"
+          placeholder={t('disbursements.placeholders.justification')}
           rows={4}
           className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-foreground placeholder-muted-foreground"
         />
@@ -232,10 +233,10 @@ export function CreateDisbursementForm({ onSuccess }: CreateDisbursementFormProp
 
       <div className="flex gap-3">
         <Button type="submit" disabled={isSubmitting} className="flex-1">
-          {isSubmitting ? 'Submitting...' : 'Submit Request'}
+          {isSubmitting ? t('disbursements.buttons.submitting') : t('disbursements.buttons.submit')}
         </Button>
         <Button type="reset" variant="outline" className="flex-1 bg-transparent">
-          Clear
+          {t('disbursements.buttons.clear')}
         </Button>
       </div>
     </form>

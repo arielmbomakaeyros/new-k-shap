@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/src/store/authStore';
 import { ProtectedRoute } from '@/src/components/ProtectedRoute';
 import { ProtectedLayout } from '@/src/components/layout/ProtectedLayout';
+import { formatPrice } from '@/src/lib/format';
 
 export default function DashboardPage() {
   const { t } = useTranslation();
@@ -43,7 +44,7 @@ export default function DashboardPage() {
 
             <div className="glass-card rounded-xl p-6 hover:glow-secondary transition-all duration-300">
               <div className="text-sm text-muted-foreground">{t('navigation.collections')}</div>
-              <div className="mt-2 text-3xl font-bold gradient-text">$0</div>
+              <div className="mt-2 text-3xl font-bold gradient-text">{formatPrice(0)}</div>
             </div>
 
             <div className="glass-card rounded-xl p-6 hover:glow-accent transition-all duration-300">

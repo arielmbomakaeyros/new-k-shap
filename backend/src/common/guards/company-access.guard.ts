@@ -40,7 +40,7 @@ export class CompanyAccessGuard implements CanActivate {
 
     // Company users can ONLY access their own company
     if (params.companyId && user.company) {
-      if (params.companyId !== user.company.toString()) {
+      if (params.companyId !== (user.company._id || user.company).toString()) {
         throw new ForbiddenException(
           'You do not have access to this company data',
         );

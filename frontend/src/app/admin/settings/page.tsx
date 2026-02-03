@@ -5,6 +5,7 @@ import { useTranslation } from '@/node_modules/react-i18next';
 import { Button } from '@/components/ui/button';
 import { ProtectedLayout } from '@/src/components/layout/ProtectedLayout';
 import { ProtectedRoute } from '@/src/components/ProtectedRoute';
+import { formatPrice } from '@/src/lib/format';
 
 export default function AdminSettingsPage() {
   const { t } = useTranslation();
@@ -101,7 +102,7 @@ export default function AdminSettingsPage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-semibold text-foreground">{t('settings.starterPlan', { defaultValue: 'Starter Plan' })}</p>
-                      <p className="text-sm text-muted-foreground">$299/{t('common.month', { defaultValue: 'month' })}</p>
+                      <p className="text-sm text-muted-foreground">{formatPrice(150000)}/{t('common.month', { defaultValue: 'month' })}</p>
                     </div>
                     <Button variant="outline" size="sm">
                       {t('common.edit', { defaultValue: 'Edit' })}
@@ -112,7 +113,7 @@ export default function AdminSettingsPage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-semibold text-foreground">{t('settings.professionalPlan', { defaultValue: 'Professional Plan' })}</p>
-                      <p className="text-sm text-muted-foreground">$999/{t('common.month', { defaultValue: 'month' })}</p>
+                      <p className="text-sm text-muted-foreground">{formatPrice(500000)}/{t('common.month', { defaultValue: 'month' })}</p>
                     </div>
                     <Button variant="outline" size="sm">
                       {t('common.edit', { defaultValue: 'Edit' })}
@@ -123,7 +124,7 @@ export default function AdminSettingsPage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-semibold text-foreground">{t('settings.enterprisePlan', { defaultValue: 'Enterprise Plan' })}</p>
-                      <p className="text-sm text-muted-foreground">$2,999/{t('common.month', { defaultValue: 'month' })}</p>
+                      <p className="text-sm text-muted-foreground">{formatPrice(1500000)}/{t('common.month', { defaultValue: 'month' })}</p>
                     </div>
                     <Button variant="outline" size="sm">
                       {t('common.edit', { defaultValue: 'Edit' })}

@@ -107,3 +107,11 @@ export {
   usePermission,
   usePermissionsGrouped,
 } from './usePermissions';
+
+// Settings hooks
+export {
+  useCompanySettings,
+  useUpdateCompanyInfo,
+  useUpdateWorkflowSettings,
+  useUpdateEmailNotificationSettings,
+} from './useSettings';

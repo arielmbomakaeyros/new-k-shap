@@ -124,6 +124,7 @@ export const queryKeys = {
   // Settings
   settings: {
     all: ['settings'] as const,
+    company: () => [...queryKeys.settings.all, 'company'] as const,
     email: () => [...queryKeys.settings.all, 'email'] as const,
     reminders: () => [...queryKeys.settings.all, 'reminders'] as const,
     key: (key: string) => [...queryKeys.settings.all, key] as const,

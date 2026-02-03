@@ -61,7 +61,7 @@ function CompanyUsersContent() {
   const departments = departmentsData?.data ?? [];
 
   // Filter users
-  const filteredUsers = users.filter((user) => {
+  const filteredUsers = users?.filter((user) => {
     const fullName = `${user.firstName} ${user.lastName}`.toLowerCase();
     const matchesSearch =
       fullName.includes(searchTerm.toLowerCase()) ||

@@ -251,7 +251,7 @@ export class AuthService {
     const payload: JwtPayload = {
       sub: user._id.toString(),
       email: user.email,
-      company: user.company?.toString(),
+      company: user.company ? ((user.company as any)._id || user.company).toString() : undefined,
       isKaeyrosUser: user.isKaeyrosUser,
       systemRoles: user.systemRoles,
     };

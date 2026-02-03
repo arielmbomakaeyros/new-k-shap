@@ -1,12 +1,56 @@
-// import { api } from '@/lib/axios';
 import { api } from '../lib/axios';
-import type { ApiResponse, EmailSettings, ReminderSettings } from './types';
+import type {
+  ApiResponse,
+  EmailSettings,
+  ReminderSettings,
+  CompanySettings,
+  CompanyInfo,
+  WorkflowSettings,
+  EmailNotificationSettings,
+} from './types';
 
 class SettingsService {
   private basePath = '/settings';
 
   /**
-   * Get all settings
+   * Get company settings (company info, workflow settings, notification settings)
+   */
+  async getCompanySettings(): Promise<CompanySettings> {
+    const response = await api.get<CompanySettings>(`${this.basePath}/company`);
+    return response;
+  }
+
+  /**
+   * Update company information
+   */
+  async updateCompanyInfo(data: Partial<CompanyInfo>): Promise<CompanySettings> {
+    const response = await api.patch<CompanySettings>(`${this.basePath}/company/info`, data);
+    return response;
+  }
+
+  /**
+   * Update workflow settings
+   */
+  async updateWorkflowSettings(data: Partial<WorkflowSettings>): Promise<CompanySettings> {
+    const response = await api.patch<CompanySettings>(`${this.basePath}/company/workflow`, data);
+    return response;
+  }
+
+  /**
+   * Update email notification settings
+   */
+  async updateEmailNotificationSettings(
+    data: Partial<EmailNotificationSettings>
+  ): Promise<CompanySettings> {
+    const response = await api.patch<CompanySettings>(
+      `${this.basePath}/company/notifications`,
+      data
+    );
+    return response;
+  }
+
+  /**
+   * Get all settings (legacy)
    */
   async getAll(): Promise<ApiResponse<Record<string, unknown>>> {
     return api.get<ApiResponse<Record<string, unknown>>>(this.basePath);

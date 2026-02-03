@@ -2,15 +2,18 @@
 
 import { useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import { useTranslation } from '@/node_modules/react-i18next';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/src/components/disbursement/StatusBadge';
 import { WorkflowTimeline } from '@/src/components/disbursement/WorkflowTimeline';
 import { ApprovalDialog } from '@/src/components/disbursement/ApprovalDialog';
 import { ProtectedRoute } from '@/src/components/ProtectedRoute';
+import { ProtectedLayout } from '@/src/components/layout/ProtectedLayout';
 
 function DisbursementDetailContent() {
   const router = useRouter();
   const params = useParams();
+  const { t } = useTranslation();
   const [showApprovalDialog, setShowApprovalDialog] = useState(false);
 
   // Mock disbursement data
@@ -46,136 +49,131 @@ function DisbursementDetailContent() {
   );
 
   return (
-    <main className="min-h-screen bg-background">
-      <header className="border-b border-border">
-        <nav className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <Button variant="ghost" onClick={() => router.back()}>
-                ← Back
-              </Button>
-              <h1 className="mt-4 text-3xl font-bold tracking-tight text-foreground">
-                {disbursement.title}
-              </h1>
-            </div>
-            <div className="flex gap-3">
-              {canApprove && (
-                <Button onClick={() => setShowApprovalDialog(true)}>Approve/Review</Button>
-              )}
-              <Button variant="outline">Download PDF</Button>
+    <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      {/* Header */}
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">
+            {disbursement.title}
+          </h1>
+          <p className="mt-1 text-muted-foreground">
+            {t('disbursements.requestNumber', { id: disbursement.id })}
+          </p>
+        </div>
+        <div className="flex gap-3">
+          {canApprove && (
+            <Button onClick={() => setShowApprovalDialog(true)}>{t('disbursements.approveReview')}</Button>
+          )}
+          <Button variant="outline">{t('disbursements.downloadPdf')}</Button>
+        </div>
+      </div>
+
+      <div className="grid gap-8 md:grid-cols-3">
+        {/* Main Content */}
+        <div className="md:col-span-2 space-y-6">
+          {/* Status Card */}
+          <div className="rounded-lg border border-border bg-card p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">{t('disbursements.currentStatus')}</p>
+                <div className="mt-2">
+                  <StatusBadge status={disbursement.status as any} />
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-sm text-muted-foreground">{t('disbursements.totalAmount')}</p>
+                <p className="mt-2 text-3xl font-bold text-foreground">
+                  {disbursement.currency} {disbursement.amount}
+                </p>
+              </div>
             </div>
           </div>
-        </nav>
-      </header>
 
-      <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="grid gap-8 md:grid-cols-3">
-          {/* Main Content */}
-          <div className="md:col-span-2 space-y-6">
-            {/* Status Card */}
-            <div className="rounded-lg border border-border bg-card p-6">
-              <div className="flex items-center justify-between">
+          {/* Details */}
+          <div className="rounded-lg border border-border bg-card p-6">
+            <h2 className="text-lg font-semibold text-foreground mb-4">{t('disbursements.requestDetails')}</h2>
+
+            <div className="space-y-6">
+              <div className="grid gap-4 md:grid-cols-2">
                 <div>
-                  <p className="text-sm text-muted-foreground">Current Status</p>
-                  <div className="mt-2">
-                    <StatusBadge status={disbursement.status as any} />
-                  </div>
+                  <p className="text-sm text-muted-foreground">{t('disbursements.payeeName')}</p>
+                  <p className="mt-1 font-medium text-foreground">{disbursement.payeeName}</p>
                 </div>
-                <div className="text-right">
-                  <p className="text-sm text-muted-foreground">Total Amount</p>
-                  <p className="mt-2 text-3xl font-bold text-foreground">
-                    {disbursement.currency} {disbursement.amount}
+                <div>
+                  <p className="text-sm text-muted-foreground">{t('disbursements.payeeType')}</p>
+                  <p className="mt-1 font-medium text-foreground">
+                    {disbursement.payeeType.replace('_', ' ')}
                   </p>
                 </div>
-              </div>
-            </div>
-
-            {/* Details */}
-            <div className="rounded-lg border border-border bg-card p-6">
-              <h2 className="text-lg font-semibold text-foreground mb-4">Request Details</h2>
-
-              <div className="space-y-6">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Payee Name</p>
-                    <p className="mt-1 font-medium text-foreground">{disbursement.payeeName}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Payee Type</p>
-                    <p className="mt-1 font-medium text-foreground">
-                      {disbursement.payeeType.replace('_', ' ')}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Email</p>
-                    <p className="mt-1 font-medium text-foreground">{disbursement.payeeEmail}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Phone</p>
-                    <p className="mt-1 font-medium text-foreground">{disbursement.payeePhone}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Department</p>
-                    <p className="mt-1 font-medium text-foreground">{disbursement.department}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Office</p>
-                    <p className="mt-1 font-medium text-foreground">{disbursement.office}</p>
-                  </div>
-                </div>
-
                 <div>
-                  <p className="text-sm text-muted-foreground">Description</p>
-                  <p className="mt-1 text-foreground">{disbursement.description}</p>
+                  <p className="text-sm text-muted-foreground">{t('common.email')}</p>
+                  <p className="mt-1 font-medium text-foreground">{disbursement.payeeEmail}</p>
                 </div>
-
                 <div>
-                  <p className="text-sm text-muted-foreground">Justification</p>
-                  <p className="mt-1 text-foreground">{disbursement.justification}</p>
+                  <p className="text-sm text-muted-foreground">{t('common.phone')}</p>
+                  <p className="mt-1 font-medium text-foreground">{disbursement.payeePhone}</p>
                 </div>
-
-                <div className="grid gap-4 md:grid-cols-2 text-sm">
-                  <div>
-                    <p className="text-muted-foreground">Created By</p>
-                    <p className="mt-1 font-medium text-foreground">{disbursement.createdBy}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Created On</p>
-                    <p className="mt-1 font-medium text-foreground">{disbursement.createdAt}</p>
-                  </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">{t('users.department')}</p>
+                  <p className="mt-1 font-medium text-foreground">{disbursement.department}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">{t('users.office')}</p>
+                  <p className="mt-1 font-medium text-foreground">{disbursement.office}</p>
                 </div>
               </div>
-            </div>
 
-            {/* Workflow Timeline */}
-            <div className="rounded-lg border border-border bg-card p-6">
-              <WorkflowTimeline disbursement={disbursement as any} />
+              <div>
+                <p className="text-sm text-muted-foreground">{t('common.description')}</p>
+                <p className="mt-1 text-foreground">{disbursement.description}</p>
+              </div>
+
+              <div>
+                <p className="text-sm text-muted-foreground">{t('disbursements.justification')}</p>
+                <p className="mt-1 text-foreground">{disbursement.justification}</p>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2 text-sm">
+                <div>
+                  <p className="text-muted-foreground">{t('disbursements.createdBy')}</p>
+                  <p className="mt-1 font-medium text-foreground">{disbursement.createdBy}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">{t('disbursements.createdOn')}</p>
+                  <p className="mt-1 font-medium text-foreground">{disbursement.createdAt}</p>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Quick Actions */}
-            {canApprove && (
-              <div className="rounded-lg border border-border bg-card p-6">
-                <h3 className="font-semibold text-foreground mb-4">Actions</h3>
-                <Button
-                  className="w-full"
-                  onClick={() => setShowApprovalDialog(true)}
-                >
-                  Review & Approve
-                </Button>
-              </div>
-            )}
-
-            {/* Attachments (placeholder) */}
-            <div className="rounded-lg border border-border bg-card p-6">
-              <h3 className="font-semibold text-foreground mb-4">Attachments</h3>
-              <p className="text-sm text-muted-foreground">No attachments</p>
-            </div>
+          {/* Workflow Timeline */}
+          <div className="rounded-lg border border-border bg-card p-6">
+            <WorkflowTimeline disbursement={disbursement as any} />
           </div>
         </div>
-      </section>
+
+        {/* Sidebar */}
+        <div className="space-y-6">
+          {/* Quick Actions */}
+          {canApprove && (
+            <div className="rounded-lg border border-border bg-card p-6">
+              <h3 className="font-semibold text-foreground mb-4">{t('common.actions')}</h3>
+              <Button
+                className="w-full"
+                onClick={() => setShowApprovalDialog(true)}
+              >
+                {t('disbursements.reviewApprove')}
+              </Button>
+            </div>
+          )}
+
+          {/* Attachments (placeholder) */}
+          <div className="rounded-lg border border-border bg-card p-6">
+            <h3 className="font-semibold text-foreground mb-4">{t('disbursements.attachments')}</h3>
+            <p className="text-sm text-muted-foreground">{t('disbursements.noAttachments')}</p>
+          </div>
+        </div>
+      </div>
 
       {showApprovalDialog && (
         <ApprovalDialog
@@ -188,14 +186,17 @@ function DisbursementDetailContent() {
           }}
         />
       )}
-    </main>
+    </section>
   );
 }
 
 export default function DisbursementDetailPage() {
+  const { t } = useTranslation();
   return (
     <ProtectedRoute>
-      <DisbursementDetailContent />
+      <ProtectedLayout title={t('disbursements.view')}>
+        <DisbursementDetailContent />
+      </ProtectedLayout>
     </ProtectedRoute>
   );
 }

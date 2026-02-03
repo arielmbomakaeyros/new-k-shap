@@ -3,6 +3,7 @@
 import { AdminLayout } from '@/src/components/admin/AdminLayout';
 import { ProtectedRoute } from '@/src/components/ProtectedRoute';
 import { useTranslation } from '@/node_modules/react-i18next';
+import { formatPrice } from '@/src/lib/format';
 
 function AnalyticsContent() {
   const { t } = useTranslation();
@@ -25,7 +26,7 @@ function AnalyticsContent() {
           </div>
           <div className="rounded-lg border border-border bg-card p-6">
             <p className="text-sm text-muted-foreground">Total Disbursements</p>
-            <p className="mt-2 text-3xl font-bold text-foreground">$542,000</p>
+            <p className="mt-2 text-3xl font-bold text-foreground">{formatPrice(325200000)}</p>
             <p className="mt-2 text-xs text-green-600">↑ 8% from last month</p>
           </div>
           <div className="rounded-lg border border-border bg-card p-6">
@@ -63,18 +64,18 @@ function AnalyticsContent() {
           <h2 className="text-lg font-semibold text-foreground">Top Companies by Revenue</h2>
           <div className="mt-4 space-y-3">
             {[
-              { name: 'Tech Innovations', revenue: '$45,000', users: 23 },
-              { name: 'Acme Corp', revenue: '$32,000', users: 15 },
-              { name: 'Global Solutions', revenue: '$28,000', users: 18 },
-              { name: 'Future Enterprises', revenue: '$22,000', users: 12 },
-              { name: 'Innovation Hub', revenue: '$18,000', users: 9 },
+              { name: 'Tech Innovations', revenue: 27000000, users: 23 },
+              { name: 'Acme Corp', revenue: 19200000, users: 15 },
+              { name: 'Global Solutions', revenue: 16800000, users: 18 },
+              { name: 'Future Enterprises', revenue: 13200000, users: 12 },
+              { name: 'Innovation Hub', revenue: 10800000, users: 9 },
             ].map((company, idx) => (
               <div key={idx} className="flex items-center justify-between border-b border-border py-3 last:border-0">
                 <div>
                   <p className="font-medium text-foreground">{company.name}</p>
                   <p className="text-xs text-muted-foreground">{company.users} users</p>
                 </div>
-                <p className="font-semibold text-foreground">{company.revenue}</p>
+                <p className="font-semibold text-foreground">{formatPrice(company.revenue)}</p>
               </div>
             ))}
           </div>

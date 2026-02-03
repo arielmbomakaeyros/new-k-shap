@@ -35,6 +35,12 @@ export enum DisbursementStatus {
 }
 
 export enum ActionType {
+  // Generic CRUD actions (for interceptor)
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  CUSTOM = 'custom',
+
   // Authentication
   LOGIN = 'login',
   LOGOUT = 'logout',
@@ -130,8 +136,17 @@ export enum PermissionAction {
 }
 
 export enum DisbursementActionType {
+  CREATE = 'create',
   CREATED = 'created',
+  UPDATE = 'update',
   UPDATED = 'updated',
+  DELETE = 'delete',
+  SUBMIT = 'submit',
+  APPROVE_DEPT_HEAD = 'approve_dept_head',
+  APPROVE_VALIDATOR = 'approve_validator',
+  EXECUTE = 'execute',
+  CANCEL = 'cancel',
+  REJECT = 'reject',
   DEPT_HEAD_VALIDATED = 'dept_head_validated',
   DEPT_HEAD_VALIDATION_UNDONE = 'dept_head_validation_undone',
   VALIDATOR_APPROVED = 'validator_approved',

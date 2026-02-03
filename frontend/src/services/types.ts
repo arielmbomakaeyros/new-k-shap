@@ -407,6 +407,36 @@ export interface ReminderSettings {
   approvalReminderHours: number;
 }
 
+// Company Settings Types
+export interface CompanyInfo {
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  industry: string;
+}
+
+export interface WorkflowSettings {
+  requireDeptHeadApproval: boolean;
+  requireValidatorApproval: boolean;
+  requireCashierExecution: boolean;
+  maxAmountNoApproval: number;
+}
+
+export interface EmailNotificationSettings {
+  onNewDisbursement: boolean;
+  onDisbursementApproved: boolean;
+  onDisbursementRejected: boolean;
+  onCollectionAdded: boolean;
+  dailySummary: boolean;
+}
+
+export interface CompanySettings {
+  companyInfo: CompanyInfo;
+  workflowSettings: WorkflowSettings;
+  emailNotificationSettings: EmailNotificationSettings;
+}
+
 // Export Types
 export interface Export extends BaseEntity {
   companyId: string;

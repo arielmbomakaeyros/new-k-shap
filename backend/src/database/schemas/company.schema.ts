@@ -53,6 +53,40 @@ export class Company extends BaseEntity {
     apiAccess: boolean;
   };
 
+  @Prop({
+    type: Object,
+    default: {
+      requireDeptHeadApproval: true,
+      requireValidatorApproval: true,
+      requireCashierExecution: true,
+      maxAmountNoApproval: 500000,
+    },
+  })
+  workflowSettings: {
+    requireDeptHeadApproval: boolean;
+    requireValidatorApproval: boolean;
+    requireCashierExecution: boolean;
+    maxAmountNoApproval: number;
+  };
+
+  @Prop({
+    type: Object,
+    default: {
+      onNewDisbursement: true,
+      onDisbursementApproved: true,
+      onDisbursementRejected: true,
+      onCollectionAdded: true,
+      dailySummary: false,
+    },
+  })
+  emailNotificationSettings: {
+    onNewDisbursement: boolean;
+    onDisbursementApproved: boolean;
+    onDisbursementRejected: boolean;
+    onCollectionAdded: boolean;
+    dailySummary: boolean;
+  };
+
   @Prop({ type: String })
   planType: string;
 

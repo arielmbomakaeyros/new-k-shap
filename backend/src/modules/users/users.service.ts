@@ -188,7 +188,7 @@ export class UsersService {
 
     // If updater has a company, filter by it; Kaeyros admins can update any user
     if (updaterUser.company) {
-      query = query.where('company').equals(updaterUser.company);
+      query = query.where('company').equals((updaterUser.company._id || updaterUser.company).toString());
     }
 
     const user = await query.exec();
@@ -210,7 +210,7 @@ export class UsersService {
 
     await user.save();
 
-    const companyId = updaterUser.company ? updaterUser.company.toString() : null;
+    const companyId = updaterUser.company ? (updaterUser.company._id || updaterUser.company).toString() : null;
     return this.findById(id, companyId);
   }
 
@@ -221,7 +221,7 @@ export class UsersService {
 
     // If deleter has a company, filter by it; Kaeyros admins can delete any user
     if (deleterUser.company) {
-      query = query.where('company').equals(deleterUser.company);
+      query = query.where('company').equals((deleterUser.company._id || deleterUser.company).toString());
     }
 
     const user = await query.exec();
@@ -262,7 +262,7 @@ export class UsersService {
 
     // If restorer has a company, filter by it; Kaeyros admins can restore any user
     if (restorerUser.company) {
-      query = query.where('company').equals(restorerUser.company);
+      query = query.where('company').equals((restorerUser.company._id || restorerUser.company).toString());
     }
 
     const user = await query.exec();
@@ -286,7 +286,7 @@ export class UsersService {
       });
     }
 
-    const companyId = restorerUser.company ? restorerUser.company.toString() : null;
+    const companyId = restorerUser.company ? (restorerUser.company._id || restorerUser.company).toString() : null;
     return this.findById(id, companyId);
   }
 
@@ -297,7 +297,7 @@ export class UsersService {
 
     // If requester has a company, filter by it; Kaeyros admins can resend for any user
     if (requesterUser.company) {
-      query = query.where('company').equals(requesterUser.company);
+      query = query.where('company').equals((requesterUser.company._id || requesterUser.company).toString());
     }
 
     const user = await query.exec();

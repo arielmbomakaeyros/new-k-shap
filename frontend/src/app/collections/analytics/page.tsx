@@ -1,11 +1,11 @@
 'use client';
 
-import { ProtectedRoute } from "@/src/components/ProtectedRoute";
-
-// import { Button } from '@/components/ui/button';
-// import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { useTranslation } from '@/node_modules/react-i18next';
+import { ProtectedRoute } from '@/src/components/ProtectedRoute';
+import { ProtectedLayout } from '@/src/components/layout/ProtectedLayout';
 
 function CollectionsAnalyticsContent() {
+  const { t } = useTranslation();
   const analyticsData = {
     totalCollected: 500000,
     thisMonth: 45000,
@@ -40,192 +40,192 @@ function CollectionsAnalyticsContent() {
   ];
 
   return (
-    <main className="min-h-screen bg-background">
-      <header className="border-b border-border">
-        <nav className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">
-            Collections Analytics
-          </h1>
-          <p className="mt-2 text-muted-foreground">
-            Insights and analysis of incoming payments
-          </p>
-        </nav>
-      </header>
+    <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      {/* Header */}
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold tracking-tight text-foreground">
+          {t('collections.analytics.title')}
+        </h1>
+        <p className="mt-2 text-muted-foreground">
+          {t('collections.analytics.subtitle')}
+        </p>
+      </div>
 
-      <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        {/* Key Metrics */}
-        <div className="grid gap-4 md:grid-cols-4 mb-8">
-          <div className="rounded-lg border border-border bg-card p-6">
-            <p className="text-sm text-muted-foreground">Total Collected (All Time)</p>
-            <p className="mt-2 text-3xl font-bold text-foreground">
-              USD {analyticsData.totalCollected.toLocaleString()}
-            </p>
-          </div>
-          <div className="rounded-lg border border-border bg-card p-6">
-            <p className="text-sm text-muted-foreground">This Year</p>
-            <p className="mt-2 text-3xl font-bold text-foreground">
-              USD {analyticsData.thisYear.toLocaleString()}
-            </p>
-          </div>
-          <div className="rounded-lg border border-border bg-card p-6">
-            <p className="text-sm text-muted-foreground">Average Per Month</p>
-            <p className="mt-2 text-3xl font-bold text-foreground">
-              USD {analyticsData.averagePerMonth.toLocaleString()}
-            </p>
-          </div>
-          <div className="rounded-lg border border-border bg-card p-6">
-            <p className="text-sm text-muted-foreground">Total Transactions</p>
-            <p className="mt-2 text-3xl font-bold text-foreground">
-              {analyticsData.totalTransactions}
-            </p>
+      {/* Key Metrics */}
+      <div className="grid gap-4 md:grid-cols-4 mb-8">
+        <div className="rounded-lg border border-border bg-card p-6">
+          <p className="text-sm text-muted-foreground">{t('collections.analytics.totalAllTime')}</p>
+          <p className="mt-2 text-3xl font-bold text-foreground">
+            USD {analyticsData.totalCollected.toLocaleString()}
+          </p>
+        </div>
+        <div className="rounded-lg border border-border bg-card p-6">
+          <p className="text-sm text-muted-foreground">{t('collections.analytics.thisYear')}</p>
+          <p className="mt-2 text-3xl font-bold text-foreground">
+            USD {analyticsData.thisYear.toLocaleString()}
+          </p>
+        </div>
+        <div className="rounded-lg border border-border bg-card p-6">
+          <p className="text-sm text-muted-foreground">{t('collections.analytics.averagePerMonth')}</p>
+          <p className="mt-2 text-3xl font-bold text-foreground">
+            USD {analyticsData.averagePerMonth.toLocaleString()}
+          </p>
+        </div>
+        <div className="rounded-lg border border-border bg-card p-6">
+          <p className="text-sm text-muted-foreground">{t('collections.totalTransactions')}</p>
+          <p className="mt-2 text-3xl font-bold text-foreground">
+            {analyticsData.totalTransactions}
+          </p>
+        </div>
+      </div>
+
+      {/* Transaction Stats */}
+      <div className="grid gap-6 md:grid-cols-2 mb-8">
+        <div className="rounded-lg border border-border bg-card p-6">
+          <h3 className="text-lg font-semibold text-foreground mb-4">{t('collections.analytics.transactionStats')}</h3>
+          <div className="space-y-4">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">{t('collections.analytics.averagePerTransaction')}</span>
+              <span className="font-semibold text-foreground">
+                USD {analyticsData.averagePerTransaction.toLocaleString()}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">{t('collections.analytics.largestTransaction')}</span>
+              <span className="font-semibold text-foreground">
+                USD {analyticsData.largestTransaction.toLocaleString()}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">{t('collections.analytics.smallestTransaction')}</span>
+              <span className="font-semibold text-foreground">
+                USD {analyticsData.smallestTransaction.toLocaleString()}
+              </span>
+            </div>
           </div>
         </div>
 
-        {/* Transaction Stats */}
-        <div className="grid gap-6 md:grid-cols-2 mb-8">
-          <div className="rounded-lg border border-border bg-card p-6">
-            <h3 className="text-lg font-semibold text-foreground mb-4">Transaction Statistics</h3>
-            <div className="space-y-4">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Average Per Transaction</span>
-                <span className="font-semibold text-foreground">
-                  USD {analyticsData.averagePerTransaction.toLocaleString()}
+        <div className="rounded-lg border border-border bg-card p-6">
+          <h3 className="text-lg font-semibold text-foreground mb-4">{t('collections.analytics.monthlyTrend')}</h3>
+          <div className="space-y-2">
+            {[37000, 42000, 38000, 45000, 41000, 48000].map((amount, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground w-12">Month {i + 1}</span>
+                <div className="flex-1 bg-muted rounded h-2">
+                  <div
+                    className="bg-primary h-2 rounded"
+                    style={{ width: `${(amount / 50000) * 100}%` }}
+                  />
+                </div>
+                <span className="text-xs font-medium text-foreground w-16 text-right">
+                  USD {(amount / 1000).toFixed(0)}k
                 </span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Largest Transaction</span>
-                <span className="font-semibold text-foreground">
-                  USD {analyticsData.largestTransaction.toLocaleString()}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Smallest Transaction</span>
-                <span className="font-semibold text-foreground">
-                  USD {analyticsData.smallestTransaction.toLocaleString()}
-                </span>
-              </div>
-            </div>
+            ))}
           </div>
+        </div>
+      </div>
 
-          <div className="rounded-lg border border-border bg-card p-6">
-            <h3 className="text-lg font-semibold text-foreground mb-4">Monthly Trend</h3>
-            <div className="space-y-2">
-              {[37000, 42000, 38000, 45000, 41000, 48000].map((amount, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground w-12">Month {i + 1}</span>
-                  <div className="flex-1 bg-muted rounded h-2">
-                    <div
-                      className="bg-primary h-2 rounded"
-                      style={{ width: `${(amount / 50000) * 100}%` }}
-                    />
-                  </div>
-                  <span className="text-xs font-medium text-foreground w-16 text-right">
-                    USD {(amount / 1000).toFixed(0)}k
+      {/* Payment Methods */}
+      <div className="rounded-lg border border-border bg-card p-6 mb-8">
+        <h3 className="text-lg font-semibold text-foreground mb-4">{t('collections.analytics.byPaymentMethod')}</h3>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="border-b border-border">
+              <tr>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">
+                  {t('collections.analytics.method')}
+                </th>
+                <th className="px-4 py-3 text-right text-sm font-semibold text-foreground">
+                  {t('collections.analytics.count')}
+                </th>
+                <th className="px-4 py-3 text-right text-sm font-semibold text-foreground">
+                  {t('common.amount')}
+                </th>
+                <th className="px-4 py-3 text-right text-sm font-semibold text-foreground">
+                  {t('collections.analytics.percentage')}
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {byPaymentMethod.map((item) => (
+                <tr key={item.method}>
+                  <td className="px-4 py-3 text-sm text-foreground">{item.method}</td>
+                  <td className="px-4 py-3 text-right text-sm font-medium text-foreground">
+                    {item.count}
+                  </td>
+                  <td className="px-4 py-3 text-right text-sm font-medium text-foreground">
+                    USD {item.amount.toLocaleString()}
+                  </td>
+                  <td className="px-4 py-3 text-right text-sm font-medium text-foreground">
+                    {item.percentage}%
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Department Breakdown */}
+      <div className="grid gap-6 md:grid-cols-2">
+        <div className="rounded-lg border border-border bg-card p-6">
+          <h3 className="text-lg font-semibold text-foreground mb-4">{t('collections.analytics.byDepartment')}</h3>
+          <div className="space-y-4">
+            {byDepartment.map((item) => (
+              <div key={item.department}>
+                <div className="flex justify-between mb-1">
+                  <span className="text-sm font-medium text-foreground">
+                    {item.department}
+                  </span>
+                  <span className="text-sm font-medium text-foreground">
+                    {item.percentage}%
                   </span>
                 </div>
-              ))}
-            </div>
+                <div className="w-full bg-muted rounded-full h-2">
+                  <div
+                    className={`${item.color} h-2 rounded-full`}
+                    style={{ width: `${item.percentage}%` }}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  USD {item.amount.toLocaleString()}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* Payment Methods */}
-        <div className="rounded-lg border border-border bg-card p-6 mb-8">
-          <h3 className="text-lg font-semibold text-foreground mb-4">By Payment Method</h3>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="border-b border-border">
-                <tr>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">
-                    Method
-                  </th>
-                  <th className="px-4 py-3 text-right text-sm font-semibold text-foreground">
-                    Count
-                  </th>
-                  <th className="px-4 py-3 text-right text-sm font-semibold text-foreground">
-                    Amount
-                  </th>
-                  <th className="px-4 py-3 text-right text-sm font-semibold text-foreground">
-                    Percentage
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {byPaymentMethod.map((item) => (
-                  <tr key={item.method}>
-                    <td className="px-4 py-3 text-sm text-foreground">{item.method}</td>
-                    <td className="px-4 py-3 text-right text-sm font-medium text-foreground">
-                      {item.count}
-                    </td>
-                    <td className="px-4 py-3 text-right text-sm font-medium text-foreground">
-                      USD {item.amount.toLocaleString()}
-                    </td>
-                    <td className="px-4 py-3 text-right text-sm font-medium text-foreground">
-                      {item.percentage}%
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Department Breakdown */}
-        <div className="grid gap-6 md:grid-cols-2">
-          <div className="rounded-lg border border-border bg-card p-6">
-            <h3 className="text-lg font-semibold text-foreground mb-4">By Department</h3>
-            <div className="space-y-4">
-              {byDepartment.map((item) => (
-                <div key={item.department}>
-                  <div className="flex justify-between mb-1">
-                    <span className="text-sm font-medium text-foreground">
-                      {item.department}
-                    </span>
-                    <span className="text-sm font-medium text-foreground">
-                      {item.percentage}%
-                    </span>
-                  </div>
-                  <div className="w-full bg-muted rounded-full h-2">
-                    <div
-                      className={`${item.color} h-2 rounded-full`}
-                      style={{ width: `${item.percentage}%` }}
-                    />
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    USD {item.amount.toLocaleString()}
+        <div className="rounded-lg border border-border bg-card p-6">
+          <h3 className="text-lg font-semibold text-foreground mb-4">{t('collections.analytics.topPayers')}</h3>
+          <div className="space-y-3">
+            {topPayers.map((payer, index) => (
+              <div key={index} className="flex justify-between items-start pb-3 border-b border-border last:border-0">
+                <div>
+                  <p className="font-medium text-foreground">{payer.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {payer.transactions} {t('collections.analytics.transactions')}
                   </p>
                 </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="rounded-lg border border-border bg-card p-6">
-            <h3 className="text-lg font-semibold text-foreground mb-4">Top 5 Payers</h3>
-            <div className="space-y-3">
-              {topPayers.map((payer, index) => (
-                <div key={index} className="flex justify-between items-start pb-3 border-b border-border last:border-0">
-                  <div>
-                    <p className="font-medium text-foreground">{payer.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {payer.transactions} transactions
-                    </p>
-                  </div>
-                  <p className="font-semibold text-foreground text-right">
-                    USD {payer.amount.toLocaleString()}
-                  </p>
-                </div>
-              ))}
-            </div>
+                <p className="font-semibold text-foreground text-right">
+                  USD {payer.amount.toLocaleString()}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
-      </section>
-    </main>
+      </div>
+    </section>
   );
 }
 
 export default function CollectionsAnalyticsPage() {
+  const { t } = useTranslation();
   return (
     <ProtectedRoute>
-      <CollectionsAnalyticsContent />
+      <ProtectedLayout title={t('collections.analytics.title')}>
+        <CollectionsAnalyticsContent />
+      </ProtectedLayout>
     </ProtectedRoute>
   );
 }
