@@ -53,6 +53,7 @@ class KaeyrosService {
     country?: string;
     industry?: string;
     website?: string;
+    baseFilePrefix: string;
     status?: string;
     plan?: string;
     maxUsers?: number;

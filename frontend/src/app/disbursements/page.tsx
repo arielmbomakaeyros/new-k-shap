@@ -67,7 +67,7 @@ function DisbursementsContent() {
             {t('disbursements.subtitle')}
           </p>
         </div>
-        <Button onClick={() => router.push('/disbursements/new')}>
+        <Button onClick={() => router.push('/disbursements/new')} className="btn-3d gradient-bg-primary text-white">
           + {t('disbursements.newRequest')}
         </Button>
       </div>
@@ -115,7 +115,7 @@ function DisbursementsContent() {
         <div className="rounded-lg border border-border bg-muted/50 py-12 text-center">
           <p className="text-muted-foreground">{t('disbursements.noDisbursements')}</p>
           <Button
-            className="mt-4"
+            className="mt-4 btn-3d gradient-bg-primary text-white"
             onClick={() => router.push('/disbursements/new')}
           >
             {t('disbursements.createFirst')}

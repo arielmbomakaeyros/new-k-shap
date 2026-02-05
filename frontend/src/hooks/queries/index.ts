@@ -10,6 +10,8 @@ export {
   useSetPassword,
   useForgotPassword,
   useResetPassword,
+  useUpdateProfile,
+  useUpdateProfileAvatar,
 } from './useAuth';
 
 // Users hooks

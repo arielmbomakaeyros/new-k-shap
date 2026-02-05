@@ -67,6 +67,7 @@ export interface EmailData {
   to: string | string[];
   subject: string;
   template: string;
+  language?: string;
   context: Record<string, any>;
   cc?: string[];
   bcc?: string[];

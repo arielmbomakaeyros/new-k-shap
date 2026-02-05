@@ -139,6 +139,8 @@ export class SettingsController {
         paymentMethods: { type: 'array', items: { type: 'string' } },
         logoUrl: { type: 'string' },
         primaryColor: { type: 'string' },
+        supportedLanguages: { type: 'array', items: { type: 'string' } },
+        defaultLanguage: { type: 'string' },
         notificationChannels: {
           type: 'object',
           properties: {

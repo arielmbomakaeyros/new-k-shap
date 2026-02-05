@@ -1,4 +1,9 @@
-import { Injectable, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { ConfigService } from '@nestjs/config';
@@ -9,7 +14,11 @@ import {
   GetObjectCommand,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { FileUpload, FileUploadDocument } from '../../database/schemas/file-upload.schema';
+import {
+  FileUpload,
+  FileUploadDocument,
+} from '../../database/schemas/file-upload.schema';
+import { Company } from '../../database/schemas/company.schema';
 import { CreateFileUploadDto, FileCategory, FileEntityType } from './dto';
 
 export interface FileUploadResult {
@@ -38,14 +47,22 @@ export class FileUploadService {
   private readonly s3Client: S3Client;
   private readonly bucketName: string;
   private readonly logger = new Logger(FileUploadService.name);
+  private readonly rootPrefix: string;
 
   constructor(
-    @InjectModel(FileUpload.name) private fileUploadModel: Model<FileUploadDocument>,
+    @InjectModel(FileUpload.name)
+    private fileUploadModel: Model<FileUploadDocument>,
+    @InjectModel(Company.name)
+    private companyModel: Model<Company>,
     private readonly configService: ConfigService,
   ) {
     const accessKeyId = this.configService.get<string>('AWS_ACCESS_KEY');
     const secretAccessKey = this.configService.get<string>('AWS_SECRET_KEY');
-    this.bucketName = this.configService.get<string>('BUCKETNAME') || 'kshap-uploads';
+    this.bucketName =
+      this.configService.get<string>('BUCKETNAME') || 'kshap-uploads';
+    this.rootPrefix = this.normalizePrefix(
+      this.configService.get<string>('S3_ROOT_PREFIX') || '',
+    );
 
     if (!accessKeyId || !secretAccessKey) {
       this.logger.warn(
@@ -55,10 +72,39 @@ export class FileUploadService {
 
     this.s3Client = new S3Client({
       region: this.configService.get<string>('AWS_REGION', 'eu-central-1'),
-      credentials: accessKeyId && secretAccessKey
-        ? { accessKeyId, secretAccessKey }
-        : undefined,
+      credentials:
+        accessKeyId && secretAccessKey
+          ? { accessKeyId, secretAccessKey }
+          : undefined,
     });
+  }
+
+  private normalizePrefix(value: string) {
+    return value
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '');
+  }
+
+  private async resolveStoragePrefix(companyId: string) {
+    const company = await this.companyModel.findById(companyId).lean();
+    if (!company) {
+      throw new BadRequestException('Company not found for file upload');
+    }
+    const basePrefix = this.normalizePrefix(
+      company.baseFilePrefix || company.slug || '',
+    );
+    if (!basePrefix) {
+      throw new BadRequestException(
+        'Company base file prefix is not configured',
+      );
+    }
+    const activePrefix = this.normalizePrefix(
+      company.activeFilePrefix || '',
+    );
+    const parts = [this.rootPrefix, basePrefix, activePrefix].filter(Boolean);
+    return parts.join('/');
   }
 
   /**
@@ -86,16 +132,26 @@ export class FileUploadService {
   /**
    * Generates a unique file name for S3 storage
    */
-  private generateFileName(originalName: string, entityType?: string, entityId?: string): string {
+  private generateFileName(
+    originalName: string,
+    prefix: string,
+    entityType?: string,
+    entityId?: string,
+  ): string {
     const timestamp = Date.now();
     const randomStr = Math.random().toString(36).substring(2, 8);
     const extension = originalName.split('.').pop();
-    const baseName = originalName.split('.').slice(0, -1).join('.').replace(/[^a-zA-Z0-9]/g, '_');
+    const baseName = originalName
+      .split('.')
+      .slice(0, -1)
+      .join('.')
+      .replace(/[^a-zA-Z0-9]/g, '_');
+    const prefixPath = prefix ? `${prefix}/` : '';
 
     if (entityType && entityId) {
-      return `${entityType}/${entityId}/${timestamp}_${randomStr}_${baseName}.${extension}`;
+      return `${prefixPath}${entityType}/${entityId}/${timestamp}_${randomStr}_${baseName}.${extension}`;
     }
-    return `uploads/${timestamp}_${randomStr}_${baseName}.${extension}`;
+    return `${prefixPath}uploads/${timestamp}_${randomStr}_${baseName}.${extension}`;
   }
 
   /**
@@ -108,7 +164,9 @@ export class FileUploadService {
   ): Promise<FileUploadResult> {
     const companyId = context.companyId;
     if (!companyId) {
-      throw new BadRequestException('Company context is required for file uploads');
+      throw new BadRequestException(
+        'Company context is required for file uploads',
+      );
     }
     if (!file) {
       throw new BadRequestException('No file provided');
@@ -121,9 +179,11 @@ export class FileUploadService {
     }
 
     try {
+      const storagePrefix = await this.resolveStoragePrefix(companyId);
       // Generate unique file name
       const storedName = this.generateFileName(
         file.originalname,
+        storagePrefix,
         body.entityType,
         body.entityId,
       );
@@ -206,10 +266,15 @@ export class FileUploadService {
   /**
    * Create file record (for external storage references)
    */
-  async create(createFileUploadDto: CreateFileUploadDto, context: UploadContext) {
+  async create(
+    createFileUploadDto: CreateFileUploadDto,
+    context: UploadContext,
+  ) {
     const companyId = context.companyId;
     if (!companyId) {
-      throw new BadRequestException('Company context is required for file uploads');
+      throw new BadRequestException(
+        'Company context is required for file uploads',
+      );
     }
     const tags = createFileUploadDto.tags
       ? createFileUploadDto.tags.split(',').map((t) => t.trim())

@@ -7,8 +7,10 @@ import { useTranslation } from '@/node_modules/react-i18next';
 // import { useAuthStore } from '@/store/authStore';
 import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/src/store/authStore';
+import { useLogout } from '@/src/hooks/queries';
 import { LanguageSwitcher } from '../LanguageSwitcher';
 import { ThemeSwitcher } from '@/components/theme-switcher';
+import { NotificationsDropdown } from '@/src/components/notifications/NotificationsDropdown';
 // import { ThemeSwitcher } from '../theme-switcher';
 // import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 
@@ -32,11 +34,11 @@ export function CompanyLayout({ children, companyName = 'Company' }: CompanyLayo
   const { t } = useTranslation();
   const router = useRouter();
   const pathname = usePathname();
-  const { user, logout } = useAuthStore();
+  const { user } = useAuthStore();
+  const logoutMutation = useLogout();
 
   const handleLogout = () => {
-    logout();
-    router.push('/auth/login');
+    logoutMutation.mutate();
   };
 
   return (
@@ -55,6 +57,7 @@ export function CompanyLayout({ children, companyName = 'Company' }: CompanyLayo
           </div>
           <div className="flex items-center gap-4">
             <span className="text-sm text-muted-foreground">{user?.firstName} {user?.lastName}</span>
+            <NotificationsDropdown />
             <LanguageSwitcher />
             <ThemeSwitcher />
             <Button variant="outline" size="sm" onClick={handleLogout}>
@@ -79,7 +82,7 @@ export function CompanyLayout({ children, companyName = 'Company' }: CompanyLayo
                 }`}
               >
                 <span>{item.icon}</span>
-                {item.name}
+                <span>{item.name}</span>
               </Link>
             ))}
           </nav>

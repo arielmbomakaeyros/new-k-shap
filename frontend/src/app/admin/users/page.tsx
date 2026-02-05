@@ -4,6 +4,11 @@ import { useMemo, useState } from 'react';
 import { AdminLayout } from '@/src/components/admin/AdminLayout';
 import { ProtectedRoute } from '@/src/components/ProtectedRoute';
 import { useTranslation } from '@/node_modules/react-i18next';
+import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Sheet, SheetHeader, SheetTitle, SheetDescription, SheetBody } from '@/src/components/ui/sheet';
+import { ConfirmModal } from '@/src/components/ui/modal';
+import { ImageUp, Trash2, UserX, CheckCircle2, Eye } from 'lucide-react';
 import {
   useUsers,
   useDeleteUser,
@@ -19,9 +24,11 @@ function UsersManagerContent() {
   const [filterRole, setFilterRole] = useState('all');
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
 
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [showDeactivateModal, setShowDeactivateModal] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<User | null>(null);
+  const [confirmDeactivate, setConfirmDeactivate] = useState<User | null>(null);
+  const [confirmReactivate, setConfirmReactivate] = useState<User | null>(null);
+  const [profileUser, setProfileUser] = useState<User | null>(null);
+  const [uploadingUserIds, setUploadingUserIds] = useState<Record<string, boolean>>({});
   const [actionNotice, setActionNotice] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const { data: usersData, isLoading, error } = useUsers();
@@ -30,24 +37,16 @@ function UsersManagerContent() {
   const toggleActiveMutation = useToggleUserActive();
   const updateAvatarMutation = useUpdateUserAvatar();
 
-  const handleDeactivateClick = (user: User) => {
-    setSelectedUser(user);
-    setShowDeactivateModal(true);
-  };
-
-  const handleConfirmDeactivate = async () => {
-    if (!selectedUser) return;
+  const handleDeactivateUser = async (user: User) => {
     try {
       await toggleActiveMutation.mutateAsync({
-        id: selectedUser.id,
-        isActive: !selectedUser.isActive,
+        id: user.id,
+        isActive: false,
       });
       setActionNotice({
         type: 'success',
         message: t('users.statusUpdated', { defaultValue: 'User status updated successfully.' }),
       });
-      setSelectedUser(null);
-      setShowDeactivateModal(false);
     } catch (error) {
       console.error('Failed to update user status:', error);
       setActionNotice({
@@ -57,21 +56,32 @@ function UsersManagerContent() {
     }
   };
 
-  const handleDeleteClick = (user: User) => {
-    setSelectedUser(user);
-    setShowDeleteModal(true);
+  const handleReactivateUser = async (user: User) => {
+    try {
+      await toggleActiveMutation.mutateAsync({
+        id: user.id,
+        isActive: true,
+      });
+      setActionNotice({
+        type: 'success',
+        message: t('users.statusUpdated', { defaultValue: 'User status updated successfully.' }),
+      });
+    } catch (error) {
+      console.error('Failed to update user status:', error);
+      setActionNotice({
+        type: 'error',
+        message: t('users.statusUpdateFailed', { defaultValue: 'Failed to update user status.' }),
+      });
+    }
   };
 
-  const handleConfirmDelete = async () => {
-    if (!selectedUser) return;
+  const handleDeleteUser = async (user: User) => {
     try {
-      await deleteMutation.mutateAsync(selectedUser.id);
+      await deleteMutation.mutateAsync(user.id);
       setActionNotice({
         type: 'success',
         message: t('users.deleteSuccess', { defaultValue: 'User deleted successfully.' }),
       });
-      setSelectedUser(null);
-      setShowDeleteModal(false);
     } catch (error) {
       console.error('Failed to delete user:', error);
       setActionNotice({
@@ -83,7 +93,22 @@ function UsersManagerContent() {
 
   const handleAvatarChange = async (userId: string | undefined, file?: File) => {
     if (!file || !userId) return;
-    await updateAvatarMutation.mutateAsync({ id: userId, file });
+    setUploadingUserIds((prev) => ({ ...prev, [userId]: true }));
+    try {
+      await updateAvatarMutation.mutateAsync({ id: userId, file });
+      setActionNotice({
+        type: 'success',
+        message: t('users.avatarUpdated', { defaultValue: 'User photo updated.' }),
+      });
+    } catch (error) {
+      console.error('Failed to update avatar:', error);
+      setActionNotice({
+        type: 'error',
+        message: t('users.avatarUpdateFailed', { defaultValue: 'Failed to update user photo.' }),
+      });
+    } finally {
+      setUploadingUserIds((prev) => ({ ...prev, [userId]: false }));
+    }
   };
 
     const users = Array.isArray(usersData?.data) ? usersData.data : [];
@@ -252,8 +277,13 @@ function UsersManagerContent() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {filteredUsers.map((user) => (
-                  <tr key={user.id} className="hover:bg-muted/50">
+                {filteredUsers.map((user) => {
+                  const userId = user.id || (user as any)._id;
+                  const uploadInputId = `admin-user-avatar-${userId}`;
+                  const isUploadingAvatar = Boolean(uploadingUserIds[userId]);
+
+                  return (
+                  <tr key={userId} className="hover:bg-muted/50">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         <div className="h-10 w-10 overflow-hidden rounded-full border border-border bg-muted">
@@ -266,7 +296,13 @@ function UsersManagerContent() {
                           )}
                         </div>
                         <div>
-                          <div className="text-sm font-medium text-foreground">{user.firstName} {user.lastName}</div>
+                          <button
+                            type="button"
+                            onClick={() => setProfileUser(user)}
+                            className="text-sm font-medium text-foreground hover:underline"
+                          >
+                            {user.firstName} {user.lastName}
+                          </button>
                           <div className="text-xs text-muted-foreground">{user.systemRoles?.[0]?.replace(/_/g, ' ') || ''}</div>
                         </div>
                       </div>
@@ -287,74 +323,195 @@ function UsersManagerContent() {
                       {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : '-'}
                     </td>
                     <td className="px-4 py-3 text-sm">
-                      <div className="flex gap-2">
-                        <label className="inline-flex cursor-pointer items-center rounded-md border border-border px-3 py-1 text-xs font-medium hover:bg-muted">
-                          {t('users.uploadPhoto', { defaultValue: 'Upload Photo' })}
+                      <TooltipProvider>
+                        <div className="flex items-center gap-2">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button size="icon-sm" variant="ghost" onClick={() => setProfileUser(user)} aria-label="View user">
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              {t('users.view', { defaultValue: 'View' })}
+                            </TooltipContent>
+                          </Tooltip>
+
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button size="icon-sm" variant="ghost" aria-label="Upload photo" asChild>
+                                <label
+                                  htmlFor={uploadInputId}
+                                  className={`cursor-pointer ${isUploadingAvatar ? 'pointer-events-none opacity-60' : ''}`}
+                                >
+                                  <ImageUp className="h-4 w-4" />
+                                </label>
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              {t('users.uploadPhoto', { defaultValue: 'Upload Photo' })}
+                            </TooltipContent>
+                          </Tooltip>
                           <input
+                            id={uploadInputId}
                             type="file"
                             accept="image/*"
                             className="hidden"
-                            onChange={(e) => handleAvatarChange(user.id || (user as any)._id, e.target.files?.[0])}
+                            onChange={(e) => handleAvatarChange(userId, e.target.files?.[0])}
                           />
-                        </label>
-                        <button
-                          className="rounded-md border border-border px-3 py-1 text-xs font-medium hover:bg-muted"
-                          onClick={() => handleDeactivateClick(user)}
-                        >
-                          {user.isActive ? t('users.deactivate', { defaultValue: 'Deactivate' }) : t('users.activate', { defaultValue: 'Activate' })}
-                        </button>
-                        <button
-                          className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-1 text-xs font-medium text-destructive hover:bg-destructive/20 disabled:cursor-not-allowed disabled:opacity-60"
-                          onClick={() => handleDeleteClick(user)}
-                          disabled={!canDeleteUser(user)}
-                          title={!canDeleteUser(user) ? t('users.deleteNotAllowed', { defaultValue: 'Cannot delete company super admin.' }) : undefined}
-                        >
-                          {t('common.delete', { defaultValue: 'Delete' })}
-                        </button>
-                      </div>
+
+                          {user.isActive ? (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  size="icon-sm"
+                                  variant="ghost"
+                                  onClick={() => setConfirmDeactivate(user)}
+                                  aria-label="Deactivate user"
+                                >
+                                  <UserX className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                {t('users.deactivate', { defaultValue: 'Deactivate' })}
+                              </TooltipContent>
+                            </Tooltip>
+                          ) : (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  size="icon-sm"
+                                  variant="ghost"
+                                  onClick={() => setConfirmReactivate(user)}
+                                  aria-label="Reactivate user"
+                                >
+                                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                {t('users.activate', { defaultValue: 'Activate' })}
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                size="icon-sm"
+                                variant="ghost"
+                                onClick={() => setConfirmDelete(user)}
+                                disabled={!canDeleteUser(user)}
+                                aria-label="Delete user"
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              {canDeleteUser(user)
+                                ? t('common.delete', { defaultValue: 'Delete' })
+                                : t('users.deleteNotAllowed', { defaultValue: 'Cannot delete company super admin.' })}
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                      </TooltipProvider>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
         )}
 
-        {showDeactivateModal && selectedUser && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-            <div className="w-full max-w-sm rounded-lg bg-background p-6 shadow-lg">
-              <p className="text-sm text-foreground">
-                {t('users.confirmToggle', { defaultValue: 'Change status for {{name}}?', name: `${selectedUser.firstName} ${selectedUser.lastName}` })}
-              </p>
-              <div className="mt-4 flex justify-end gap-2">
-                <button className="rounded-md border border-border px-3 py-1" onClick={() => setShowDeactivateModal(false)}>
-                  {t('common.cancel', { defaultValue: 'Cancel' })}
-                </button>
-                <button className="rounded-md bg-primary px-3 py-1 text-primary-foreground" onClick={handleConfirmDeactivate}>
-                  {t('common.confirm', { defaultValue: 'Confirm' })}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        <ConfirmModal
+          isOpen={!!confirmDeactivate}
+          onClose={() => setConfirmDeactivate(null)}
+          onConfirm={() => confirmDeactivate && handleDeactivateUser(confirmDeactivate)}
+          title={t('users.deactivateTitle', { defaultValue: 'Deactivate User' })}
+          message={t('users.deactivateConfirm', {
+            defaultValue: 'Deactivate {{name}}? They will not be able to sign in.',
+            name: confirmDeactivate ? `${confirmDeactivate.firstName} ${confirmDeactivate.lastName}` : '',
+          })}
+          confirmLabel={t('users.deactivate', { defaultValue: 'Deactivate' })}
+          cancelLabel={t('common.cancel', { defaultValue: 'Cancel' })}
+          variant="warning"
+          isLoading={toggleActiveMutation.isPending}
+        />
 
-        {showDeleteModal && selectedUser && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-            <div className="w-full max-w-sm rounded-lg bg-background p-6 shadow-lg">
-              <p className="text-sm text-foreground">
-                {t('users.confirmDelete', { defaultValue: 'Delete {{name}}?', name: `${selectedUser.firstName} ${selectedUser.lastName}` })}
-              </p>
-              <div className="mt-4 flex justify-end gap-2">
-                <button className="rounded-md border border-border px-3 py-1" onClick={() => setShowDeleteModal(false)}>
-                  {t('common.cancel', { defaultValue: 'Cancel' })}
-                </button>
-                <button className="rounded-md bg-destructive px-3 py-1 text-destructive-foreground" onClick={handleConfirmDelete}>
-                  {t('common.delete', { defaultValue: 'Delete' })}
-                </button>
+        <ConfirmModal
+          isOpen={!!confirmReactivate}
+          onClose={() => setConfirmReactivate(null)}
+          onConfirm={() => confirmReactivate && handleReactivateUser(confirmReactivate)}
+          title={t('users.reactivateTitle', { defaultValue: 'Reactivate User' })}
+          message={t('users.reactivateConfirm', {
+            defaultValue: 'Reactivate {{name}}? They will be able to sign in again.',
+            name: confirmReactivate ? `${confirmReactivate.firstName} ${confirmReactivate.lastName}` : '',
+          })}
+          confirmLabel={t('users.activate', { defaultValue: 'Activate' })}
+          cancelLabel={t('common.cancel', { defaultValue: 'Cancel' })}
+          variant="success"
+          isLoading={toggleActiveMutation.isPending}
+        />
+
+        <ConfirmModal
+          isOpen={!!confirmDelete}
+          onClose={() => setConfirmDelete(null)}
+          onConfirm={() => confirmDelete && handleDeleteUser(confirmDelete)}
+          title={t('users.deleteTitle', { defaultValue: 'Delete User' })}
+          message={t('users.confirmDelete', {
+            defaultValue: 'Delete {{name}}? This action cannot be undone.',
+            name: confirmDelete ? `${confirmDelete.firstName} ${confirmDelete.lastName}` : '',
+          })}
+          confirmLabel={t('common.delete', { defaultValue: 'Delete' })}
+          cancelLabel={t('common.cancel', { defaultValue: 'Cancel' })}
+          variant="danger"
+          isLoading={deleteMutation.isPending}
+        />
+
+        <Sheet
+          isOpen={!!profileUser}
+          onClose={() => setProfileUser(null)}
+          position="right"
+          size="lg"
+        >
+          <SheetHeader>
+            <SheetTitle>{profileUser?.firstName} {profileUser?.lastName}</SheetTitle>
+            <SheetDescription>{profileUser?.email}</SheetDescription>
+          </SheetHeader>
+          <SheetBody>
+            {profileUser && (
+              <div className="space-y-6">
+                <div className="flex items-center gap-4">
+                  <div className="h-16 w-16 overflow-hidden rounded-full border border-border bg-muted">
+                    {profileUser.avatar ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={profileUser.avatar} alt={profileUser.firstName} className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-muted-foreground">
+                        {profileUser.firstName?.[0]}{profileUser.lastName?.[0]}
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-lg font-semibold text-foreground">{profileUser.firstName} {profileUser.lastName}</p>
+                    <p className="text-sm text-muted-foreground">{getCompanyDisplay(profileUser)}</p>
+                  </div>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="rounded-lg border border-border bg-muted/40 p-4">
+                    <p className="text-xs text-muted-foreground">{t('users.role', { defaultValue: 'Role' })}</p>
+                    <p className="mt-1 text-sm font-semibold text-foreground">{getRoleDisplay(profileUser)}</p>
+                  </div>
+                  <div className="rounded-lg border border-border bg-muted/40 p-4">
+                    <p className="text-xs text-muted-foreground">{t('users.statusLabel', { defaultValue: 'Status' })}</p>
+                    <p className="mt-1 text-sm font-semibold text-foreground">
+                      {profileUser.isActive ? t('users.status.active', { defaultValue: 'Active' }) : t('users.status.inactive', { defaultValue: 'Inactive' })}
+                    </p>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-        )}
+            )}
+          </SheetBody>
+        </Sheet>
       </div>
     </AdminLayout>
   );

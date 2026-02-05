@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { queryKeys } from './keys';
 import { useAuthStore, User } from '@/src/store/authStore';
 import { authService } from '@/src/services';
-import { LoginCredentials, LoginResponse } from '@/src/services/auth.service';
+import { LoginCredentials, LoginResponse, UpdateProfileDto } from '@/src/services/auth.service';
 // import type { User } from '@/services/types';
 
 /**
@@ -141,6 +141,44 @@ export function useResetPassword() {
       authService.resetPassword(data),
     onSuccess: () => {
       router.push('/auth/login');
+    },
+  });
+}
+
+/**
+ * Hook for updating user profile
+ */
+export function useUpdateProfile() {
+  const queryClient = useQueryClient();
+  const { updateUser } = useAuthStore();
+
+  return useMutation({
+    mutationFn: (data: UpdateProfileDto) => authService.updateProfile(data),
+    onSuccess: (response) => {
+      const updated = (response as any).data ?? response;
+      if (updated) {
+        updateUser(updated);
+      }
+      queryClient.invalidateQueries({ queryKey: queryKeys.auth.profile() });
+    },
+  });
+}
+
+/**
+ * Hook for updating user avatar
+ */
+export function useUpdateProfileAvatar() {
+  const queryClient = useQueryClient();
+  const { updateUser } = useAuthStore();
+
+  return useMutation({
+    mutationFn: (file: File) => authService.updateProfileAvatar(file),
+    onSuccess: (response) => {
+      const updated = (response as any).data ?? response;
+      if (updated) {
+        updateUser(updated);
+      }
+      queryClient.invalidateQueries({ queryKey: queryKeys.auth.profile() });
     },
   });
 }

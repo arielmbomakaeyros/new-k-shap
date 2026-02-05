@@ -1,8 +1,9 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, BadRequestException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiBody, ApiQuery } from '@nestjs/swagger';
 import { RolesService } from './roles.service';
 import { CreateRoleDto, UpdateRoleDto } from './dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { SuccessResponseDto } from '../../common/dto/success-response.dto';
 
 @ApiTags('Roles')
 @Controller('roles')
@@ -38,6 +39,29 @@ export class RolesController {
       ...createRoleDto,
       ...(companyId ? { company: companyId } : {}),
     });
+  }
+
+  @Post('seed-default')
+  @ApiOperation({ summary: 'Create default roles for current company' })
+  @ApiResponse({
+    status: 200,
+    description: 'Default roles created successfully.',
+    type: SuccessResponseDto,
+  })
+  @ApiResponse({ status: 400, description: 'Bad Request.' })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  @ApiResponse({ status: 403, description: 'Forbidden.' })
+  seedDefaultRoles(@CurrentUser() user: any) {
+    const companyId = user?.company
+      ? (user.company._id || user.company).toString()
+      : null;
+    if (!companyId) {
+      throw new BadRequestException('Company context is required');
+    }
+    return this.rolesService.createDefaultCompanyRoles(
+      companyId,
+      user?._id?.toString(),
+    );
   }
 
   @Get()
@@ -90,6 +114,10 @@ export class RolesController {
         ? (user.company._id || user.company).toString()
         : null;
 
+    if (!user?.isKaeyrosUser && !companyId) {
+      throw new BadRequestException('Company context is required');
+    }
+
     return this.rolesService.findAll(companyId);
   }
 
@@ -120,6 +148,10 @@ export class RolesController {
       : user?.company
         ? (user.company._id || user.company).toString()
         : null;
+
+    if (!user?.isKaeyrosUser && !companyId) {
+      throw new BadRequestException('Company context is required');
+    }
 
     return this.rolesService.findOne(id, companyId);
   }
@@ -154,6 +186,10 @@ export class RolesController {
         ? (user.company._id || user.company).toString()
         : null;
 
+    if (!user?.isKaeyrosUser && !companyId) {
+      throw new BadRequestException('Company context is required');
+    }
+
     return this.rolesService.update(id, updateRoleDto, companyId);
   }
 
@@ -179,6 +215,10 @@ export class RolesController {
       : user?.company
         ? (user.company._id || user.company).toString()
         : null;
+
+    if (!user?.isKaeyrosUser && !companyId) {
+      throw new BadRequestException('Company context is required');
+    }
 
     return this.rolesService.remove(id, companyId);
   }

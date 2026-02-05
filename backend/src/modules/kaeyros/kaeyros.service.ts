@@ -1,4 +1,4 @@
-import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
+import { Injectable, ConflictException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import * as bcrypt from 'bcryptjs';
@@ -8,10 +8,14 @@ import { User } from '../../database/schemas/user.schema';
 import { Disbursement } from '../../database/schemas/disbursement.schema';
 import { Collection } from '../../database/schemas/collection.schema';
 import { AuditLog } from '../../database/schemas/audit-log.schema';
+import { Role } from '../../database/schemas/role.schema';
 import { EmailService } from '../../email/email.service';
 import { ConfigService } from '@nestjs/config';
 import { UserRole, CompanyStatus } from '../../database/schemas/enums';
 import { UsersService } from '../users/users.service';
+import { getEmailSubject } from '../../common/i18n/email';
+import { resolveLanguage } from '../../common/i18n/language';
+import { RolesService } from '../roles/roles.service';
 
 @Injectable()
 export class KaeyrosService {
@@ -21,10 +25,20 @@ export class KaeyrosService {
     @InjectModel(Disbursement.name) private disbursementModel: Model<Disbursement>,
     @InjectModel(Collection.name) private collectionModel: Model<Collection>,
     @InjectModel(AuditLog.name) private auditLogModel: Model<AuditLog>,
+    @InjectModel(Role.name) private roleModel: Model<Role>,
     private emailService: EmailService,
     private configService: ConfigService,
     private usersService: UsersService,
+    private rolesService: RolesService,
   ) {}
+
+  private normalizePrefix(value: string) {
+    return value
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '');
+  }
 
   async create(createKaeyrosDto: any) {
     const existingCompany = await this.companyModel.findOne({
@@ -50,6 +64,10 @@ export class KaeyrosService {
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)/g, '');
+    const baseFilePrefix = this.normalizePrefix(createKaeyrosDto.baseFilePrefix || slug);
+    if (!baseFilePrefix) {
+      throw new BadRequestException('Base file prefix is required');
+    }
 
     const companyPayload: Record<string, any> = {
       name: createKaeyrosDto.name,
@@ -69,6 +87,9 @@ export class KaeyrosService {
       slug,
       currentUserCount: 1,
       defaultCurrency: createKaeyrosDto.defaultCurrency || 'XAF',
+      baseFilePrefix,
+      filePrefixes: [],
+      activeFilePrefix: '',
     };
 
     if (createKaeyrosDto.paymentMethods) companyPayload.paymentMethods = createKaeyrosDto.paymentMethods;
@@ -114,11 +135,18 @@ export class KaeyrosService {
       },
     }).save();
 
+    await this.rolesService.createDefaultCompanyRoles(
+      company._id.toString(),
+      user._id.toString(),
+    );
+
     const activationUrl = `${this.configService.get('FRONTEND_URL')}/activate?token=${activationToken}`;
+    const language = resolveLanguage({ user, company });
     await this.emailService.send({
       to: user.email,
-      subject: 'Welcome to K-shap - Activate Your Account',
+      subject: getEmailSubject('welcome', language),
       template: 'welcome',
+      language,
       context: {
         firstName: user.firstName,
         companyName: company.name,
@@ -355,6 +383,19 @@ export class KaeyrosService {
     ]);
 
     const companyIds = companies.map((c: any) => c._id);
+    const requiredSystemRoles = [
+      'company_super_admin',
+      'validator',
+      'department_head',
+      'cashier',
+      'agent',
+    ];
+
+    const rolesAgg = await this.roleModel.aggregate([
+      { $match: { company: { $in: companyIds }, systemRoleType: { $in: requiredSystemRoles } } },
+      { $group: { _id: '$company', types: { $addToSet: '$systemRoleType' } } },
+    ]);
+    const rolesMap = new Map(rolesAgg.map((r: any) => [r._id.toString(), r.types || []]));
 
     const disbAgg = await this.disbursementModel.aggregate([
       { $match: { company: { $in: companyIds }, isDeleted: false } },
@@ -372,12 +413,15 @@ export class KaeyrosService {
     const data = companies.map((company: any) => {
       const disb = disbMap.get(company._id.toString()) || { totalAmount: 0, count: 0 };
       const coll = collMap.get(company._id.toString()) || { totalAmount: 0, count: 0 };
+      const roleTypes = rolesMap.get(company._id.toString()) || [];
+      const hasDefaultRoles = requiredSystemRoles.every((role) => roleTypes.includes(role));
       return {
         ...company.toObject(),
         stats: {
           disbursements: disb,
           collections: coll,
         },
+        hasDefaultRoles,
       };
     });
 
@@ -477,6 +521,11 @@ export class KaeyrosService {
       throw new NotFoundException('Company not found');
     }
 
+    if (updateKaeyrosDto?.baseFilePrefix !== undefined) {
+      throw new BadRequestException('Base file prefix cannot be changed after creation');
+    }
+
+    const previousStatus = company.status;
     if (updateKaeyrosDto?.status) {
       company.status = updateKaeyrosDto.status;
     }
@@ -537,7 +586,72 @@ export class KaeyrosService {
     }
 
     await company.save();
+
+    if (updateKaeyrosDto?.status && updateKaeyrosDto.status !== previousStatus) {
+      const adminUser = await this.userModel
+        .findOne({
+          company: company._id,
+          systemRoles: UserRole.COMPANY_SUPER_ADMIN,
+          isDeleted: false,
+        } as any)
+        .sort({ createdAt: 1 });
+
+      if (adminUser) {
+        const language = resolveLanguage({ user: adminUser, company });
+        const newStatus = updateKaeyrosDto.status;
+        const isDeactivated = newStatus === CompanyStatus.SUSPENDED || newStatus === CompanyStatus.DELETED;
+        const isReactivated =
+          (previousStatus === CompanyStatus.SUSPENDED || previousStatus === CompanyStatus.DELETED) &&
+          newStatus === CompanyStatus.ACTIVE;
+
+        if (isDeactivated) {
+          await this.emailService.send({
+            to: adminUser.email,
+            subject: getEmailSubject('company-deactivated', language),
+            template: 'company-deactivated',
+            language,
+            context: {
+              firstName: adminUser.firstName,
+              companyName: company.name || 'K-shap',
+            },
+          });
+        }
+
+        if (isReactivated) {
+          await this.emailService.send({
+            to: adminUser.email,
+            subject: getEmailSubject('company-reactivated', language),
+            template: 'company-reactivated',
+            language,
+            context: {
+              firstName: adminUser.firstName,
+              companyName: company.name || 'K-shap',
+            },
+          });
+        }
+      }
+    }
+
     return company.toObject();
+  }
+
+  async seedCompanyRoles(companyId: string, actorId?: string) {
+    const company = await this.companyModel.findOne({ _id: new Types.ObjectId(companyId), isDeleted: false });
+    if (!company) {
+      throw new NotFoundException('Company not found');
+    }
+    await this.rolesService.createDefaultCompanyRoles(companyId, actorId);
+    return { success: true, message: 'Roles created successfully' };
+  }
+
+  async seedRolesForAllCompanies(actorId?: string) {
+    const companies = await this.companyModel.find({ isDeleted: false }).select('_id').lean();
+    let seededCount = 0;
+    for (const company of companies) {
+      await this.rolesService.createDefaultCompanyRoles(company._id.toString(), actorId);
+      seededCount += 1;
+    }
+    return { success: true, message: 'Roles created successfully', seededCount };
   }
 
   async remove(id: string) {

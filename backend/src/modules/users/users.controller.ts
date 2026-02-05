@@ -69,6 +69,7 @@ export class UsersController {
   @ApiQuery({ name: 'role', required: false, description: 'Filter by role' })
   @ApiQuery({ name: 'department', required: false, description: 'Filter by department' })
   @ApiQuery({ name: 'isActive', required: false, description: 'Filter by active status' })
+  @ApiQuery({ name: 'companyId', required: false, description: 'Filter by company (Kaeyros admins only)' })
   @ApiResponse({
     status: 200,
     description: 'List of users retrieved successfully.',
@@ -86,15 +87,16 @@ export class UsersController {
     @Query('role') role?: string,
     @Query('department') department?: string,
     @Query('isActive') isActive?: string,
+    @Query('companyId') companyId?: string,
   ) {
     // Kaeyros admins (no company) can see all users; company users only see their company's users
-    const companyId = user.company ? (user.company._id || user.company).toString() : null;
-    if (!user?.isKaeyrosUser && !companyId) {
+    const ownCompanyId = user.company ? (user.company._id || user.company).toString() : null;
+    if (!user?.isKaeyrosUser && !ownCompanyId) {
       throw new ForbiddenException('Company context is required for this operation');
     }
 
     return this.usersService.findAll(
-      companyId,
+      user?.isKaeyrosUser ? (companyId || null) : ownCompanyId,
       { page, limit, sortBy, sortOrder },
       {
         search,

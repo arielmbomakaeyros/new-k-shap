@@ -5,11 +5,13 @@ import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/src/store/authStore';
+import { useLogout } from '@/src/hooks/queries';
 import { LanguageSwitcher } from '../LanguageSwitcher';
 import { ThemeSwitcher } from '@/components/theme-switcher';
 import { BackButton } from '@/src/components/ui/BackButton';
 import { Home, FileText, Wallet, Users, Building2, Settings, ChevronDown } from 'lucide-react';
 import { useState } from 'react';
+import { NotificationsDropdown } from '@/src/components/notifications/NotificationsDropdown';
 
 interface ProtectedLayoutProps {
   children: React.ReactNode;
@@ -21,12 +23,12 @@ export function ProtectedLayout({ children, title, showBackButton = true }: Prot
   const { t } = useTranslation();
   const router = useRouter();
   const pathname = usePathname();
-  const { user, logout } = useAuthStore();
+  const { user } = useAuthStore();
+  const logoutMutation = useLogout();
   const [showCompanyMenu, setShowCompanyMenu] = useState(false);
 
   const handleLogout = () => {
-    logout();
-    router.push('/auth/login');
+    logoutMutation.mutate();
   };
 
   // Check user roles
@@ -80,7 +82,7 @@ export function ProtectedLayout({ children, title, showBackButton = true }: Prot
                       }`}
                     >
                       <item.icon className="h-4 w-4" />
-                      {item.label}
+                      <span>{item.label}</span>
                     </Link>
                   ))}
 
@@ -153,9 +155,13 @@ export function ProtectedLayout({ children, title, showBackButton = true }: Prot
             </div>
 
             <div className="flex items-center gap-4">
-              <span className="hidden sm:inline text-sm text-muted-foreground">
+              <Link
+                href="/profile"
+                className="hidden sm:inline text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
                 {user?.firstName} {user?.lastName}
-              </span>
+              </Link>
+              <NotificationsDropdown />
               <LanguageSwitcher />
               <ThemeSwitcher />
               <Button variant="outline" size="sm" onClick={handleLogout}>

@@ -1,6 +1,7 @@
 // import { api } from '@/lib/axios';
-import { api } from '../lib/axios';
+import axiosClient, { api } from '../lib/axios';
 import type { ApiResponse, User } from './types';
+import { uploadMultipart } from './upload.service';
 
 export interface LoginCredentials {
   email: string;
@@ -32,6 +33,23 @@ export interface ForgotPasswordDto {
 export interface ResetPasswordDto {
   token: string;
   password: string;
+}
+
+export interface UpdateProfileDto {
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  preferredLanguage?: string;
+  notificationPreferences?: {
+    email?: boolean;
+    inApp?: boolean;
+    disbursementCreated?: boolean;
+    disbursementValidated?: boolean;
+    disbursementRejected?: boolean;
+    disbursementCompleted?: boolean;
+    chatMessages?: boolean;
+    systemAlerts?: boolean;
+  };
 }
 
 export interface RefreshTokenDto {
@@ -75,6 +93,20 @@ class AuthService {
    */
   async getProfile(): Promise<ApiResponse<User>> {
     return api.get<ApiResponse<User>>(`${this.basePath}/profile`);
+  }
+
+  /**
+   * Update current user profile
+   */
+  async updateProfile(data: UpdateProfileDto): Promise<ApiResponse<User>> {
+    return api.patch<ApiResponse<User>>(`${this.basePath}/profile`, data);
+  }
+
+  /**
+   * Update current user avatar
+   */
+  async updateProfileAvatar(file: File): Promise<ApiResponse<User>> {
+    return uploadMultipart<ApiResponse<User>>(`${this.basePath}/profile/avatar`, file);
   }
 
   /**

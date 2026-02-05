@@ -2,30 +2,62 @@
 
 import Link from 'next/link';
 import { useTranslation } from '@/node_modules/react-i18next';
-// import { CompanyLayout } from '@/components/company/CompanyLayout';
-// import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { Button } from '@/components/ui/button';
 import { CompanyLayout } from '@/src/components/company/CompanyLayout';
 import { ProtectedRoute } from '@/src/components/ProtectedRoute';
+import {
+  useProfile,
+  useUsers,
+  useDisbursements,
+  useDepartments,
+  useOffices,
+  useNotifications,
+} from '@/src/hooks/queries';
 
 function CompanyDashboardContent() {
   const { t } = useTranslation();
+  const { data: profileData } = useProfile();
+  const { data: usersData } = useUsers({ page: 1, limit: 1 });
+  const { data: disbursementsData } = useDisbursements({ page: 1, limit: 1, isCompleted: false });
+  const { data: departmentsData } = useDepartments({ page: 1, limit: 1 });
+  const { data: officesData } = useOffices({ page: 1, limit: 1 });
+  const { data: notificationsData } = useNotifications({ page: 1, limit: 5 });
 
+  const companyName = profileData?.company?.name || t('users.companyTitle', { defaultValue: 'Company' });
   const stats = [
-    { label: 'Total Users', value: '12', icon: '👥' },
-    { label: 'Active Disbursements', value: '8', icon: '💸' },
-    { label: 'Departments', value: '3', icon: '🏛️' },
-    { label: 'Offices', value: '2', icon: '🏢' },
+    {
+      label: t('dashboard.totalUsers', { defaultValue: 'Total Users' }),
+      value: usersData?.pagination?.total ?? usersData?.data?.length ?? 0,
+      icon: '👥',
+    },
+    {
+      label: t('dashboard.activeDisbursements', { defaultValue: 'Active Disbursements' }),
+      value: disbursementsData?.pagination?.total ?? disbursementsData?.data?.length ?? 0,
+      icon: '💸',
+    },
+    {
+      label: t('dashboard.departments', { defaultValue: 'Departments' }),
+      value: departmentsData?.pagination?.total ?? departmentsData?.data?.length ?? 0,
+      icon: '🏛️',
+    },
+    {
+      label: t('dashboard.offices', { defaultValue: 'Offices' }),
+      value: officesData?.pagination?.total ?? officesData?.data?.length ?? 0,
+      icon: '🏢',
+    },
   ];
+  const notifications = notificationsData?.data ?? [];
 
   return (
-    <CompanyLayout companyName="Acme Corporation">
+    <CompanyLayout companyName={companyName}>
       <div className="space-y-8">
         {/* Header */}
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Company Dashboard</h1>
+          <h1 className="text-3xl font-bold text-foreground">
+            {t('dashboard.companyTitle', { defaultValue: 'Company Dashboard' })}
+          </h1>
           <p className="mt-2 text-muted-foreground">
-            Manage your company's users, departments, and settings
+            {t('dashboard.companySubtitle', { defaultValue: "Manage your company's users, departments, and settings" })}
           </p>
         </div>
 
@@ -116,36 +148,41 @@ function CompanyDashboardContent() {
 
         {/* Recent Activity */}
         <div className="rounded-lg border border-border bg-card p-6">
-          <h2 className="text-lg font-semibold text-foreground">Recent Activity</h2>
-          <div className="mt-4 space-y-3">
-            <div className="flex items-center justify-between border-b border-border py-3 last:border-0">
-              <div>
-                <p className="font-medium text-foreground">John Doe invited to company</p>
-                <p className="text-xs text-muted-foreground">2 hours ago</p>
-              </div>
-              <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-800">
-                Completed
-              </span>
+          <h2 className="text-lg font-semibold text-foreground">
+            {t('dashboard.recentActivity', { defaultValue: 'Recent Activity' })}
+          </h2>
+          {notifications.length === 0 ? (
+            <p className="mt-4 text-sm text-muted-foreground">
+              {t('dashboard.noRecentActivity', { defaultValue: 'No recent activity yet.' })}
+            </p>
+          ) : (
+            <div className="mt-4 space-y-3">
+              {notifications.map((notification) => (
+                <div
+                  key={notification.id || notification._id}
+                  className="flex items-center justify-between border-b border-border py-3 last:border-0"
+                >
+                  <div>
+                    <p className="font-medium text-foreground">{notification.title}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {notification.createdAt ? new Date(notification.createdAt).toLocaleString() : ''}
+                    </p>
+                  </div>
+                  <span
+                    className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                      notification.read
+                        ? 'bg-gray-100 text-gray-800'
+                        : 'bg-green-100 text-green-800'
+                    }`}
+                  >
+                    {notification.read
+                      ? t('dashboard.read', { defaultValue: 'Read' })
+                      : t('dashboard.new', { defaultValue: 'New' })}
+                  </span>
+                </div>
+              ))}
             </div>
-            <div className="flex items-center justify-between border-b border-border py-3 last:border-0">
-              <div>
-                <p className="font-medium text-foreground">Finance Department created</p>
-                <p className="text-xs text-muted-foreground">5 hours ago</p>
-              </div>
-              <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-800">
-                Completed
-              </span>
-            </div>
-            <div className="flex items-center justify-between border-b border-border py-3 last:border-0">
-              <div>
-                <p className="font-medium text-foreground">Company settings updated</p>
-                <p className="text-xs text-muted-foreground">1 day ago</p>
-              </div>
-              <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-800">
-                Completed
-              </span>
-            </div>
-          </div>
+          )}
         </div>
       </div>
     </CompanyLayout>

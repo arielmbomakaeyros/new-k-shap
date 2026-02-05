@@ -2,6 +2,7 @@
 import axiosClient, { api } from '../lib/axios';
 import { BaseService } from './base.service';
 import type { ApiResponse, QueryParams, User, CreateUserDto, UpdateUserDto } from './types';
+import { uploadMultipart } from './upload.service';
 
 export interface UserFilters extends QueryParams {
   role?: string;
@@ -55,10 +56,7 @@ class UsersService extends BaseService<User, CreateUserDto, UpdateUserDto, UserF
    * Upload user avatar
    */
   async updateAvatar(id: string, file: File): Promise<ApiResponse<User>> {
-    const formData = new FormData();
-    formData.append('file', file);
-    const response = await axiosClient.post<ApiResponse<User>>(`${this.basePath}/${id}/avatar`, formData);
-    return response.data;
+    return uploadMultipart<ApiResponse<User>>(`${this.basePath}/${id}/avatar`, file);
   }
 
   /**

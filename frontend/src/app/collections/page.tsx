@@ -80,7 +80,7 @@ function CollectionsContent() {
             {t('collections.subtitle')}
           </p>
         </div>
-        <Button onClick={() => router.push('/collections/new')}>
+        <Button onClick={() => router.push('/collections/new')} className="btn-3d gradient-bg-primary text-white">
           + {t('collections.newCollection')}
         </Button>
       </div>
@@ -148,7 +148,7 @@ function CollectionsContent() {
         <div className="rounded-lg border border-border bg-muted/50 py-12 text-center">
           <p className="text-muted-foreground">{t('collections.noCollections')}</p>
           <Button
-            className="mt-4"
+            className="mt-4 btn-3d gradient-bg-primary text-white"
             onClick={() => router.push('/collections/new')}
           >
             {t('collections.recordFirst')}

@@ -24,6 +24,8 @@ function DisbursementTypesContent() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedType, setSelectedType] = useState<DisbursementType | null>(null);
   const [errorModal, setErrorModal] = useState<ErrorModalState>(null);
+  const [createErrors, setCreateErrors] = useState<Record<string, string>>({});
+  const [editErrors, setEditErrors] = useState<Record<string, string>>({});
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -62,7 +64,12 @@ function DisbursementTypesContent() {
   };
 
   const handleCreateType = async () => {
-    if (!formData.name) return;
+    const nextErrors: Record<string, string> = {};
+    if (!formData.name) {
+      nextErrors.name = 'Name is required.';
+    }
+    setCreateErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
     try {
       await createMutation.mutateAsync({
         name: formData.name,
@@ -71,6 +78,7 @@ function DisbursementTypesContent() {
       });
       setShowCreateModal(false);
       resetForm();
+      setCreateErrors({});
     } catch (err) {
       console.error('Failed to create disbursement type:', err);
       const { message, details } = getErrorDetails(err, 'Failed to create disbursement type.');
@@ -92,6 +100,12 @@ function DisbursementTypesContent() {
     if (!selectedType) return;
     const id = (selectedType as any).id || (selectedType as any)._id;
     if (!id) return;
+    const nextErrors: Record<string, string> = {};
+    if (!editFormData.name) {
+      nextErrors.name = 'Name is required.';
+    }
+    setEditErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
     try {
       await updateMutation.mutateAsync({
         id,
@@ -103,6 +117,7 @@ function DisbursementTypesContent() {
       });
       setShowEditModal(false);
       setSelectedType(null);
+      setEditErrors({});
     } catch (err) {
       console.error('Failed to update disbursement type:', err);
       const { message, details } = getErrorDetails(err, 'Failed to update disbursement type.');
@@ -213,13 +228,28 @@ function DisbursementTypesContent() {
           </ModalHeader>
           <ModalBody>
             <div className="space-y-4">
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="Type name"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-foreground"
-              />
+              <div>
+                <label className="block text-sm font-medium text-foreground">
+                  Type Name <span className="text-destructive">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => {
+                    setFormData({ ...formData, name: e.target.value });
+                    if (createErrors.name) {
+                      setCreateErrors((prev) => ({ ...prev, name: '' }));
+                    }
+                  }}
+                  placeholder="Type name"
+                  className={`mt-1 w-full rounded-md border px-3 py-2 text-foreground ${
+                    createErrors.name ? 'border-destructive' : 'border-input'
+                  } bg-background`}
+                />
+                {createErrors.name && (
+                  <p className="mt-1 text-xs text-destructive">{createErrors.name}</p>
+                )}
+              </div>
               <textarea
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -253,13 +283,28 @@ function DisbursementTypesContent() {
           </ModalHeader>
           <ModalBody>
             <div className="space-y-4">
-              <input
-                type="text"
-                value={editFormData.name}
-                onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
-                placeholder="Type name"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-foreground"
-              />
+              <div>
+                <label className="block text-sm font-medium text-foreground">
+                  Type Name <span className="text-destructive">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={editFormData.name}
+                  onChange={(e) => {
+                    setEditFormData({ ...editFormData, name: e.target.value });
+                    if (editErrors.name) {
+                      setEditErrors((prev) => ({ ...prev, name: '' }));
+                    }
+                  }}
+                  placeholder="Type name"
+                  className={`mt-1 w-full rounded-md border px-3 py-2 text-foreground ${
+                    editErrors.name ? 'border-destructive' : 'border-input'
+                  } bg-background`}
+                />
+                {editErrors.name && (
+                  <p className="mt-1 text-xs text-destructive">{editErrors.name}</p>
+                )}
+              </div>
               <textarea
                 value={editFormData.description}
                 onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}

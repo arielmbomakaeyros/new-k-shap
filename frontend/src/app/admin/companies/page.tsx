@@ -6,6 +6,10 @@ import { SubscriptionStatus } from '@/src/types';
 import { AdminLayout } from '@/src/components/admin/AdminLayout';
 import { ProtectedRoute } from '@/src/components/ProtectedRoute';
 import { useTranslation } from '@/node_modules/react-i18next';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Sheet, SheetHeader, SheetTitle, SheetDescription, SheetBody } from '@/src/components/ui/sheet';
+import { ConfirmModal } from '@/src/components/ui/modal';
+import { Building2, Eye, Mail, Pencil, Trash2, UserX, Users, CheckCircle2, ShieldCheck } from 'lucide-react';
 import {
   useKaeyrosCompanies,
   useCreateKaeyrosCompany,
@@ -13,8 +17,10 @@ import {
   useUpdateKaeyrosCompanyStatus,
   useResendKaeyrosCompanyActivation,
   useDeleteKaeyrosCompany,
+  useUsers,
 } from '@/src/hooks/queries';
 import type { Company } from '@/src/services';
+import { api } from '@/src/lib/axios';
 
 function CompaniesManagerContent() {
   const { t } = useTranslation();
@@ -24,8 +30,16 @@ function CompaniesManagerContent() {
   // Modal states
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
+  const [seedingCompanyId, setSeedingCompanyId] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<Company | null>(null);
+  const [confirmDeactivate, setConfirmDeactivate] = useState<Company | null>(null);
+  const [confirmReactivate, setConfirmReactivate] = useState<Company | null>(null);
+  const [confirmResendActivation, setConfirmResendActivation] = useState<Company | null>(null);
+  const [confirmSeedRoles, setConfirmSeedRoles] = useState<Company | null>(null);
+  const [confirmSeedAll, setConfirmSeedAll] = useState(false);
+  const [detailsCompany, setDetailsCompany] = useState<Company | null>(null);
+  const [usersCompany, setUsersCompany] = useState<Company | null>(null);
   const [activationToasts, setActivationToasts] = useState<
     { id: string; title: string; description?: string; variant?: 'success' | 'error' }[]
   >([]);
@@ -40,6 +54,7 @@ function CompaniesManagerContent() {
     country: '',
     industry: '',
     website: '',
+    baseFilePrefix: '',
     status: 'active' as SubscriptionStatus,
     plan: 'professional',
     maxUsers: '',
@@ -95,6 +110,9 @@ function CompaniesManagerContent() {
     search: searchTerm || undefined,
     status: filterStatus === 'all' ? undefined : filterStatus,
   });
+  const { data: companyUsersData, isLoading: companyUsersLoading } = useUsers(
+    usersCompany ? { companyId: usersCompany.id || (usersCompany as any)._id, page: 1, limit: 20 } : undefined,
+  );
 
   // Mutations
   const createMutation = useCreateKaeyrosCompany();
@@ -121,6 +139,9 @@ function CompaniesManagerContent() {
       errors.email = 'Company email is required.';
     } else if (!isValidEmail(formData.email)) {
       errors.email = 'Company email must be valid.';
+    }
+    if (!formData.baseFilePrefix.trim()) {
+      errors.baseFilePrefix = 'Base file prefix is required.';
     }
     if (!formData.adminFirstName.trim()) errors.adminFirstName = 'Admin first name is required.';
     if (!formData.adminLastName.trim()) errors.adminLastName = 'Admin last name is required.';
@@ -192,6 +213,7 @@ function CompaniesManagerContent() {
       country: '',
       industry: '',
       website: '',
+      baseFilePrefix: '',
       status: 'active',
       plan: 'professional',
       maxUsers: '',
@@ -255,6 +277,7 @@ function CompaniesManagerContent() {
         country: formData.country || undefined,
         industry: formData.industry || undefined,
         website: formData.website || undefined,
+        baseFilePrefix: formData.baseFilePrefix,
         status: formData.status,
         plan: formData.plan,
         maxUsers: formData.maxUsers ? Number(formData.maxUsers) : undefined,
@@ -293,6 +316,7 @@ function CompaniesManagerContent() {
       country: company.country || '',
       industry: company.industry || '',
       website: (company as any).website || '',
+      baseFilePrefix: (company as any).baseFilePrefix || '',
       status: (company as any).status || (company as any).subscriptionStatus || 'active',
       plan: (company as any).planType || 'professional',
       maxUsers: String((company as any).maxUsers || ''),
@@ -387,11 +411,6 @@ function CompaniesManagerContent() {
     }
   };
 
-  const handleDeleteClick = (company: Company) => {
-    setSelectedCompany(company);
-    setShowDeleteModal(true);
-  };
-
   const addActivationToast = (toast: { title: string; description?: string; variant?: 'success' | 'error' }) => {
     const id = Math.random().toString(36).substring(2, 9);
     setActivationToasts((prev) => [...prev, { ...toast, id }]);
@@ -400,48 +419,63 @@ function CompaniesManagerContent() {
     }, 4000);
   };
 
-  const handleResendActivation = async (company: Company) => {
+  const handleSeedRoles = async (company: Company) => {
     const companyId = company.id || (company as any)._id;
-    if (!companyId) {
-      addActivationToast({
-        title: t('companies.activationFailedTitle', { defaultValue: 'Activation Email Failed' }),
-        description: t('companies.activationFailedBody', {
-          defaultValue: 'Failed to send activation email for {{name}}.',
-          name: company.name,
-        }),
-        variant: 'error',
-      });
-      return;
-    }
+    if (!companyId) return;
     try {
-      await resendActivationMutation.mutateAsync(companyId);
+      setSeedingCompanyId(companyId);
+      await api.post(`/kaeyros/companies/${companyId}/seed-roles`);
       addActivationToast({
-        title: t('companies.activationSentTitle', { defaultValue: 'Activation Email Sent' }),
-        description: t('companies.activationSentBody', {
-          defaultValue: 'Activation email sent to {{name}}.',
+        title: t('companies.rolesSeededTitle', { defaultValue: 'Roles Generated' }),
+        description: t('companies.rolesSeededBody', {
+          defaultValue: 'Default roles were generated for {{name}}.',
           name: company.name,
         }),
         variant: 'success',
       });
     } catch (error) {
-      console.error('Failed to resend activation email:', error);
       addActivationToast({
-        title: t('companies.activationFailedTitle', { defaultValue: 'Activation Email Failed' }),
-        description: t('companies.activationFailedBody', {
-          defaultValue: 'Failed to send activation email for {{name}}.',
+        title: t('companies.rolesSeededFailedTitle', { defaultValue: 'Role Generation Failed' }),
+        description: t('companies.rolesSeededFailedBody', {
+          defaultValue: 'Failed to generate roles for {{name}}.',
           name: company.name,
         }),
         variant: 'error',
       });
+    } finally {
+      setSeedingCompanyId(null);
+    }
+  };
+
+  const handleSeedRolesForAll = async () => {
+    try {
+      setSeedingCompanyId('all');
+      await api.post('/kaeyros/companies/seed-roles');
+      addActivationToast({
+        title: t('companies.rolesSeededAllTitle', { defaultValue: 'Roles Generated' }),
+        description: t('companies.rolesSeededAllBody', {
+          defaultValue: 'Default roles were generated for all companies.',
+        }),
+        variant: 'success',
+      });
+    } catch (error) {
+      addActivationToast({
+        title: t('companies.rolesSeededFailedTitle', { defaultValue: 'Role Generation Failed' }),
+        description: t('companies.rolesSeededFailedAllBody', {
+          defaultValue: 'Failed to generate roles for all companies.',
+        }),
+        variant: 'error',
+      });
+    } finally {
+      setSeedingCompanyId(null);
     }
   };
 
   const handleConfirmDelete = async () => {
-    if (!selectedCompany) return;
+    if (!confirmDelete) return;
     try {
-      await deleteMutation.mutateAsync(selectedCompany.id);
-      setSelectedCompany(null);
-      setShowDeleteModal(false);
+      await deleteMutation.mutateAsync(confirmDelete.id);
+      setConfirmDelete(null);
     } catch (error) {
       console.error('Failed to delete company:', error);
     }
@@ -452,6 +486,31 @@ function CompaniesManagerContent() {
       await updateStatusMutation.mutateAsync({ id, status });
     } catch (error) {
       console.error('Failed to update subscription:', error);
+    }
+  };
+
+  const handleDeactivateCompany = async (company: Company) => {
+    await handleToggleSubscription(company.id || (company as any)._id, SubscriptionStatus.Suspended);
+  };
+
+  const handleReactivateCompany = async (company: Company) => {
+    await handleToggleSubscription(company.id || (company as any)._id, SubscriptionStatus.Active);
+  };
+
+  const handleResendActivationConfirm = async (company: Company) => {
+    try {
+      await resendActivationMutation.mutateAsync(company.id);
+      addActivationToast({
+        title: t('companies.activationSent', { defaultValue: 'Activation sent' }),
+        description: t('companies.activationSentBody', { defaultValue: 'Activation email has been sent to the company admin.' }),
+        variant: 'success',
+      });
+    } catch (error) {
+      addActivationToast({
+        title: t('companies.activationFailed', { defaultValue: 'Activation failed' }),
+        description: t('companies.activationFailedBody', { defaultValue: 'Failed to send activation email.' }),
+        variant: 'error',
+      });
     }
   };
 
@@ -494,6 +553,11 @@ function CompaniesManagerContent() {
     return matchesSearch && matchesStatus;
   });
 
+  const getCompanyStatus = (company: any) =>
+    (company as any).status || (company as any).subscriptionStatus || 'trial';
+
+  const showGenerateRolesAll = companies.some((company) => !(company as any).hasDefaultRoles);
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'active':
@@ -520,7 +584,22 @@ function CompaniesManagerContent() {
             <h1 className="text-3xl font-bold text-foreground">{t('companies.title', { defaultValue: 'Companies' })}</h1>
             <p className="mt-2 text-muted-foreground">{t('companies.subtitle', { defaultValue: 'Manage all subscribed companies' })}</p>
           </div>
-          <Button onClick={() => setShowCreateModal(true)}>{t('companies.create', { defaultValue: '+ Create Company' })}</Button>
+          <div className="flex items-center gap-2">
+            {showGenerateRolesAll && (
+              <Button
+                variant="outline"
+                onClick={() => setConfirmSeedAll(true)}
+                disabled={seedingCompanyId === 'all'}
+              >
+                {seedingCompanyId === 'all'
+                  ? t('companies.generatingRoles', { defaultValue: 'Generating...' })
+                  : t('companies.generateRolesAll', { defaultValue: 'Generate Roles (All)' })}
+              </Button>
+            )}
+            <Button onClick={() => setShowCreateModal(true)} className="btn-3d gradient-bg-primary text-white">
+              {t('companies.create', { defaultValue: '+ Create Company' })}
+            </Button>
+          </div>
         </div>
 
         {/* Filters */}
@@ -591,69 +670,380 @@ function CompaniesManagerContent() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {filteredCompanies.map((company, index) => (
-                  <tr key={company.id || index} className="hover:bg-muted/50">
-                    <td className="px-4 py-3 text-sm font-medium">{company.name}</td>
-                    <td className="px-4 py-3 text-sm">{company.email}</td>
-                    <td className="px-4 py-3">
-                      <select
-                        value={(company as any).status || (company as any).subscriptionStatus || 'trial'}
-                        onChange={(e) =>
-                          handleToggleSubscription(company.id, e.target.value as SubscriptionStatus)
-                        }
-                        className={`rounded px-2 py-1 text-xs font-semibold ${getStatusColor(
-                          ((company as any).status || (company as any).subscriptionStatus) as string
-                        )}`}
-                      >
-                        <option value="active">{t('companies.status.active', { defaultValue: 'Active' })}</option>
-                        <option value="suspended">{t('companies.status.suspended', { defaultValue: 'Suspended' })}</option>
-                        <option value="trial">{t('companies.status.trial', { defaultValue: 'Trial' })}</option>
-                        <option value="expired">{t('companies.status.expired', { defaultValue: 'Expired' })}</option>
-                        <option value="deleted">{t('companies.status.deleted', { defaultValue: 'Deleted' })}</option>
-                      </select>
-                    </td>
-                    <td className="px-4 py-3 text-sm">{company.industry || '-'}</td>
-                    <td className="px-4 py-3 text-sm">
-                      {new Date(company.createdAt).toLocaleDateString()}
-                    </td>
-                    <td className="px-4 py-3 text-sm">
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleEdit(company)}
+                {filteredCompanies.map((company, index) => {
+                  const companyId = company.id || (company as any)._id || index;
+                  const status = getCompanyStatus(company);
+                  const hasDefaultRoles = Boolean((company as any).hasDefaultRoles);
+                  const isActive = status === 'active';
+                  const isSuspended = status === 'suspended';
+
+                  return (
+                    <tr key={companyId} className="hover:bg-muted/50">
+                      <td className="px-4 py-3 text-sm font-medium">
+                        <button
+                          type="button"
+                          onClick={() => setDetailsCompany(company)}
+                          className="inline-flex items-center gap-2 text-foreground hover:underline"
                         >
-                          {t('common.edit', { defaultValue: 'Edit' })}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleResendActivation(company)}
-                          disabled={resendActivationMutation.isPending}
-                        >
-                          {t('companies.sendActivation', { defaultValue: 'Send Activation' })}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => handleDeleteClick(company)}
-                        >
-                          {t('common.delete', { defaultValue: 'Delete' })}
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
+                            <Building2 className="h-4 w-4" />
+                          </span>
+                          {company.name}
+                        </button>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-foreground/80">{company.email}</td>
+                      <td className="px-4 py-3">
+                        <span className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatusColor(status)}`}>
+                          {t(`companies.status.${status}`, { defaultValue: status })}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-foreground/80">{company.industry || '-'}</td>
+                      <td className="px-4 py-3 text-sm text-muted-foreground">
+                        {new Date(company.createdAt).toLocaleDateString()}
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        <TooltipProvider>
+                          <div className="flex items-center gap-2">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button size="icon-sm" variant="ghost" onClick={() => setDetailsCompany(company)} aria-label="View details">
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                {t('companies.viewDetails', { defaultValue: 'View details' })}
+                              </TooltipContent>
+                            </Tooltip>
+
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button size="icon-sm" variant="ghost" onClick={() => setUsersCompany(company)} aria-label="View users">
+                                  <Users className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                {t('companies.viewUsers', { defaultValue: 'View users' })}
+                              </TooltipContent>
+                            </Tooltip>
+
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button size="icon-sm" variant="ghost" onClick={() => handleEdit(company)} aria-label="Edit company">
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                {t('common.edit', { defaultValue: 'Edit' })}
+                              </TooltipContent>
+                            </Tooltip>
+
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  size="icon-sm"
+                                  variant="ghost"
+                                  onClick={() => setConfirmResendActivation(company)}
+                                  disabled={resendActivationMutation.isPending || isActive}
+                                  aria-label="Send activation"
+                                >
+                                  <Mail className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                {isActive
+                                  ? t('companies.activationNotNeeded', { defaultValue: 'Company is active' })
+                                  : t('companies.sendActivation', { defaultValue: 'Send activation' })}
+                              </TooltipContent>
+                            </Tooltip>
+
+                            {!hasDefaultRoles && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    size="icon-sm"
+                                    variant="ghost"
+                                    onClick={() => setConfirmSeedRoles(company)}
+                                    disabled={seedingCompanyId === companyId}
+                                    aria-label="Generate roles"
+                                  >
+                                    <ShieldCheck className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  {t('companies.generateRoles', { defaultValue: 'Generate Roles' })}
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
+
+                            {isActive && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    size="icon-sm"
+                                    variant="ghost"
+                                    onClick={() => setConfirmDeactivate(company)}
+                                    aria-label="Deactivate company"
+                                  >
+                                    <UserX className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  {t('companies.deactivate', { defaultValue: 'Deactivate' })}
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
+
+                            {isSuspended && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    size="icon-sm"
+                                    variant="ghost"
+                                    onClick={() => setConfirmReactivate(company)}
+                                    aria-label="Reactivate company"
+                                  >
+                                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  {t('companies.reactivate', { defaultValue: 'Reactivate' })}
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
+
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  size="icon-sm"
+                                  variant="ghost"
+                                  onClick={() => setConfirmDelete(company)}
+                                  aria-label="Delete company"
+                                >
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                {t('common.delete', { defaultValue: 'Delete' })}
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                        </TooltipProvider>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         )}
       </div>
 
+      <ConfirmModal
+        isOpen={!!confirmResendActivation}
+        onClose={() => setConfirmResendActivation(null)}
+        onConfirm={() => confirmResendActivation && handleResendActivationConfirm(confirmResendActivation)}
+        title={t('companies.sendActivation', { defaultValue: 'Send Activation' })}
+        message={t('companies.sendActivationConfirm', {
+          defaultValue: 'Send an activation email to {{name}}?',
+          name: confirmResendActivation?.name || '',
+        })}
+        confirmLabel={t('companies.sendActivation', { defaultValue: 'Send Activation' })}
+        cancelLabel={t('common.cancel', { defaultValue: 'Cancel' })}
+        variant="default"
+        isLoading={resendActivationMutation.isPending}
+      />
+
+      <ConfirmModal
+        isOpen={!!confirmSeedRoles}
+        onClose={() => setConfirmSeedRoles(null)}
+        onConfirm={() => confirmSeedRoles && handleSeedRoles(confirmSeedRoles)}
+        title={t('companies.generateRoles', { defaultValue: 'Generate Roles' })}
+        message={t('companies.generateRolesConfirm', {
+          defaultValue: 'Generate default roles for {{name}}?',
+          name: confirmSeedRoles?.name || '',
+        })}
+        confirmLabel={t('companies.generateRoles', { defaultValue: 'Generate Roles' })}
+        cancelLabel={t('common.cancel', { defaultValue: 'Cancel' })}
+        variant="success"
+        isLoading={seedingCompanyId === (confirmSeedRoles?.id || (confirmSeedRoles as any)?._id)}
+      />
+
+      <ConfirmModal
+        isOpen={confirmSeedAll}
+        onClose={() => setConfirmSeedAll(false)}
+        onConfirm={handleSeedRolesForAll}
+        title={t('companies.generateRolesAll', { defaultValue: 'Generate Roles (All)' })}
+        message={t('companies.generateRolesAllConfirm', {
+          defaultValue: 'Generate default roles for all companies missing them?',
+        })}
+        confirmLabel={t('companies.generateRolesAll', { defaultValue: 'Generate Roles (All)' })}
+        cancelLabel={t('common.cancel', { defaultValue: 'Cancel' })}
+        variant="success"
+        isLoading={seedingCompanyId === 'all'}
+      />
+
+      <ConfirmModal
+        isOpen={!!confirmDeactivate}
+        onClose={() => setConfirmDeactivate(null)}
+        onConfirm={() => confirmDeactivate && handleDeactivateCompany(confirmDeactivate)}
+        title={t('companies.deactivateTitle', { defaultValue: 'Deactivate Company' })}
+        message={t('companies.deactivateConfirm', {
+          defaultValue: 'Deactivate {{name}}? Their users will not be able to sign in.',
+          name: confirmDeactivate?.name || '',
+        })}
+        confirmLabel={t('companies.deactivate', { defaultValue: 'Deactivate' })}
+        cancelLabel={t('common.cancel', { defaultValue: 'Cancel' })}
+        variant="warning"
+        isLoading={updateStatusMutation.isPending}
+      />
+
+      <ConfirmModal
+        isOpen={!!confirmReactivate}
+        onClose={() => setConfirmReactivate(null)}
+        onConfirm={() => confirmReactivate && handleReactivateCompany(confirmReactivate)}
+        title={t('companies.reactivateTitle', { defaultValue: 'Reactivate Company' })}
+        message={t('companies.reactivateConfirm', {
+          defaultValue: 'Reactivate {{name}}? Users will be able to sign in again.',
+          name: confirmReactivate?.name || '',
+        })}
+        confirmLabel={t('companies.reactivate', { defaultValue: 'Reactivate' })}
+        cancelLabel={t('common.cancel', { defaultValue: 'Cancel' })}
+        variant="success"
+        isLoading={updateStatusMutation.isPending}
+      />
+
+      <ConfirmModal
+        isOpen={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        onConfirm={handleConfirmDelete}
+        title={t('companies.deleteTitle', { defaultValue: 'Delete Company' })}
+        message={t('companies.deleteConfirm', {
+          defaultValue: 'Are you sure you want to delete {{name}}? This action cannot be undone.',
+          name: confirmDelete?.name || '',
+        })}
+        confirmLabel={t('common.delete', { defaultValue: 'Delete' })}
+        cancelLabel={t('common.cancel', { defaultValue: 'Cancel' })}
+        variant="danger"
+        isLoading={deleteMutation.isPending}
+      />
+
+      <Sheet
+        isOpen={!!detailsCompany}
+        onClose={() => setDetailsCompany(null)}
+        position="right"
+        size="lg"
+      >
+        <SheetHeader>
+          <SheetTitle>
+            {detailsCompany?.name}
+          </SheetTitle>
+          <SheetDescription>
+            {detailsCompany?.email}
+          </SheetDescription>
+        </SheetHeader>
+        <SheetBody>
+          {detailsCompany && (
+            <div className="space-y-6">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="rounded-lg border border-border bg-muted/40 p-4">
+                  <p className="text-xs text-muted-foreground">{t('companies.status', { defaultValue: 'Status' })}</p>
+                  <p className="mt-1 text-sm font-semibold text-foreground">
+                    {t(`companies.status.${getCompanyStatus(detailsCompany)}`, { defaultValue: getCompanyStatus(detailsCompany) })}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-border bg-muted/40 p-4">
+                  <p className="text-xs text-muted-foreground">{t('companies.industry', { defaultValue: 'Industry' })}</p>
+                  <p className="mt-1 text-sm font-semibold text-foreground">{detailsCompany.industry || '-'}</p>
+                </div>
+                <div className="rounded-lg border border-border bg-muted/40 p-4">
+                  <p className="text-xs text-muted-foreground">{t('companies.users', { defaultValue: 'Users' })}</p>
+                  <p className="mt-1 text-sm font-semibold text-foreground">
+                    {(detailsCompany as any).stats?.userCount ?? (detailsCompany as any).currentUserCount ?? '-'}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-border bg-muted/40 p-4">
+                  <p className="text-xs text-muted-foreground">{t('companies.disbursements', { defaultValue: 'Disbursements' })}</p>
+                  <p className="mt-1 text-sm font-semibold text-foreground">
+                    {(detailsCompany as any).stats?.disbursements?.count ?? 0}
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-border p-4">
+                <p className="text-xs text-muted-foreground">{t('companies.address', { defaultValue: 'Address' })}</p>
+                <p className="mt-1 text-sm text-foreground">
+                  {[detailsCompany.address, detailsCompany.city, detailsCompany.country].filter(Boolean).join(', ') || '-'}
+                </p>
+              </div>
+            </div>
+          )}
+        </SheetBody>
+      </Sheet>
+
+      <Sheet
+        isOpen={!!usersCompany}
+        onClose={() => setUsersCompany(null)}
+        position="right"
+        size="lg"
+      >
+        <SheetHeader>
+          <SheetTitle>
+            {t('companies.users', { defaultValue: 'Company Users' })}
+          </SheetTitle>
+          <SheetDescription>
+            {usersCompany?.name}
+          </SheetDescription>
+        </SheetHeader>
+        <SheetBody>
+          {companyUsersLoading ? (
+            <div className="py-6 text-sm text-muted-foreground">
+              {t('common.loading', { defaultValue: 'Loading...' })}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {(companyUsersData?.data || []).map((user: any) => (
+                <div key={user.id || user._id} className="flex items-center gap-3 rounded-lg border border-border p-3">
+                  <div className="h-10 w-10 overflow-hidden rounded-full border border-border bg-muted">
+                    {user.avatar ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={user.avatar} alt={user.firstName} className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-muted-foreground">
+                        {user.firstName?.[0]}{user.lastName?.[0]}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-foreground">{user.firstName} {user.lastName}</p>
+                    <p className="text-xs text-muted-foreground">{user.email}</p>
+                  </div>
+                  <span className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                    user.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                  }`}>
+                    {user.isActive ? t('users.status.active', { defaultValue: 'Active' }) : t('users.status.inactive', { defaultValue: 'Inactive' })}
+                  </span>
+                </div>
+              ))}
+              {(!companyUsersData?.data || companyUsersData.data.length === 0) && (
+                <p className="text-sm text-muted-foreground">
+                  {t('companies.noUsers', { defaultValue: 'No users found for this company.' })}
+                </p>
+              )}
+            </div>
+          )}
+        </SheetBody>
+      </Sheet>
+
       {/* Create Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="w-full max-w-4xl rounded-lg bg-background p-6 shadow-lg">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          onClick={() => setShowCreateModal(false)}
+        >
+          <div
+            className="w-full max-w-4xl rounded-lg bg-background p-6 shadow-lg"
+            onClick={(event) => event.stopPropagation()}
+          >
             <h2 className="text-lg font-semibold text-foreground">{t('companies.createTitle', { defaultValue: 'Create New Company' })}</h2>
             <div className="mt-4 max-h-[70vh] space-y-4 overflow-y-auto pr-2">
               <div>
@@ -666,6 +1056,17 @@ function CompaniesManagerContent() {
                   placeholder={t('companies.placeholders.name', { defaultValue: 'Enter company name' })}
                 />
                 {createErrors.name && <p className="mt-1 text-xs text-destructive">{createErrors.name}</p>}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground">{t('companies.fields.baseFilePrefix', { defaultValue: 'Base File Prefix *' })}</label>
+                <input
+                  type="text"
+                  value={formData.baseFilePrefix}
+                  onChange={(e) => setFormData({ ...formData, baseFilePrefix: e.target.value })}
+                  className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-foreground"
+                  placeholder={t('companies.placeholders.baseFilePrefix', { defaultValue: 'e.g. eneo' })}
+                />
+                {createErrors.baseFilePrefix && <p className="mt-1 text-xs text-destructive">{createErrors.baseFilePrefix}</p>}
               </div>
               <div>
                 <label className="block text-sm font-medium text-foreground">{t('companies.fields.email', { defaultValue: 'Email *' })}</label>
@@ -1109,8 +1510,14 @@ function CompaniesManagerContent() {
 
       {/* Edit Modal */}
       {showEditModal && selectedCompany && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="w-full max-w-4xl rounded-lg bg-background p-6 shadow-lg">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          onClick={() => setShowEditModal(false)}
+        >
+          <div
+            className="w-full max-w-4xl rounded-lg bg-background p-6 shadow-lg"
+            onClick={(event) => event.stopPropagation()}
+          >
             <h2 className="text-lg font-semibold text-foreground">{t('companies.editTitle', { defaultValue: 'Edit Company' })}</h2>
             <div className="mt-4 max-h-[70vh] space-y-4 overflow-y-auto pr-2">
               <div>
@@ -1122,6 +1529,15 @@ function CompaniesManagerContent() {
                   className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-foreground"
                 />
                 {editErrors.name && <p className="mt-1 text-xs text-destructive">{editErrors.name}</p>}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground">{t('companies.fields.baseFilePrefix', { defaultValue: 'Base File Prefix' })}</label>
+                <input
+                  type="text"
+                  value={formData.baseFilePrefix}
+                  disabled
+                  className="mt-1 w-full rounded-md border border-input bg-muted px-3 py-2 text-foreground opacity-70"
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-foreground">{t('companies.fields.email', { defaultValue: 'Email *' })}</label>
@@ -1524,35 +1940,6 @@ function CompaniesManagerContent() {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
-      {showDeleteModal && selectedCompany && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="w-full max-w-sm rounded-lg bg-background p-6 shadow-lg">
-            <h2 className="text-lg font-semibold text-foreground">{t('companies.deleteTitle', { defaultValue: 'Delete Company' })}</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              {t('companies.deleteConfirm', { defaultValue: 'Are you sure you want to delete {{name}}? This action cannot be undone.', name: selectedCompany.name })}
-            </p>
-            <div className="mt-6 flex justify-end gap-3">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setSelectedCompany(null);
-                  setShowDeleteModal(false);
-                }}
-              >
-                {t('common.cancel', { defaultValue: 'Cancel' })}
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={handleConfirmDelete}
-                disabled={deleteMutation.isPending}
-              >
-                {deleteMutation.isPending ? t('common.deleting', { defaultValue: 'Deleting...' }) : t('common.delete', { defaultValue: 'Delete' })}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
     </AdminLayout>
   );
 }

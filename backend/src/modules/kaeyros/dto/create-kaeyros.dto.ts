@@ -111,6 +111,14 @@ export class CreateCompanyByKaeyrosDto {
   name: string;
 
   @ApiProperty({
+    description: 'Base file prefix for company storage (immutable)',
+    example: 'eneo',
+  })
+  @IsString()
+  @IsNotEmpty()
+  baseFilePrefix: string;
+
+  @ApiProperty({
     description: 'Company description',
     example: 'A leading technology company',
     required: false,

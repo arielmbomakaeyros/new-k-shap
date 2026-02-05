@@ -270,3 +270,90 @@ Here’s a clear, full‑stack way to think about it given your current setup (f
   3. Add localization resolver
   4. Localize email templates
   5. Localize validation errors
+
+
+
+
+
+
+
+  Done. I implemented the “company default language + user override + localized emails + localized validation errors” end‑to‑end with French fallback.
+
+  - Language resolution order: user preferredLanguage → company defaultLanguage → Accept‑Language header → fallback fr.
+  - Validation errors are translated to French (including “property X should not exist”).
+  - Emails use French templates by default and English when a user/company language is en.
+
+  Key changes (backend)
+
+  - Added language resolver + validation translator:
+      - backend/src/common/i18n/language.ts
+      - backend/src/common/i18n/validation.ts
+  - Localized validation errors in the global exception filter:
+      - backend/src/common/filters/all-exceptions.filter.ts
+  - Added localized email subjects + language support in EmailData:
+      - backend/src/common/i18n/email.ts
+      - backend/src/common/interfaces/index.ts
+  - Localized email templates (FR/EN) + footer:
+      - backend/src/email/email.service.ts
+  - Email sending now passes resolved language + localized subject:
+      - backend/src/modules/users/users.service.ts
+      - backend/src/modules/auth/auth.service.ts
+      - backend/src/modules/kaeyros/kaeyros.service.ts
+  - Company settings now expose and allow update of supportedLanguages + defaultLanguage:
+      - backend/src/modules/settings/settings.service.ts
+      - backend/src/modules/settings/settings.controller.ts
+
+  Next steps
+
+  1. Restart the backend server.
+  2. Trigger a validation error (e.g., send extra fields) and you’ll now see French messages.
+
+› Yes you can scope it to them, but most importantly i want to know if the configuration of the company i now wired to this backend internationalization...so if i
+  login as company admin now will i be able to change the lang and a user of my company start getting messages in the new lang i set?
+  Is it wired like that now?
+
+
+• Short answer: not fully yet.
+
+  What is wired now
+  - Emails + validation errors now respect that resolution.
+  - Company settings API now returns and accepts supportedLanguages + defaultLanguage.
+
+  What is still missing for “company admin can change language and it takes effect”
+
+  1. Frontend company settings UI needs to send defaultLanguage (and optionally supported languages) to the backend.
+  2. When a company admin changes it, those settings must be saved via the existing /settings/company/preferences endpoint.
+
+  Right now, unless your frontend already sends defaultLanguage in the company preferences update (it doesn’t yet), the backend won’t actually receive the change.
+
+  If you want, I can:
+
+  - Add the language selector to the company settings page,
+  - Wire it to update defaultLanguage,
+  - Then users will start getting localized messages based on that new value.
+
+  Just confirm and I’ll implement the UI wiring next.
+
+
+
+  • I confirmed defaultLanguage is always among supported languages and integrated this check with settings i18n optionally. Also reused the existing
+  updateCompanyPreferences button for preference updates.
+
+─ Worked for 44s ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+• Done. The company settings page now lets the admin change supported languages and default language, and it sends those values to the backend. Once saved, backend
+  will use that new default language for emails + validation errors for all users who don’t override it.
+
+  Changes:
+
+  - Added supportedLanguages + defaultLanguage to preferences state and payload.
+  - Added UI controls under Payments & Currency in frontend/src/app/company/settings/page.tsx.
+
+  Behavior:
+
+  - If the admin removes the current default from supported, it auto‑switches to the first supported language.
+  - At least one language is always kept (defaults to fr).
+
+  If you want it placed in a dedicated “Language” section instead of Payments & Currency, I can move it.
+
+  Next: once you’re ready, I’ll create the user‑level settings page (override preferred language) and wire it to preferredLanguage in the backend profile update.

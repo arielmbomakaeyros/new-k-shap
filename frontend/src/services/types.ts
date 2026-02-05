@@ -62,6 +62,16 @@ export interface User extends BaseEntity {
   mustChangePassword: boolean;
   avatar?: string;
   preferredLanguage: string;
+  notificationPreferences?: {
+    email?: boolean;
+    inApp?: boolean;
+    disbursementCreated?: boolean;
+    disbursementValidated?: boolean;
+    disbursementRejected?: boolean;
+    disbursementCompleted?: boolean;
+    chatMessages?: boolean;
+    systemAlerts?: boolean;
+  };
   maxApprovalAmount?: number;
   isActive: boolean;
   lastLogin?: string;
@@ -99,6 +109,9 @@ export interface Company extends BaseEntity {
   subscriptionEndDate?: string;
   features: string[];
   logo?: string;
+  baseFilePrefix?: string;
+  filePrefixes?: string[];
+  activeFilePrefix?: string;
 }
 
 export interface CreateCompanyDto {
@@ -109,6 +122,7 @@ export interface CreateCompanyDto {
   city?: string;
   country?: string;
   industry?: string;
+  baseFilePrefix: string;
 }
 
 export interface UpdateCompanyDto extends Partial<CreateCompanyDto> {
@@ -118,6 +132,7 @@ export interface UpdateCompanyDto extends Partial<CreateCompanyDto> {
 
 // Department Types
 export interface Department extends BaseEntity {
+  _id?: string;
   name: string;
   companyId: string;
   description?: string;
@@ -158,6 +173,7 @@ export interface Role extends BaseEntity {
   description?: string;
   permissions: Array<string | Permission>;
   isSystemRole?: boolean;
+  systemRoleType?: string;
 }
 
 export interface CreateRoleDto {
@@ -469,6 +485,11 @@ export interface CompanySettings {
     logoUrl: string;
     primaryColor: string;
   };
+  baseFilePrefix?: string;
+  filePrefixes?: string[];
+  activeFilePrefix?: string;
+  supportedLanguages?: string[];
+  defaultLanguage?: string;
   notificationChannels?: {
     email: boolean;
     sms: boolean;

@@ -11,6 +11,7 @@ import {
   useDeleteRole,
   usePermissions,
 } from '@/src/hooks/queries';
+import { api } from '@/src/lib/axios';
 import type { Role, Permission } from '@/src/services';
 
 function RolesContent() {
@@ -21,9 +22,11 @@ function RolesContent() {
     description: '',
     permissions: [] as string[],
   });
+  const [seedingRoles, setSeedingRoles] = useState(false);
+  const [seedError, setSeedError] = useState<string | null>(null);
 
   // Fetch roles and permissions from API
-  const { data: rolesData, isLoading: rolesLoading, error: rolesError } = useRoles();
+  const { data: rolesData, isLoading: rolesLoading, error: rolesError, refetch: refetchRoles } = useRoles();
   const { data: permissionsData, isLoading: permissionsLoading } = usePermissions();
 
   // Mutations
@@ -68,7 +71,52 @@ function RolesContent() {
     }
   };
 
-  // Loading state
+  const handleSeedRoles = async () => {
+    try {
+      setSeedingRoles(true);
+      setSeedError(null);
+      await api.post('/roles/seed-default');
+      await refetchRoles();
+    } catch (error) {
+      setSeedError('Failed to generate default roles.');
+    } finally {
+      setSeedingRoles(false);
+    }
+  };
+
+  const requiredSystemRoles = [
+    'company_super_admin',
+    'validator',
+    'department_head',
+    'cashier',
+    'agent',
+  ];
+
+  const roles = rolesData?.data ?? [];
+
+  const hasDefaultRoles = requiredSystemRoles?.every((roleType) =>
+    (roles || [])?.some((role) => role.systemRoleType === roleType),
+  );
+
+  const permissions = permissionsData?.data ?? [];
+
+  const getPermissionCode = (perm: string | Permission) =>
+    typeof perm === 'string' ? perm : perm.code;
+
+  const getPermissionLabel = (perm: string | Permission) => {
+    if (typeof perm !== 'string') {
+      return perm.name || perm.code;
+    }
+
+    const found = permissions.find((p) => p.code === perm);
+    return found?.name || perm;
+  };
+
+  const getRolePermissionCodes = (role: Role) =>
+    (role.permissions || []).map(getPermissionCode).filter(Boolean);
+
+
+    // Loading state
   if (rolesLoading || permissionsLoading) {
     return (
       <CompanyLayout companyName="Company">
@@ -91,24 +139,6 @@ function RolesContent() {
     );
   }
 
-  const roles = rolesData?.data ?? [];
-  const permissions = permissionsData?.data ?? [];
-
-  const getPermissionCode = (perm: string | Permission) =>
-    typeof perm === 'string' ? perm : perm.code;
-
-  const getPermissionLabel = (perm: string | Permission) => {
-    if (typeof perm !== 'string') {
-      return perm.name || perm.code;
-    }
-
-    const found = permissions.find((p) => p.code === perm);
-    return found?.name || perm;
-  };
-
-  const getRolePermissionCodes = (role: Role) =>
-    (role.permissions || []).map(getPermissionCode).filter(Boolean);
-
   return (
     <CompanyLayout companyName="Company">
       <div className="space-y-8">
@@ -120,14 +150,33 @@ function RolesContent() {
               Define roles and assign permissions for your team
             </p>
           </div>
-          <Button onClick={() => setShowForm(!showForm)}>
-            {showForm ? '- Cancel' : '+ Create Role'}
-          </Button>
+          <div className="flex items-center gap-2">
+            {!hasDefaultRoles && (
+              <Button variant="outline" onClick={handleSeedRoles} disabled={seedingRoles}>
+                {seedingRoles ? 'Generating...' : 'Generate Default Roles'}
+              </Button>
+            )}
+            {hasDefaultRoles && (
+              <Button onClick={() => setShowForm(!showForm)} className="btn-3d gradient-bg-primary text-white">
+                {showForm ? '- Cancel' : '+ Create Role'}
+              </Button>
+            )}
+          </div>
         </div>
+        {!hasDefaultRoles && (
+          <div className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm text-warning-foreground">
+            Create the 5 default roles before adding custom roles.
+          </div>
+        )}
+        {seedError && (
+          <div className="rounded-lg border border-destructive bg-destructive/10 p-3 text-sm text-destructive">
+            {seedError}
+          </div>
+        )}
 
         {/* Create Role Form */}
         <Modal
-          isOpen={showForm}
+          isOpen={showForm && hasDefaultRoles}
           onClose={() => setShowForm(false)}
           size="lg"
         >
@@ -263,43 +312,52 @@ function RolesContent() {
         </div>
 
         {/* Selected Role Details */}
-        {selectedRole && (
-          <div className="rounded-lg border border-border bg-card p-6">
-            <h2 className="text-lg font-semibold text-foreground">
-              Role Details: {selectedRole.name}
-            </h2>
-            <div className="mt-4 space-y-4">
-              <div>
-                <p className="text-sm font-medium text-foreground">Description</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {selectedRole.description || 'No description provided'}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-foreground mb-2">All Permissions</p>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {permissions.map((perm) => (
-                    <label key={perm.id} className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={getRolePermissionCodes(selectedRole).includes(perm.code)}
-                        className="rounded border-input"
-                        disabled
-                      />
-                      <span className="text-sm text-foreground">{perm.name}</span>
-                    </label>
-                  ))}
+        <Modal
+          isOpen={!!selectedRole}
+          onClose={() => setSelectedRole(null)}
+          size="lg"
+        >
+          <ModalHeader>
+            <ModalTitle>Role Details</ModalTitle>
+          </ModalHeader>
+          <ModalBody>
+            {selectedRole && (
+              <div className="space-y-4">
+                <div>
+                  <p className="text-sm font-medium text-foreground">Role</p>
+                  <p className="mt-1 text-sm text-foreground">{selectedRole.name}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-foreground">Description</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {selectedRole.description || 'No description provided'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-foreground mb-2">All Permissions</p>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {permissions.map((perm) => (
+                      <label key={perm.id} className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={getRolePermissionCodes(selectedRole).includes(perm.code)}
+                          className="rounded border-input"
+                          disabled
+                        />
+                        <span className="text-sm text-foreground">{perm.name}</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
               </div>
-              <div className="flex gap-4">
-                <Button>Update Role</Button>
-                <Button variant="outline" onClick={() => setSelectedRole(null)}>
-                  Close
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
+            )}
+          </ModalBody>
+          <ModalFooter className="flex justify-end gap-3">
+            <Button variant="outline" onClick={() => setSelectedRole(null)}>
+              Close
+            </Button>
+          </ModalFooter>
+        </Modal>
       </div>
     </CompanyLayout>
   );

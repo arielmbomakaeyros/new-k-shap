@@ -197,6 +197,34 @@ export class KaeyrosController {
     return this.kaeyrosService.resendCompanyAdminActivation(id, user);
   }
 
+  @Post('companies/:id/seed-roles')
+  @ApiOperation({ summary: 'Create default roles for a company' })
+  @ApiParam({ name: 'id', description: 'Company ID', example: '507f1f77bcf86cd799439011' })
+  @ApiResponse({
+    status: 200,
+    description: 'Roles created successfully.',
+    type: SuccessResponseDto,
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Platform Admin access required.' })
+  @ApiResponse({ status: 404, description: 'Company not found.' })
+  seedRoles(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.kaeyrosService.seedCompanyRoles(id, user?._id?.toString());
+  }
+
+  @Post('companies/seed-roles')
+  @ApiOperation({ summary: 'Create default roles for all companies' })
+  @ApiResponse({
+    status: 200,
+    description: 'Roles created successfully.',
+    type: SuccessResponseDto,
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Platform Admin access required.' })
+  seedRolesForAll(@CurrentUser() user: any) {
+    return this.kaeyrosService.seedRolesForAllCompanies(user?._id?.toString());
+  }
+
   @Get('audit-logs')
   @ApiOperation({ summary: 'Get platform-wide audit logs (Platform Admin only)' })
   @ApiQuery({ name: 'page', required: false, description: 'Page number', example: 1 })

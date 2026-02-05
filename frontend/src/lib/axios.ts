@@ -71,6 +71,22 @@ axiosClient.interceptors.response.use(
 
     // Handle 401 Unauthorized - token refresh
     if (error.response?.status === 401 && !originalRequest._retry) {
+      const requestUrl = originalRequest.url || '';
+      const isLoginRequest = requestUrl.includes('/auth/login');
+
+      if (isLoginRequest) {
+        const apiError: ApiError = {
+          message:
+            error.response?.data?.message ||
+            error.message ||
+            'An unexpected error occurred',
+          statusCode: error.response?.status || 500,
+          errors: error.response?.data?.errors,
+        };
+
+        return Promise.reject(apiError);
+      }
+
       if (isRefreshing) {
         // Queue the request while refreshing
         return new Promise<string>((resolve, reject) => {

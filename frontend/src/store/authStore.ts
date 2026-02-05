@@ -17,6 +17,16 @@ export interface User {
   mustChangePassword: boolean;
   avatar?: string;
   preferredLanguage: string;
+  notificationPreferences?: {
+    email?: boolean;
+    inApp?: boolean;
+    disbursementCreated?: boolean;
+    disbursementValidated?: boolean;
+    disbursementRejected?: boolean;
+    disbursementCompleted?: boolean;
+    chatMessages?: boolean;
+    systemAlerts?: boolean;
+  };
   maxApprovalAmount?: number;
   isActive: boolean;
   lastLogin?: string;

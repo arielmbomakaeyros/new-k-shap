@@ -17,6 +17,8 @@ import { ConfigService } from '@nestjs/config';
 import { CreateUserDto, UpdateUserDto } from './dto';
 import { UserRole } from '../../database/schemas/enums';
 import { PaginationParams, PaginatedResponse } from '../../common/interfaces';
+import { getEmailSubject } from '../../common/i18n/email';
+import { resolveLanguage } from '../../common/i18n/language';
 
 @Injectable()
 export class UsersService {
@@ -77,11 +79,13 @@ export class UsersService {
     // Send activation email
     const company = await this.companyModel.findById(creatorUser.company);
     const activationUrl = `${this.configService.get('FRONTEND_URL')}/activate?token=${activationToken}`;
+    const language = resolveLanguage({ user, company });
 
     await this.emailService.send({
       to: user.email,
-      subject: 'Welcome to K-shap - Activate Your Account',
+      subject: getEmailSubject('welcome', language),
       template: 'welcome',
+      language,
       context: {
         firstName: user.firstName,
         companyName: company?.name || 'K-shap',
@@ -207,10 +211,48 @@ export class UsersService {
       throw new ForbiddenException('Cannot deactivate company super admin');
     }
 
-    Object.assign(user, dto);
-    user.updatedBy = updaterUser._id;
+    const wasActive = user.isActive;
+    const updateFields: Record<string, any> = { ...dto, updatedBy: updaterUser._id };
 
-    await user.save();
+    await this.userModel.findByIdAndUpdate(
+      user._id,
+      { $set: updateFields },
+      { new: true },
+    );
+
+    if (wasActive && dto.isActive === false) {
+      const company = user.company
+        ? await this.companyModel.findById(user.company)
+        : null;
+      const language = resolveLanguage({ user, company });
+      await this.emailService.send({
+        to: user.email,
+        subject: getEmailSubject('account-deactivated', language),
+        template: 'account-deactivated',
+        language,
+        context: {
+          firstName: user.firstName,
+          companyName: company?.name || 'K-shap',
+        },
+      });
+    }
+
+    if (!wasActive && dto.isActive === true) {
+      const company = user.company
+        ? await this.companyModel.findById(user.company)
+        : null;
+      const language = resolveLanguage({ user, company });
+      await this.emailService.send({
+        to: user.email,
+        subject: getEmailSubject('account-reactivated', language),
+        template: 'account-reactivated',
+        language,
+        context: {
+          firstName: user.firstName,
+          companyName: company?.name || 'K-shap',
+        },
+      });
+    }
 
     const companyId = updaterUser.company ? (updaterUser.company._id || updaterUser.company).toString() : null;
     return this.findById(id, companyId);
@@ -324,11 +366,13 @@ export class UsersService {
     // Send activation email (use the user's company for company name)
     const company = user.company ? await this.companyModel.findById(user.company) : null;
     const activationUrl = `${this.configService.get('FRONTEND_URL')}/activate?token=${activationToken}`;
+    const language = resolveLanguage({ user, company });
 
     await this.emailService.send({
       to: user.email,
-      subject: 'K-shap - Activate Your Account',
+      subject: getEmailSubject('user-activation', language),
       template: 'user-activation',
+      language,
       context: {
         firstName: user.firstName,
         companyName: company?.name || 'K-shap',

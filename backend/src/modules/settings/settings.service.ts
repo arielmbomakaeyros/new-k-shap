@@ -44,6 +44,11 @@ export interface CompanySettingsResponse {
     onCollectionAdded: boolean;
     dailySummary: boolean;
   };
+  supportedLanguages: string[];
+  defaultLanguage: string;
+  baseFilePrefix: string;
+  filePrefixes: string[];
+  activeFilePrefix?: string;
 }
 
 export interface UpdateCompanyInfoDto {
@@ -74,6 +79,10 @@ export interface UpdateCompanyPreferencesDto {
   paymentMethods?: string[];
   logoUrl?: string;
   primaryColor?: string;
+  supportedLanguages?: string[];
+  defaultLanguage?: string;
+  filePrefixes?: string[];
+  activeFilePrefix?: string;
   notificationChannels?: {
     email?: boolean;
     sms?: boolean;
@@ -143,6 +152,11 @@ export class SettingsService {
         onCollectionAdded: true,
         dailySummary: false,
       },
+      supportedLanguages: company.supportedLanguages || ['fr', 'en'],
+      defaultLanguage: company.defaultLanguage || 'fr',
+      baseFilePrefix: company.baseFilePrefix || company.slug || '',
+      filePrefixes: company.filePrefixes || [],
+      activeFilePrefix: company.activeFilePrefix || '',
     };
   }
 
@@ -234,6 +248,10 @@ export class SettingsService {
     companyId: string,
     updateDto: UpdateCompanyPreferencesDto,
   ): Promise<CompanySettingsResponse> {
+    const company = await this.companyModel.findById(companyId);
+    if (!company) {
+      throw new NotFoundException('Company not found');
+    }
     const updateFields: Record<string, any> = {};
 
     if (updateDto.defaultCurrency !== undefined) {
@@ -250,6 +268,47 @@ export class SettingsService {
     }
     if (updateDto.primaryColor !== undefined) {
       updateFields.primaryColor = updateDto.primaryColor;
+    }
+    if (updateDto.supportedLanguages !== undefined) {
+      updateFields.supportedLanguages = updateDto.supportedLanguages;
+    }
+    if (updateDto.defaultLanguage !== undefined) {
+      updateFields.defaultLanguage = updateDto.defaultLanguage;
+    }
+    if (updateDto.filePrefixes !== undefined) {
+      const sanitizedPrefixes = updateDto.filePrefixes
+        .map((value) => value.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''))
+        .filter(Boolean);
+      const uniquePrefixes = Array.from(new Set(sanitizedPrefixes));
+      if (uniquePrefixes.length > 2) {
+        throw new BadRequestException('You can configure up to two additional prefixes');
+      }
+      updateFields.filePrefixes = uniquePrefixes;
+      if (
+        company.activeFilePrefix &&
+        !uniquePrefixes.includes(company.activeFilePrefix)
+      ) {
+        updateFields.activeFilePrefix = '';
+      }
+    }
+    if (updateDto.activeFilePrefix !== undefined) {
+      const activePrefix = updateDto.activeFilePrefix
+        ? updateDto.activeFilePrefix
+            .toLowerCase()
+            .trim()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/(^-|-$)/g, '')
+        : '';
+      if (activePrefix) {
+        const existingPrefixes = updateFields.filePrefixes || company.filePrefixes || [];
+        if (!existingPrefixes.includes(activePrefix)) {
+          if (existingPrefixes.length >= 2) {
+            throw new BadRequestException('You can configure up to two additional prefixes');
+          }
+          updateFields.filePrefixes = [...existingPrefixes, activePrefix];
+        }
+      }
+      updateFields.activeFilePrefix = activePrefix;
     }
     if (updateDto.notificationChannels) {
       Object.entries(updateDto.notificationChannels).forEach(([key, value]) => {
@@ -271,13 +330,13 @@ export class SettingsService {
       updateFields.defaultBeneficiaries = updateDto.defaultBeneficiaries.map((id) => new Types.ObjectId(id));
     }
 
-    const company = await this.companyModel.findByIdAndUpdate(
+    const updatedCompany = await this.companyModel.findByIdAndUpdate(
       companyId,
       { $set: updateFields },
       { new: true },
     );
 
-    if (!company) {
+    if (!updatedCompany) {
       throw new NotFoundException('Company not found');
     }
 

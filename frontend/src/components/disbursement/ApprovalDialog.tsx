@@ -62,8 +62,14 @@ export function ApprovalDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="w-full max-w-md rounded-lg bg-card p-6">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md rounded-lg bg-card p-6"
+        onClick={(event) => event.stopPropagation()}
+      >
         <h2 className="text-lg font-semibold text-foreground">Approval Request</h2>
 
         <form onSubmit={handleSubmit(onSubmit)} className="mt-4 space-y-4">

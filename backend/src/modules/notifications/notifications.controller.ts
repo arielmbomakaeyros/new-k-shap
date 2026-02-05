@@ -108,6 +108,23 @@ export class NotificationsController {
     return this.notificationsService.findAll(companyId);
   }
 
+  @Get('unread-count')
+  @ApiOperation({ summary: 'Get unread notifications count' })
+  @ApiResponse({
+    status: 200,
+    description: 'Unread notifications count retrieved successfully.',
+    schema: { example: { count: 3 } },
+  })
+  getUnreadCount(@CurrentUser() user: any) {
+    const companyId = user?.isKaeyrosUser
+      ? null
+      : user?.company
+        ? (user.company._id || user.company).toString()
+        : null;
+    const userId = user?._id || user?.id || user?.sub;
+    return this.notificationsService.countUnread(userId, companyId).then((count) => ({ count }));
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get notification by ID' })
   @ApiParam({ name: 'id', description: 'Notification ID' })

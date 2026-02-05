@@ -108,6 +108,51 @@ export async function proxyRequest(
       headers['Content-Type'] = 'application/json';
     }
 
+    if (isFormData) {
+      const fetchHeaders = new Headers();
+      if (authHeader) {
+        fetchHeaders.set('Authorization', authHeader);
+      }
+      if (options.headers) {
+        Object.entries(options.headers).forEach(([key, value]) => {
+          fetchHeaders.set(key, value);
+        });
+      }
+
+      const fetchResponse = await fetch(`${BACKEND_URL}${backendUrl}`, {
+        method,
+        headers: fetchHeaders,
+        body: body as FormData,
+      });
+
+      const responseContentType = fetchResponse.headers.get('content-type') || '';
+      const isJsonResponse = responseContentType.includes('application/json');
+
+      if (!isJsonResponse || options.responseType === 'arraybuffer' || options.responseType === 'stream') {
+        const buffer = await fetchResponse.arrayBuffer();
+        const responseHeaders = new Headers();
+        if (responseContentType) {
+          responseHeaders.set('Content-Type', responseContentType);
+        }
+        const disposition = fetchResponse.headers.get('content-disposition');
+        if (disposition) {
+          responseHeaders.set('Content-Disposition', disposition);
+        }
+
+        return new NextResponse(buffer, {
+          status: fetchResponse.status,
+          headers: responseHeaders,
+        });
+      }
+
+      let responseData = await fetchResponse.json();
+      if (options.transformResponse) {
+        responseData = options.transformResponse(responseData);
+      }
+
+      return NextResponse.json(responseData, { status: fetchResponse.status });
+    }
+
     const config: AxiosRequestConfig = {
       method,
       url: `${BACKEND_URL}${backendUrl}`,

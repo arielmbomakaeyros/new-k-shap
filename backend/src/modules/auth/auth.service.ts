@@ -14,6 +14,10 @@ import { User } from '../../database/schemas/user.schema';
 import { Company } from '../../database/schemas/company.schema';
 import { EmailService } from '../../email/email.service';
 import { JwtPayload } from '../../common/interfaces';
+import { getEmailSubject } from '../../common/i18n/email';
+import { resolveLanguage } from '../../common/i18n/language';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { UsersService } from '../users/users.service';
 import {
   LoginDto,
   ChangePasswordDto,
@@ -30,6 +34,7 @@ export class AuthService {
     private jwtService: JwtService,
     private configService: ConfigService,
     private emailService: EmailService,
+    private usersService: UsersService,
   ) {}
 
   async login(dto: LoginDto, ipAddress: string) {
@@ -225,10 +230,13 @@ export class AuthService {
 
     // Send email
     const resetUrl = `${this.configService.get('FRONTEND_URL')}/auth/reset-password?token=${resetToken}`;
+    const company = user.company ? await this.companyModel.findById(user.company) : null;
+    const language = resolveLanguage({ user, company });
     await this.emailService.send({
       to: user.email,
-      subject: 'Password Reset Request',
+      subject: getEmailSubject('password-reset', language),
       template: 'password-reset',
+      language,
       context: {
         firstName: user.firstName,
         resetUrl,
@@ -281,6 +289,34 @@ export class AuthService {
     }
 
     return this.sanitizeUser(user);
+  }
+
+  async updateProfile(userId: string, dto: UpdateProfileDto) {
+    const user = await this.userModel.findById(userId);
+
+    if (!user || user.isDeleted) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    if (dto.firstName !== undefined) user.firstName = dto.firstName;
+    if (dto.lastName !== undefined) user.lastName = dto.lastName;
+    if (dto.phone !== undefined) user.phone = dto.phone;
+    if (dto.preferredLanguage !== undefined) user.preferredLanguage = dto.preferredLanguage;
+    if (dto.notificationPreferences !== undefined) {
+      user.notificationPreferences = {
+        ...(user.notificationPreferences || {}),
+        ...dto.notificationPreferences,
+      };
+    }
+
+    await user.save();
+
+    return this.sanitizeUser(user);
+  }
+
+  async updateProfileAvatar(userId: string, file: Express.Multer.File, updaterUser: any) {
+    const updated = await this.usersService.updateAvatar(userId, file, updaterUser);
+    return this.sanitizeUser(updated);
   }
 
   private async generateTokens(user: User) {

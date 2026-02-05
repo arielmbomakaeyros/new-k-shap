@@ -25,6 +25,8 @@ function BeneficiariesContent() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedBeneficiary, setSelectedBeneficiary] = useState<Beneficiary | null>(null);
   const [errorModal, setErrorModal] = useState<ErrorModalState>(null);
+  const [createErrors, setCreateErrors] = useState<Record<string, string>>({});
+  const [editErrors, setEditErrors] = useState<Record<string, string>>({});
   const [formData, setFormData] = useState({
     name: '',
     type: 'supplier',
@@ -86,7 +88,15 @@ function BeneficiariesContent() {
   };
 
   const handleCreateBeneficiary = async () => {
-    if (!formData.name || !formData.disbursementType) return;
+    const nextErrors: Record<string, string> = {};
+    if (!formData.name) {
+      nextErrors.name = 'Name is required.';
+    }
+    if (!formData.disbursementType) {
+      nextErrors.disbursementType = 'Disbursement type is required.';
+    }
+    setCreateErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
     try {
       await createMutation.mutateAsync({
         name: formData.name,
@@ -101,6 +111,7 @@ function BeneficiariesContent() {
       });
       setShowCreateModal(false);
       resetForm();
+      setCreateErrors({});
     } catch (err) {
       console.error('Failed to create beneficiary:', err);
       const { message, details } = getErrorDetails(err, 'Failed to create beneficiary.');
@@ -131,6 +142,15 @@ function BeneficiariesContent() {
     if (!selectedBeneficiary) return;
     const id = (selectedBeneficiary as any).id || (selectedBeneficiary as any)._id;
     if (!id) return;
+    const nextErrors: Record<string, string> = {};
+    if (!editFormData.name) {
+      nextErrors.name = 'Name is required.';
+    }
+    if (!editFormData.disbursementType) {
+      nextErrors.disbursementType = 'Disbursement type is required.';
+    }
+    setEditErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
     try {
       await updateMutation.mutateAsync({
         id,
@@ -148,6 +168,7 @@ function BeneficiariesContent() {
       });
       setShowEditModal(false);
       setSelectedBeneficiary(null);
+      setEditErrors({});
     } catch (err) {
       console.error('Failed to update beneficiary:', err);
       const { message, details } = getErrorDetails(err, 'Failed to update beneficiary.');
@@ -278,13 +299,28 @@ function BeneficiariesContent() {
           </ModalHeader>
           <ModalBody>
             <div className="space-y-4">
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="Beneficiary name"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-foreground"
-              />
+              <div>
+                <label className="block text-sm font-medium text-foreground">
+                  Beneficiary Name <span className="text-destructive">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => {
+                    setFormData({ ...formData, name: e.target.value });
+                    if (createErrors.name) {
+                      setCreateErrors((prev) => ({ ...prev, name: '' }));
+                    }
+                  }}
+                  placeholder="Beneficiary name"
+                  className={`mt-1 w-full rounded-md border px-3 py-2 text-foreground ${
+                    createErrors.name ? 'border-destructive' : 'border-input'
+                  } bg-background`}
+                />
+                {createErrors.name && (
+                  <p className="mt-1 text-xs text-destructive">{createErrors.name}</p>
+                )}
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <select
                   value={formData.type}
@@ -297,18 +333,33 @@ function BeneficiariesContent() {
                   <option value="employee">Employee</option>
                   <option value="other">Other</option>
                 </select>
-                <select
-                  value={formData.disbursementType}
-                  onChange={(e) => setFormData({ ...formData, disbursementType: e.target.value })}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-foreground"
-                >
-                  <option value="">Select disbursement type</option>
-                  {disbursementTypes.map((type: any) => (
-                    <option key={type.id || type._id} value={type.id || type._id}>
-                      {type.name}
-                    </option>
-                  ))}
-                </select>
+                <div>
+                  <label className="block text-sm font-medium text-foreground">
+                    Disbursement Type <span className="text-destructive">*</span>
+                  </label>
+                  <select
+                    value={formData.disbursementType}
+                    onChange={(e) => {
+                      setFormData({ ...formData, disbursementType: e.target.value });
+                      if (createErrors.disbursementType) {
+                        setCreateErrors((prev) => ({ ...prev, disbursementType: '' }));
+                      }
+                    }}
+                    className={`mt-1 w-full rounded-md border px-3 py-2 text-foreground ${
+                      createErrors.disbursementType ? 'border-destructive' : 'border-input'
+                    } bg-background`}
+                  >
+                    <option value="">Select disbursement type</option>
+                    {disbursementTypes.map((type: any) => (
+                      <option key={type.id || type._id} value={type.id || type._id}>
+                        {type.name}
+                      </option>
+                    ))}
+                  </select>
+                  {createErrors.disbursementType && (
+                    <p className="mt-1 text-xs text-destructive">{createErrors.disbursementType}</p>
+                  )}
+                </div>
               </div>
               <input
                 type="email"
@@ -376,13 +427,28 @@ function BeneficiariesContent() {
           </ModalHeader>
           <ModalBody>
             <div className="space-y-4">
-              <input
-                type="text"
-                value={editFormData.name}
-                onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
-                placeholder="Beneficiary name"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-foreground"
-              />
+              <div>
+                <label className="block text-sm font-medium text-foreground">
+                  Beneficiary Name <span className="text-destructive">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={editFormData.name}
+                  onChange={(e) => {
+                    setEditFormData({ ...editFormData, name: e.target.value });
+                    if (editErrors.name) {
+                      setEditErrors((prev) => ({ ...prev, name: '' }));
+                    }
+                  }}
+                  placeholder="Beneficiary name"
+                  className={`mt-1 w-full rounded-md border px-3 py-2 text-foreground ${
+                    editErrors.name ? 'border-destructive' : 'border-input'
+                  } bg-background`}
+                />
+                {editErrors.name && (
+                  <p className="mt-1 text-xs text-destructive">{editErrors.name}</p>
+                )}
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <select
                   value={editFormData.type}
@@ -395,18 +461,33 @@ function BeneficiariesContent() {
                   <option value="employee">Employee</option>
                   <option value="other">Other</option>
                 </select>
-                <select
-                  value={editFormData.disbursementType}
-                  onChange={(e) => setEditFormData({ ...editFormData, disbursementType: e.target.value })}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-foreground"
-                >
-                  <option value="">Select disbursement type</option>
-                  {disbursementTypes.map((type: any) => (
-                    <option key={type.id || type._id} value={type.id || type._id}>
-                      {type.name}
-                    </option>
-                  ))}
-                </select>
+                <div>
+                  <label className="block text-sm font-medium text-foreground">
+                    Disbursement Type <span className="text-destructive">*</span>
+                  </label>
+                  <select
+                    value={editFormData.disbursementType}
+                    onChange={(e) => {
+                      setEditFormData({ ...editFormData, disbursementType: e.target.value });
+                      if (editErrors.disbursementType) {
+                        setEditErrors((prev) => ({ ...prev, disbursementType: '' }));
+                      }
+                    }}
+                    className={`mt-1 w-full rounded-md border px-3 py-2 text-foreground ${
+                      editErrors.disbursementType ? 'border-destructive' : 'border-input'
+                    } bg-background`}
+                  >
+                    <option value="">Select disbursement type</option>
+                    {disbursementTypes.map((type: any) => (
+                      <option key={type.id || type._id} value={type.id || type._id}>
+                        {type.name}
+                      </option>
+                    ))}
+                  </select>
+                  {editErrors.disbursementType && (
+                    <p className="mt-1 text-xs text-destructive">{editErrors.disbursementType}</p>
+                  )}
+                </div>
               </div>
               <input
                 type="email"

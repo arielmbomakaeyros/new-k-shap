@@ -15,7 +15,7 @@ export interface ConfirmModalProps {
   message: string;
   confirmLabel?: string;
   cancelLabel?: string;
-  variant?: 'default' | 'danger' | 'warning';
+  variant?: 'default' | 'danger' | 'warning' | 'success';
   isLoading?: boolean;
 }
 
@@ -23,6 +23,7 @@ const variantClasses = {
   default: 'bg-primary text-primary-foreground hover:bg-primary/90',
   danger: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
   warning: 'bg-yellow-500 text-white hover:bg-yellow-600',
+  success: 'bg-emerald-600 text-white hover:bg-emerald-700',
 };
 
 export function ConfirmModal({

@@ -81,4 +81,12 @@ export class CreateCompanyDto {
   @IsString()
   @IsOptional()
   industry?: string;
+
+  @ApiProperty({
+    description: 'Base file prefix for company storage (immutable)',
+    example: 'eneo',
+  })
+  @IsString()
+  @IsNotEmpty()
+  baseFilePrefix: string;
 }

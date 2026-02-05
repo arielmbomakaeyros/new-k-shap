@@ -9,6 +9,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
 import { User, UserSchema } from '../../database/schemas/user.schema';
 import { Company, CompanySchema } from '../../database/schemas/company.schema';
+import { UsersModule } from '../users/users.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { Company, CompanySchema } from '../../database/schemas/company.schema';
       { name: User.name, schema: UserSchema },
       { name: Company.name, schema: CompanySchema },
     ]),
+    UsersModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy, JwtRefreshStrategy],

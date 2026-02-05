@@ -9,3 +9,11 @@ export async function GET(request: NextRequest) {
     return handleApiError(error);
   }
 }
+
+export async function PATCH(request: NextRequest) {
+  try {
+    return await proxyRequest('PATCH', '/auth/profile', request);
+  } catch (error) {
+    return handleApiError(error);
+  }
+}

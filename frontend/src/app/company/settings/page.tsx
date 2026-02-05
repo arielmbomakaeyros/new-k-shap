@@ -32,6 +32,9 @@ type PreferencesState = {
     logoUrl: string;
     primaryColor: string;
   };
+  baseFilePrefix: string;
+  filePrefixes: string[];
+  activeFilePrefix: string;
   notificationChannels: {
     email: boolean;
     sms: boolean;
@@ -42,6 +45,8 @@ type PreferencesState = {
   approvalLimitsByRole: Record<string, number>;
   officeSpendCaps: Record<string, number>;
   defaultBeneficiaries: string[];
+  supportedLanguages: string[];
+  defaultLanguage: string;
 };
 
 export default function CompanySettingsPage() {
@@ -86,6 +91,9 @@ export default function CompanySettingsPage() {
       logoUrl: '',
       primaryColor: '#1d4ed8',
     },
+    baseFilePrefix: '',
+    filePrefixes: [],
+    activeFilePrefix: '',
     notificationChannels: {
       email: true,
       sms: false,
@@ -100,12 +108,22 @@ export default function CompanySettingsPage() {
     approvalLimitsByRole: {} as Record<string, number>,
     officeSpendCaps: {} as Record<string, number>,
     defaultBeneficiaries: [] as string[],
+    supportedLanguages: ['fr', 'en'],
+    defaultLanguage: 'fr',
   });
 
   const [preferencesError, setPreferencesError] = useState<string | null>(null);
+  const [newFilePrefix, setNewFilePrefix] = useState('');
   const [logoUploading, setLogoUploading] = useState(false);
   const [logoError, setLogoError] = useState<string | null>(null);
   const logoInputRef = useRef<HTMLInputElement | null>(null);
+
+  const sanitizePrefix = (value: string) =>
+    value
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '');
 
   // Populate form with fetched data
   useEffect(() => {
@@ -137,6 +155,9 @@ export default function CompanySettingsPage() {
           logoUrl: settings.branding?.logoUrl || '',
           primaryColor: settings.branding?.primaryColor || '#1d4ed8',
         },
+        baseFilePrefix: settings.baseFilePrefix || '',
+        filePrefixes: settings.filePrefixes || [],
+        activeFilePrefix: settings.activeFilePrefix || '',
         notificationChannels: settings.notificationChannels || {
           email: true,
           sms: false,
@@ -151,6 +172,8 @@ export default function CompanySettingsPage() {
         approvalLimitsByRole: settings.approvalLimitsByRole || {},
         officeSpendCaps: settings.officeSpendCaps || {},
         defaultBeneficiaries: settings.defaultBeneficiaries || [],
+        supportedLanguages: settings.supportedLanguages || ['fr', 'en'],
+        defaultLanguage: settings.defaultLanguage || 'fr',
       });
     }
   }, [settings]);
@@ -191,11 +214,15 @@ export default function CompanySettingsPage() {
         paymentMethods: preferences.paymentMethods,
         logoUrl: preferences.branding.logoUrl,
         primaryColor: preferences.branding.primaryColor,
+        filePrefixes: preferences.filePrefixes,
+        activeFilePrefix: preferences.activeFilePrefix,
         notificationChannels: preferences.notificationChannels,
         payoutSchedule: preferences.payoutSchedule,
         approvalLimitsByRole: preferences.approvalLimitsByRole,
         officeSpendCaps: preferences.officeSpendCaps,
         defaultBeneficiaries: preferences.defaultBeneficiaries,
+        supportedLanguages: preferences.supportedLanguages,
+        defaultLanguage: preferences.defaultLanguage,
       } as any);
     } catch (err) {
       console.error('Failed to update company preferences:', err);
@@ -349,7 +376,7 @@ export default function CompanySettingsPage() {
                   />
                 </div>
                 <div className="flex justify-end">
-                  <Button onClick={handleSaveCompanyInfo} disabled={updateCompanyInfo.isPending}>
+                  <Button onClick={handleSaveCompanyInfo} disabled={updateCompanyInfo.isPending} className="btn-3d gradient-bg-primary text-white">
                     {updateCompanyInfo.isPending ? t('common.saving', { defaultValue: 'Enregistrement...' }) : t('common.save', { defaultValue: 'Enregistrer' })}
                   </Button>
                 </div>
@@ -416,7 +443,7 @@ export default function CompanySettingsPage() {
                   />
                 </div>
                 <div className="flex justify-end">
-                  <Button onClick={handleSaveNotificationSettings} disabled={updateEmailNotificationSettings.isPending}>
+                  <Button onClick={handleSaveNotificationSettings} disabled={updateEmailNotificationSettings.isPending} className="btn-3d gradient-bg-primary text-white">
                     {updateEmailNotificationSettings.isPending ? t('common.saving', { defaultValue: 'Enregistrement...' }) : t('common.save', { defaultValue: 'Enregistrer' })}
                   </Button>
                 </div>
@@ -474,10 +501,174 @@ export default function CompanySettingsPage() {
                     <p className="mt-2 text-xs text-red-500">{preferencesError}</p>
                   )}
                 </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-foreground">{t('settings.supportedLanguages', { defaultValue: 'Supported Languages' })}</label>
+                  <div className="mt-2 flex flex-wrap gap-4 text-sm">
+                    {['fr', 'en'].map((lang) => (
+                      <label key={lang} className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={preferences.supportedLanguages.includes(lang)}
+                          onChange={(e) => {
+                            const next = e.target.checked
+                              ? [...preferences.supportedLanguages, lang]
+                              : preferences.supportedLanguages.filter((l) => l !== lang);
+                            const sanitized = next.length > 0 ? next : ['fr'];
+                            const nextDefault = sanitized.includes(preferences.defaultLanguage)
+                              ? preferences.defaultLanguage
+                              : sanitized[0];
+                            setPreferences({
+                              ...preferences,
+                              supportedLanguages: sanitized,
+                              defaultLanguage: nextDefault,
+                            });
+                          }}
+                          className="rounded border-input"
+                        />
+                        {lang === 'fr' ? 'Français' : 'English'}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-foreground">{t('settings.defaultLanguage', { defaultValue: 'Default Language' })}</label>
+                  <select
+                    value={preferences.defaultLanguage}
+                    onChange={(e) => setPreferences({ ...preferences, defaultLanguage: e.target.value })}
+                    className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-foreground"
+                  >
+                    {preferences.supportedLanguages.map((lang) => (
+                      <option key={lang} value={lang}>
+                        {lang === 'fr' ? 'Français' : 'English'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="rounded-lg border border-border bg-background p-4">
+                  <h3 className="text-sm font-semibold text-foreground">
+                    {t('settings.filePrefixes', { defaultValue: 'File storage prefixes' })}
+                  </h3>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {t('settings.filePrefixesHelp', { defaultValue: 'Base prefix is immutable. You can add up to two sub-prefixes.' })}
+                  </p>
+
+                  <div className="mt-3 space-y-3">
+                    <div>
+                      <label className="block text-xs font-medium text-foreground">
+                        {t('settings.basePrefix', { defaultValue: 'Base prefix' })}
+                      </label>
+                      <input
+                        type="text"
+                        value={preferences.baseFilePrefix}
+                        disabled
+                        className="mt-1 w-full rounded-md border border-input bg-muted px-3 py-2 text-foreground opacity-70"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-foreground">
+                        {t('settings.activePrefix', { defaultValue: 'Active sub-prefix' })}
+                      </label>
+                      <select
+                        value={preferences.activeFilePrefix}
+                        onChange={(e) =>
+                          setPreferences({ ...preferences, activeFilePrefix: e.target.value })
+                        }
+                        className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-foreground"
+                      >
+                        <option value="">
+                          {t('settings.baseOnly', { defaultValue: 'Base only' })}
+                        </option>
+                        {preferences.filePrefixes.map((prefix) => (
+                          <option key={prefix} value={prefix}>
+                            {prefix}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-foreground">
+                        {t('settings.subPrefixes', { defaultValue: 'Sub-prefixes' })}
+                      </label>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {preferences.filePrefixes.map((prefix) => (
+                          <span
+                            key={prefix}
+                            className="inline-flex items-center gap-2 rounded-full border border-border bg-muted px-3 py-1 text-xs text-foreground"
+                          >
+                            {prefix}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const next = preferences.filePrefixes.filter((p) => p !== prefix);
+                                const nextActive =
+                                  preferences.activeFilePrefix === prefix ? '' : preferences.activeFilePrefix;
+                                setPreferences({
+                                  ...preferences,
+                                  filePrefixes: next,
+                                  activeFilePrefix: nextActive,
+                                });
+                              }}
+                              className="text-muted-foreground hover:text-foreground"
+                            >
+                              ×
+                            </button>
+                          </span>
+                        ))}
+                        {preferences.filePrefixes.length === 0 && (
+                          <span className="text-xs text-muted-foreground">
+                            {t('settings.noPrefixes', { defaultValue: 'No sub-prefixes yet.' })}
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-3 flex gap-2">
+                        <input
+                          type="text"
+                          value={newFilePrefix}
+                          onChange={(e) => setNewFilePrefix(e.target.value)}
+                          placeholder={t('settings.newPrefix', { defaultValue: 'new-prefix' })}
+                          className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground"
+                        />
+                        <Button
+                          type="button"
+                          onClick={() => {
+                            const sanitized = sanitizePrefix(newFilePrefix);
+                            if (!sanitized) return;
+                            if (preferences.filePrefixes.includes(sanitized)) {
+                              setNewFilePrefix('');
+                              return;
+                            }
+                            if (preferences.filePrefixes.length >= 2) return;
+                            setPreferences({
+                              ...preferences,
+                              filePrefixes: [...preferences.filePrefixes, sanitized],
+                              activeFilePrefix: preferences.activeFilePrefix || sanitized,
+                            });
+                            setNewFilePrefix('');
+                          }}
+                          disabled={preferences.filePrefixes.length >= 2}
+                          className="btn-3d gradient-bg-primary text-white"
+                        >
+                          {t('common.add', { defaultValue: 'Ajouter' })}
+                        </Button>
+                      </div>
+                      {preferences.filePrefixes.length >= 2 && (
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          {t('settings.prefixLimit', { defaultValue: 'You can add up to two sub-prefixes.' })}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
                 <div className="flex justify-end">
                   <Button
                     onClick={handleSavePreferences}
                     disabled={updateCompanyPreferences.isPending || !preferences.paymentMethods.length}
+                    className="btn-3d gradient-bg-primary text-white"
                   >
                     {updateCompanyPreferences.isPending
                       ? t('common.saving', { defaultValue: 'Enregistrement...' })
@@ -709,7 +900,7 @@ export default function CompanySettingsPage() {
                 </div>
 
                 <div className="flex justify-end">
-                  <Button onClick={handleSavePreferences} disabled={updateCompanyPreferences.isPending || !preferences.paymentMethods.length}>
+                  <Button onClick={handleSavePreferences} disabled={updateCompanyPreferences.isPending || !preferences.paymentMethods.length} className="btn-3d gradient-bg-primary text-white">
                     {updateCompanyPreferences.isPending ? t('common.saving', { defaultValue: 'Enregistrement...' }) : t('common.save', { defaultValue: 'Enregistrer' })}
                   </Button>
                 </div>
@@ -771,7 +962,7 @@ export default function CompanySettingsPage() {
                   </p>
                 </div>
                 <div className="flex justify-end">
-                  <Button onClick={handleSaveWorkflowSettings} disabled={updateWorkflowSettings.isPending}>
+                  <Button onClick={handleSaveWorkflowSettings} disabled={updateWorkflowSettings.isPending} className="btn-3d gradient-bg-primary text-white">
                     {updateWorkflowSettings.isPending ? t('common.saving', { defaultValue: 'Enregistrement...' }) : t('common.save', { defaultValue: 'Enregistrer' })}
                   </Button>
                 </div>

@@ -160,6 +160,15 @@ export class Company extends BaseEntity {
   @Prop({ type: String, default: 'fr' })
   defaultLanguage: string;
 
+  @Prop({ type: String, required: true })
+  baseFilePrefix: string;
+
+  @Prop({ type: [String], default: [] })
+  filePrefixes: string[];
+
+  @Prop({ type: String, default: '' })
+  activeFilePrefix: string;
+
   @Prop({ type: String })
   logoUrl: string;
 

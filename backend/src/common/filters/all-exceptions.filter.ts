@@ -7,6 +7,8 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
+import { resolveLanguage } from '../i18n/language';
+import { translateValidationMessages } from '../i18n/validation';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
@@ -16,10 +18,15 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
+    const language = resolveLanguage({
+      user: (request as any)?.user,
+      header: request.headers['accept-language'],
+    });
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let message = 'Internal server error';
     let error = 'Internal Server Error';
+    let errors: string[] | undefined;
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
@@ -31,6 +38,15 @@ export class AllExceptionsFilter implements ExceptionFilter {
         const responseObj = exceptionResponse as any;
         message = responseObj.message || exception.message;
         error = responseObj.error || 'Error';
+
+        if (status === HttpStatus.BAD_REQUEST && Array.isArray(responseObj.message)) {
+          const translatedMessages = translateValidationMessages(
+            responseObj.message,
+            language,
+          );
+          errors = translatedMessages;
+          message = translatedMessages.join('; ');
+        }
       }
     } else if (exception instanceof Error) {
       message = exception.message;
@@ -47,6 +63,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       statusCode: status,
       error,
       message,
+      ...(errors ? { errors } : {}),
       timestamp: new Date().toISOString(),
       path: request.url,
       method: request.method,
