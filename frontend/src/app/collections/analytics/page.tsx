@@ -3,9 +3,12 @@
 import { useTranslation } from '@/node_modules/react-i18next';
 import { ProtectedRoute } from '@/src/components/ProtectedRoute';
 import { ProtectedLayout } from '@/src/components/layout/ProtectedLayout';
+import { useCompanySettings } from '@/src/hooks/queries';
 
 function CollectionsAnalyticsContent() {
   const { t } = useTranslation();
+  const { data: settings } = useCompanySettings();
+  const displayCurrency = settings?.defaultCurrency || 'XAF';
   const analyticsData = {
     totalCollected: 500000,
     thisMonth: 45000,
@@ -56,19 +59,19 @@ function CollectionsAnalyticsContent() {
         <div className="rounded-lg border border-border bg-card p-6">
           <p className="text-sm text-muted-foreground">{t('collections.analytics.totalAllTime')}</p>
           <p className="mt-2 text-3xl font-bold text-foreground">
-            USD {analyticsData.totalCollected.toLocaleString()}
+            {displayCurrency} {analyticsData.totalCollected.toLocaleString()}
           </p>
         </div>
         <div className="rounded-lg border border-border bg-card p-6">
           <p className="text-sm text-muted-foreground">{t('collections.analytics.thisYear')}</p>
           <p className="mt-2 text-3xl font-bold text-foreground">
-            USD {analyticsData.thisYear.toLocaleString()}
+            {displayCurrency} {analyticsData.thisYear.toLocaleString()}
           </p>
         </div>
         <div className="rounded-lg border border-border bg-card p-6">
           <p className="text-sm text-muted-foreground">{t('collections.analytics.averagePerMonth')}</p>
           <p className="mt-2 text-3xl font-bold text-foreground">
-            USD {analyticsData.averagePerMonth.toLocaleString()}
+            {displayCurrency} {analyticsData.averagePerMonth.toLocaleString()}
           </p>
         </div>
         <div className="rounded-lg border border-border bg-card p-6">
@@ -87,19 +90,19 @@ function CollectionsAnalyticsContent() {
             <div className="flex justify-between">
               <span className="text-muted-foreground">{t('collections.analytics.averagePerTransaction')}</span>
               <span className="font-semibold text-foreground">
-                USD {analyticsData.averagePerTransaction.toLocaleString()}
+                {displayCurrency} {analyticsData.averagePerTransaction.toLocaleString()}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">{t('collections.analytics.largestTransaction')}</span>
               <span className="font-semibold text-foreground">
-                USD {analyticsData.largestTransaction.toLocaleString()}
+                {displayCurrency} {analyticsData.largestTransaction.toLocaleString()}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">{t('collections.analytics.smallestTransaction')}</span>
               <span className="font-semibold text-foreground">
-                USD {analyticsData.smallestTransaction.toLocaleString()}
+                {displayCurrency} {analyticsData.smallestTransaction.toLocaleString()}
               </span>
             </div>
           </div>
@@ -118,7 +121,7 @@ function CollectionsAnalyticsContent() {
                   />
                 </div>
                 <span className="text-xs font-medium text-foreground w-16 text-right">
-                  USD {(amount / 1000).toFixed(0)}k
+                  {displayCurrency} {(amount / 1000).toFixed(0)}k
                 </span>
               </div>
             ))}
@@ -155,7 +158,7 @@ function CollectionsAnalyticsContent() {
                     {item.count}
                   </td>
                   <td className="px-4 py-3 text-right text-sm font-medium text-foreground">
-                    USD {item.amount.toLocaleString()}
+                    {displayCurrency} {item.amount.toLocaleString()}
                   </td>
                   <td className="px-4 py-3 text-right text-sm font-medium text-foreground">
                     {item.percentage}%
@@ -189,7 +192,7 @@ function CollectionsAnalyticsContent() {
                   />
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  USD {item.amount.toLocaleString()}
+                  {displayCurrency} {item.amount.toLocaleString()}
                 </p>
               </div>
             ))}
@@ -208,7 +211,7 @@ function CollectionsAnalyticsContent() {
                   </p>
                 </div>
                 <p className="font-semibold text-foreground text-right">
-                  USD {payer.amount.toLocaleString()}
+                  {displayCurrency} {payer.amount.toLocaleString()}
                 </p>
               </div>
             ))}

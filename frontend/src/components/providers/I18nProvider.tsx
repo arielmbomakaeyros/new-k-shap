@@ -6,7 +6,7 @@ import { useAppStore } from "@/src/store/appStore";
 import React from "react";
 
 import { useEffect, useState } from 'react';
-import { I18nextProvider } from '@/node_modules/react-i18next';
+import { I18nextProvider } from 'react-i18next';
 // import { useAppStore } from '@/store/appStore';
 
 export function I18nProvider({ children }: { children: React.ReactNode }) {

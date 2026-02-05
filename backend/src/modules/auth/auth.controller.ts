@@ -55,7 +55,6 @@ export class AuthController {
   @ApiResponse({ status: 400, description: 'Bad Request.' })
   @ApiResponse({ status: 401, description: 'Invalid credentials.' })
   async login(@Body() dto: LoginDto, @Req() req: Request) {
-    console.log("login attempt in controller", dto);
     return this.authService.login(dto, req.ip || '');
   }
 
@@ -96,8 +95,8 @@ export class AuthController {
   })
   @ApiResponse({ status: 400, description: 'Bad Request.' })
   @ApiResponse({ status: 401, description: 'Invalid refresh token.' })
-  async refresh(@Body() body: { refreshToken: string }, @CurrentUser('_id') userId: string) {
-    return this.authService.refreshTokens(userId, body.refreshToken);
+  async refresh(@Body() body: { refreshToken: string }) {
+    return this.authService.refreshTokens(body.refreshToken);
   }
 
   @Public()

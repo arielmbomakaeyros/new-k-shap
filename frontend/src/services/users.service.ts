@@ -1,5 +1,5 @@
 // import { api } from '@/lib/axios';
-import { api } from '../lib/axios';
+import axiosClient, { api } from '../lib/axios';
 import { BaseService } from './base.service';
 import type { ApiResponse, QueryParams, User, CreateUserDto, UpdateUserDto } from './types';
 
@@ -48,6 +48,17 @@ class UsersService extends BaseService<User, CreateUserDto, UpdateUserDto, UserF
    */
   async updatePermissions(id: string, permissions: string[]): Promise<ApiResponse<User>> {
     return api.patch<ApiResponse<User>>(`${this.basePath}/${id}`, { permissions });
+  }
+
+
+  /**
+   * Upload user avatar
+   */
+  async updateAvatar(id: string, file: File): Promise<ApiResponse<User>> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await axiosClient.post<ApiResponse<User>>(`${this.basePath}/${id}/avatar`, formData);
+    return response.data;
   }
 
   /**

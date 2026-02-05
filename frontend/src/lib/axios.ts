@@ -97,7 +97,7 @@ axiosClient.interceptors.response.use(
         }
 
         // Call refresh endpoint - use Next.js API route for refresh
-        const response = await axiosClient.post(`/api/auth/refresh`, {
+        const response = await axiosClient.post(`/auth/refresh`, {
           refreshToken,
         });
 

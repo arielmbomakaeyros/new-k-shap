@@ -4,15 +4,25 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { CompanyLayout } from '@/src/components/company/CompanyLayout';
 import { ProtectedRoute } from '@/src/components/ProtectedRoute';
+import { Modal, ModalHeader, ModalTitle, ModalBody, ModalFooter } from '@/src/components/ui/modal';
 import {
   useOffices,
   useCreateOffice,
+  useUpdateOffice,
   useDeleteOffice,
 } from '@/src/hooks/queries';
 
 function OfficesContent() {
   const [showForm, setShowForm] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedOfficeId, setSelectedOfficeId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
+    name: '',
+    location: '',
+    address: '',
+    phone: '',
+  });
+  const [editFormData, setEditFormData] = useState({
     name: '',
     location: '',
     address: '',
@@ -24,6 +34,7 @@ function OfficesContent() {
 
   // Mutations
   const createMutation = useCreateOffice();
+  const updateMutation = useUpdateOffice();
   const deleteMutation = useDeleteOffice();
 
   const handleAddOffice = async () => {
@@ -50,6 +61,36 @@ function OfficesContent() {
       } catch (error) {
         console.error('Failed to delete office:', error);
       }
+    }
+  };
+
+  const handleEditOffice = (office: any) => {
+    setSelectedOfficeId(office.id);
+    setEditFormData({
+      name: office.name || '',
+      location: office.location || '',
+      address: office.address || '',
+      phone: office.phone || '',
+    });
+    setShowEditModal(true);
+  };
+
+  const handleUpdateOffice = async () => {
+    if (!selectedOfficeId || !editFormData.name || !editFormData.location) return;
+    try {
+      await updateMutation.mutateAsync({
+        id: selectedOfficeId,
+        data: {
+          name: editFormData.name,
+          location: editFormData.location,
+          address: editFormData.address || undefined,
+          phone: editFormData.phone || undefined,
+        },
+      });
+      setShowEditModal(false);
+      setSelectedOfficeId(null);
+    } catch (error) {
+      console.error('Failed to update office:', error);
     }
   };
 
@@ -95,10 +136,16 @@ function OfficesContent() {
         </div>
 
         {/* Add Office Form */}
-        {showForm && (
-          <div className="glass-card rounded-xl p-6">
-            <h2 className="text-lg font-semibold gradient-text">Create New Office</h2>
-            <div className="mt-4 space-y-4">
+        <Modal
+          isOpen={showForm}
+          onClose={() => setShowForm(false)}
+          size="lg"
+        >
+          <ModalHeader>
+            <ModalTitle>Create New Office</ModalTitle>
+          </ModalHeader>
+          <ModalBody>
+            <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-foreground">
                   Office Name *
@@ -145,20 +192,20 @@ function OfficesContent() {
                   className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-foreground placeholder-muted-foreground"
                 />
               </div>
-              <div className="flex gap-4">
-                <Button
-                  onClick={handleAddOffice}
-                  disabled={createMutation.isPending || !formData.name || !formData.location}
-                >
-                  {createMutation.isPending ? 'Creating...' : 'Create Office'}
-                </Button>
-                <Button variant="outline" onClick={() => setShowForm(false)}>
-                  Cancel
-                </Button>
-              </div>
             </div>
-          </div>
-        )}
+          </ModalBody>
+          <ModalFooter className="flex gap-4">
+            <Button
+              onClick={handleAddOffice}
+              disabled={createMutation.isPending || !formData.name || !formData.location}
+            >
+              {createMutation.isPending ? 'Creating...' : 'Create Office'}
+            </Button>
+            <Button variant="outline" onClick={() => setShowForm(false)}>
+              Cancel
+            </Button>
+          </ModalFooter>
+        </Modal>
 
         {/* Empty State */}
         {offices.length === 0 && (
@@ -197,7 +244,7 @@ function OfficesContent() {
                   </p>
                 </div>
                 <div className="flex gap-2">
-                  <Button size="sm" variant="outline">
+                  <Button size="sm" variant="outline" onClick={() => handleEditOffice(office)}>
                     Edit
                   </Button>
                   <Button
@@ -214,6 +261,74 @@ function OfficesContent() {
           ))}
         </div>
       </div>
+
+      {/* Edit Office Modal */}
+      <Modal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        size="lg"
+      >
+        <ModalHeader>
+          <ModalTitle>Edit Office</ModalTitle>
+        </ModalHeader>
+        <ModalBody>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-foreground">
+                Office Name *
+              </label>
+              <input
+                type="text"
+                value={editFormData.name}
+                onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-foreground placeholder-muted-foreground"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-foreground">Location *</label>
+              <input
+                type="text"
+                value={editFormData.location}
+                onChange={(e) => setEditFormData({ ...editFormData, location: e.target.value })}
+                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-foreground placeholder-muted-foreground"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-foreground">
+                Full Address
+              </label>
+              <textarea
+                value={editFormData.address}
+                onChange={(e) => setEditFormData({ ...editFormData, address: e.target.value })}
+                rows={3}
+                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-foreground placeholder-muted-foreground"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-foreground">
+                Phone Number
+              </label>
+              <input
+                type="text"
+                value={editFormData.phone}
+                onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
+                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-foreground placeholder-muted-foreground"
+              />
+            </div>
+          </div>
+        </ModalBody>
+        <ModalFooter className="flex gap-4">
+          <Button
+            onClick={handleUpdateOffice}
+            disabled={updateMutation.isPending || !editFormData.name || !editFormData.location}
+          >
+            {updateMutation.isPending ? 'Updating...' : 'Update Office'}
+          </Button>
+          <Button variant="outline" onClick={() => setShowEditModal(false)}>
+            Cancel
+          </Button>
+        </ModalFooter>
+      </Modal>
     </CompanyLayout>
   );
 }

@@ -18,6 +18,7 @@ import {
   DisbursementTypeSchema,
 } from './schemas/disbursement-type.schema';
 import { Beneficiary, BeneficiarySchema } from './schemas/beneficiary.schema';
+import { DisbursementTemplate, DisbursementTemplateSchema } from './schemas/disbursement-template.schema';
 import { AuditLog, AuditLogSchema } from './schemas/audit-log.schema';
 import {
   Notification,
@@ -37,25 +38,34 @@ import {
   ReminderSettings,
   ReminderSettingsSchema,
 } from './schemas/reminder-settings.schema';
+import { PlatformSettings, PlatformSettingsSchema } from './schemas/platform-settings.schema';
+import { tenantFilterPlugin } from '../common/tenancy/tenant-filter.plugin';
+
+function applyTenantPlugin(schema: any) {
+  schema.plugin(tenantFilterPlugin);
+  return schema;
+}
 
 const schemas = [
-  { name: User.name, schema: UserSchema },
+  { name: User.name, schema: applyTenantPlugin(UserSchema) },
   { name: Company.name, schema: CompanySchema },
-  { name: Role.name, schema: RoleSchema },
-  { name: Permission.name, schema: PermissionSchema },
-  { name: Department.name, schema: DepartmentSchema },
-  { name: Office.name, schema: OfficeSchema },
-  { name: Disbursement.name, schema: DisbursementSchema },
-  { name: Collection.name, schema: CollectionSchema },
-  { name: DisbursementType.name, schema: DisbursementTypeSchema },
-  { name: Beneficiary.name, schema: BeneficiarySchema },
-  { name: AuditLog.name, schema: AuditLogSchema },
-  { name: Notification.name, schema: NotificationSchema },
-  { name: ChatMessage.name, schema: ChatMessageSchema },
+  { name: Role.name, schema: applyTenantPlugin(RoleSchema) },
+  { name: Permission.name, schema: PermissionSchema }, // Global permissions; no tenant filter
+  { name: Department.name, schema: applyTenantPlugin(DepartmentSchema) },
+  { name: Office.name, schema: applyTenantPlugin(OfficeSchema) },
+  { name: Disbursement.name, schema: applyTenantPlugin(DisbursementSchema) },
+  { name: Collection.name, schema: applyTenantPlugin(CollectionSchema) },
+  { name: DisbursementType.name, schema: applyTenantPlugin(DisbursementTypeSchema) },
+  { name: Beneficiary.name, schema: applyTenantPlugin(BeneficiarySchema) },
+  { name: DisbursementTemplate.name, schema: applyTenantPlugin(DisbursementTemplateSchema) },
+  { name: AuditLog.name, schema: applyTenantPlugin(AuditLogSchema) },
+  { name: Notification.name, schema: applyTenantPlugin(NotificationSchema) },
+  { name: ChatMessage.name, schema: applyTenantPlugin(ChatMessageSchema) },
   { name: DeletedDataRegistry.name, schema: DeletedDataRegistrySchema },
   { name: ErrorLog.name, schema: ErrorLogSchema },
   { name: EmailSettings.name, schema: EmailSettingsSchema },
   { name: ReminderSettings.name, schema: ReminderSettingsSchema },
+  { name: PlatformSettings.name, schema: PlatformSettingsSchema },
 ];
 
 @Module({

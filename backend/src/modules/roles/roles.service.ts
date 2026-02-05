@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { Role } from '../../database/schemas/role.schema';
 
 @Injectable()
@@ -9,22 +9,33 @@ export class RolesService {
 
   async create(createRoleDto: any) {
     const createdRole = new this.roleModel(createRoleDto);
-    return createdRole.save();
+    const saved = await createdRole.save();
+    return saved.populate('permissions');
   }
 
-  async findAll() {
-    return this.roleModel.find();
+  async findAll(companyId?: string | null) {
+    const filter = companyId ? { company: new Types.ObjectId(companyId) } : {};
+    return this.roleModel.find(filter as any).populate('permissions');
   }
 
-  async findOne(id: string) {
-    return this.roleModel.findById(id);
+  async findOne(id: string, companyId?: string | null) {
+    const filter = companyId
+      ? { _id: new Types.ObjectId(id), company: new Types.ObjectId(companyId) }
+      : { _id: new Types.ObjectId(id) };
+    return this.roleModel.findOne(filter as any).populate('permissions');
   }
 
-  async update(id: string, updateRoleDto: any) {
-    return this.roleModel.findByIdAndUpdate(id, updateRoleDto, { new: true });
+  async update(id: string, updateRoleDto: any, companyId?: string | null) {
+    const filter = companyId
+      ? { _id: new Types.ObjectId(id), company: new Types.ObjectId(companyId) }
+      : { _id: new Types.ObjectId(id) };
+    return this.roleModel.findOneAndUpdate(filter as any, updateRoleDto, { new: true }).populate('permissions');
   }
 
-  async remove(id: string) {
-    return this.roleModel.findByIdAndDelete(id);
+  async remove(id: string, companyId?: string | null) {
+    const filter = companyId
+      ? { _id: new Types.ObjectId(id), company: new Types.ObjectId(companyId) }
+      : { _id: new Types.ObjectId(id) };
+    return this.roleModel.findOneAndDelete(filter as any);
   }
 }

@@ -5,6 +5,7 @@ import { CreateBeneficiaryDto, UpdateBeneficiaryDto } from './dto';
 import { BeneficiaryResponseDto } from '../../common/dto/beneficiary-response.dto';
 import { SuccessResponseDto } from '../../common/dto/success-response.dto';
 import { PaginatedResponseDto, PaginationMetaDto } from '../../common/dto/paginated-response.dto';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 // Define a specific response DTO for paginated beneficiaries
 class PaginatedBeneficiariesResponseDto extends PaginatedResponseDto<BeneficiaryResponseDto> {
@@ -42,8 +43,9 @@ export class BeneficiariesController {
   })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
-  create(@Body() createBeneficiaryDto: CreateBeneficiaryDto) {
-    return this.beneficiariesService.create(createBeneficiaryDto);
+  create(@Body() createBeneficiaryDto: CreateBeneficiaryDto, @CurrentUser() user: any) {
+    const companyId = user?.company ? (user.company._id || user.company).toString() : null;
+    return this.beneficiariesService.create(createBeneficiaryDto, companyId);
   }
 
   @Get()
@@ -53,6 +55,7 @@ export class BeneficiariesController {
   @ApiQuery({ name: 'sortBy', required: false, description: 'Field to sort by', example: 'createdAt' })
   @ApiQuery({ name: 'sortOrder', required: false, description: 'Sort order (asc/desc)', example: 'desc' })
   @ApiQuery({ name: 'search', required: false, description: 'Search term', example: 'john' })
+  @ApiQuery({ name: 'disbursementType', required: false, description: 'Filter by disbursement type ID' })
   @ApiResponse({
     status: 200,
     description: 'List of beneficiaries retrieved successfully.',
@@ -81,13 +84,20 @@ export class BeneficiariesController {
     }
   })
   findAll(
+    @CurrentUser() user: any,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
     @Query('sortBy') sortBy?: string,
     @Query('sortOrder') sortOrder?: 'asc' | 'desc',
     @Query('search') search?: string,
+    @Query('disbursementType') disbursementType?: string,
   ) {
-    return this.beneficiariesService.findAll();
+    const companyId = user?.isKaeyrosUser
+      ? null
+      : user?.company
+        ? (user.company._id || user.company).toString()
+        : null;
+    return this.beneficiariesService.findAll(companyId, disbursementType);
   }
 
   @Get(':id')
@@ -111,8 +121,13 @@ export class BeneficiariesController {
       }
     }
   })
-  findOne(@Param('id') id: string) {
-    return this.beneficiariesService.findOne(id);
+  findOne(@Param('id') id: string, @CurrentUser() user: any) {
+    const companyId = user?.isKaeyrosUser
+      ? null
+      : user?.company
+        ? (user.company._id || user.company).toString()
+        : null;
+    return this.beneficiariesService.findOne(id, companyId);
   }
 
   @Patch(':id')
@@ -148,8 +163,13 @@ export class BeneficiariesController {
       }
     }
   })
-  update(@Param('id') id: string, @Body() updateBeneficiaryDto: UpdateBeneficiaryDto) {
-    return this.beneficiariesService.update(id, updateBeneficiaryDto);
+  update(@Param('id') id: string, @Body() updateBeneficiaryDto: UpdateBeneficiaryDto, @CurrentUser() user: any) {
+    const companyId = user?.isKaeyrosUser
+      ? null
+      : user?.company
+        ? (user.company._id || user.company).toString()
+        : null;
+    return this.beneficiariesService.update(id, updateBeneficiaryDto, companyId);
   }
 
   @Delete(':id')
@@ -173,7 +193,12 @@ export class BeneficiariesController {
       }
     }
   })
-  remove(@Param('id') id: string) {
-    return this.beneficiariesService.remove(id);
+  remove(@Param('id') id: string, @CurrentUser() user: any) {
+    const companyId = user?.isKaeyrosUser
+      ? null
+      : user?.company
+        ? (user.company._id || user.company).toString()
+        : null;
+    return this.beneficiariesService.remove(id, companyId);
   }
 }

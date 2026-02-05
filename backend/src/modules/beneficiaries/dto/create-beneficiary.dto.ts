@@ -1,30 +1,41 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsOptional, IsEmail, IsBoolean } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsEmail, IsBoolean, IsIn, IsMongoId } from 'class-validator';
 
 export class CreateBeneficiaryDto {
   @ApiProperty({
-    description: 'First name of the beneficiary',
-    example: 'Jane',
+    description: 'Beneficiary name',
+    example: 'Supermonth',
   })
   @IsString()
   @IsNotEmpty()
-  firstName: string;
+  name: string;
 
   @ApiProperty({
-    description: 'Last name of the beneficiary',
-    example: 'Smith',
+    description: 'Beneficiary type',
+    example: 'supplier',
+    required: false,
   })
   @IsString()
+  @IsOptional()
+  @IsIn(['individual', 'company', 'supplier', 'employee', 'other'])
+  type?: string;
+
+  @ApiProperty({
+    description: 'Disbursement type ID for this beneficiary',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @IsMongoId()
   @IsNotEmpty()
-  lastName: string;
+  disbursementType: string;
 
   @ApiProperty({
     description: 'Email address of the beneficiary',
     example: 'jane.smith@example.com',
+    required: false,
   })
   @IsEmail()
-  @IsNotEmpty()
-  email: string;
+  @IsOptional()
+  email?: string;
 
   @ApiProperty({
     description: 'Phone number of the beneficiary',
@@ -36,13 +47,13 @@ export class CreateBeneficiaryDto {
   phone?: string;
 
   @ApiProperty({
-    description: 'Account number of the beneficiary',
-    example: '1234567890',
+    description: 'Address of the beneficiary',
+    example: '123 Main Street',
     required: false,
   })
   @IsString()
   @IsOptional()
-  accountNumber?: string;
+  address?: string;
 
   @ApiProperty({
     description: 'Bank name of the beneficiary',
@@ -52,6 +63,33 @@ export class CreateBeneficiaryDto {
   @IsString()
   @IsOptional()
   bankName?: string;
+
+  @ApiProperty({
+    description: 'Account number of the beneficiary',
+    example: '1234567890',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  accountNumber?: string;
+
+  @ApiProperty({
+    description: 'Tax ID of the beneficiary',
+    example: 'TX-123456',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  taxId?: string;
+
+  @ApiProperty({
+    description: 'Notes about the beneficiary',
+    example: 'Preferred supplier',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  notes?: string;
 
   @ApiProperty({
     description: 'Whether the beneficiary is active',

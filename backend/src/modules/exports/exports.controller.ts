@@ -6,6 +6,7 @@ import { CreateExportDto, ExportType, ExportFormat } from './dto';
 import { ExportResponseDto } from '../../common/dto/export-response.dto';
 import { SuccessResponseDto } from '../../common/dto/success-response.dto';
 import { PaginatedResponseDto, PaginationMetaDto } from '../../common/dto/paginated-response.dto';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 class PaginatedExportsResponseDto extends PaginatedResponseDto<ExportResponseDto> {
   @ApiProperty({ type: [ExportResponseDto] })
@@ -33,8 +34,13 @@ export class ExportsController {
   @ApiResponse({ status: 400, description: 'Bad Request - Invalid export configuration.' })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
-  create(@Body() createExportDto: CreateExportDto) {
-    return this.exportsService.create(createExportDto);
+  create(@Body() createExportDto: CreateExportDto, @CurrentUser() user: any) {
+    const companyId = user?.isKaeyrosUser
+      ? null
+      : user?.company
+        ? (user.company._id || user.company).toString()
+        : null;
+    return this.exportsService.create(createExportDto, companyId);
   }
 
   @Get()
@@ -56,6 +62,7 @@ export class ExportsController {
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
   findAll(
+    @CurrentUser() user: any,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
     @Query('sortBy') sortBy?: string,
@@ -66,7 +73,12 @@ export class ExportsController {
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ) {
-    return this.exportsService.findAll();
+    const companyId = user?.isKaeyrosUser
+      ? null
+      : user?.company
+        ? (user.company._id || user.company).toString()
+        : null;
+    return this.exportsService.findAll(companyId);
   }
 
   @Get(':id')
@@ -80,8 +92,13 @@ export class ExportsController {
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
   @ApiResponse({ status: 404, description: 'Export not found.' })
-  findOne(@Param('id') id: string) {
-    return this.exportsService.findOne(id);
+  findOne(@Param('id') id: string, @CurrentUser() user: any) {
+    const companyId = user?.isKaeyrosUser
+      ? null
+      : user?.company
+        ? (user.company._id || user.company).toString()
+        : null;
+    return this.exportsService.findOne(id, companyId);
   }
 
   @Get(':id/download')
@@ -101,8 +118,13 @@ export class ExportsController {
   @ApiResponse({ status: 403, description: 'Forbidden.' })
   @ApiResponse({ status: 404, description: 'Export not found.' })
   @ApiResponse({ status: 409, description: 'Export not yet completed.' })
-  getDownloadUrl(@Param('id') id: string) {
-    return this.exportsService.findOne(id);
+  getDownloadUrl(@Param('id') id: string, @CurrentUser() user: any) {
+    const companyId = user?.isKaeyrosUser
+      ? null
+      : user?.company
+        ? (user.company._id || user.company).toString()
+        : null;
+    return this.exportsService.findOne(id, companyId);
   }
 
   @Delete(':id')
@@ -116,7 +138,12 @@ export class ExportsController {
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
   @ApiResponse({ status: 404, description: 'Export not found.' })
-  remove(@Param('id') id: string) {
-    return this.exportsService.remove(id);
+  remove(@Param('id') id: string, @CurrentUser() user: any) {
+    const companyId = user?.isKaeyrosUser
+      ? null
+      : user?.company
+        ? (user.company._id || user.company).toString()
+        : null;
+    return this.exportsService.remove(id, companyId);
   }
 }

@@ -30,7 +30,7 @@ export interface FileUploadResult {
 
 export interface UploadContext {
   userId: string;
-  companyId: string;
+  companyId?: string | null;
 }
 
 @Injectable()
@@ -106,6 +106,10 @@ export class FileUploadService {
     body: CreateFileUploadDto,
     context: UploadContext,
   ): Promise<FileUploadResult> {
+    const companyId = context.companyId;
+    if (!companyId) {
+      throw new BadRequestException('Company context is required for file uploads');
+    }
     if (!file) {
       throw new BadRequestException('No file provided');
     }
@@ -142,7 +146,7 @@ export class FileUploadService {
 
       // Save file metadata to database
       const fileUpload = new this.fileUploadModel({
-        company: new Types.ObjectId(context.companyId),
+        company: new Types.ObjectId(companyId),
         originalName: file.originalname,
         storedName,
         mimeType: file.mimetype,
@@ -203,12 +207,16 @@ export class FileUploadService {
    * Create file record (for external storage references)
    */
   async create(createFileUploadDto: CreateFileUploadDto, context: UploadContext) {
+    const companyId = context.companyId;
+    if (!companyId) {
+      throw new BadRequestException('Company context is required for file uploads');
+    }
     const tags = createFileUploadDto.tags
       ? createFileUploadDto.tags.split(',').map((t) => t.trim())
       : [];
 
     const fileUpload = new this.fileUploadModel({
-      company: new Types.ObjectId(context.companyId),
+      company: new Types.ObjectId(companyId),
       ...createFileUploadDto,
       tags,
       uploadedBy: new Types.ObjectId(context.userId),
@@ -221,7 +229,7 @@ export class FileUploadService {
    * Find all files with filtering and pagination
    */
   async findAll(
-    companyId: string,
+    companyId?: string | null,
     options: {
       page?: number;
       limit?: number;
@@ -251,8 +259,8 @@ export class FileUploadService {
     } = options;
 
     const query: any = {
-      company: new Types.ObjectId(companyId),
       isDeleted: false,
+      ...(companyId ? { company: new Types.ObjectId(companyId) } : {}),
     };
 
     if (category) query.category = category;
@@ -302,16 +310,16 @@ export class FileUploadService {
    * Find files by entity (e.g., all files for a specific disbursement)
    */
   async findByEntity(
-    companyId: string,
+    companyId: string | null | undefined,
     entityType: FileEntityType,
     entityId: string,
   ) {
     return this.fileUploadModel
       .find({
-        company: new Types.ObjectId(companyId),
         entityType,
         entityId: new Types.ObjectId(entityId),
         isDeleted: false,
+        ...(companyId ? { company: new Types.ObjectId(companyId) } : {}),
       })
       .populate('uploadedBy', 'firstName lastName email')
       .sort({ createdAt: -1 })
@@ -321,12 +329,12 @@ export class FileUploadService {
   /**
    * Find one file by ID
    */
-  async findOne(id: string, companyId: string) {
+  async findOne(id: string, companyId?: string | null) {
     const file = await this.fileUploadModel
       .findOne({
         _id: new Types.ObjectId(id),
-        company: new Types.ObjectId(companyId),
         isDeleted: false,
+        ...(companyId ? { company: new Types.ObjectId(companyId) } : {}),
       })
       .populate('uploadedBy', 'firstName lastName email')
       .exec();
@@ -341,7 +349,7 @@ export class FileUploadService {
   /**
    * Get a signed download URL for a file (expires in 1 hour)
    */
-  async getDownloadUrl(id: string, companyId: string) {
+  async getDownloadUrl(id: string, companyId?: string | null) {
     const file = await this.findOne(id, companyId);
 
     const command = new GetObjectCommand({
@@ -364,8 +372,8 @@ export class FileUploadService {
    */
   async update(
     id: string,
-    companyId: string,
     updateDto: Partial<CreateFileUploadDto>,
+    companyId?: string | null,
   ) {
     const file = await this.findOne(id, companyId);
 
@@ -380,7 +388,7 @@ export class FileUploadService {
   /**
    * Soft delete a file (mark as deleted but keep in S3)
    */
-  async remove(id: string, companyId: string) {
+  async remove(id: string, companyId?: string | null) {
     const file = await this.findOne(id, companyId);
     file.isDeleted = true;
     await file.save();
@@ -391,11 +399,11 @@ export class FileUploadService {
   /**
    * Permanently delete a file from S3 and database
    */
-  async permanentDelete(id: string, companyId: string) {
+  async permanentDelete(id: string, companyId?: string | null) {
     const file = await this.fileUploadModel
       .findOne({
         _id: new Types.ObjectId(id),
-        company: new Types.ObjectId(companyId),
+        ...(companyId ? { company: new Types.ObjectId(companyId) } : {}),
       })
       .exec();
 

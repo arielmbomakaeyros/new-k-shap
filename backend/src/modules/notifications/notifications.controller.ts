@@ -6,6 +6,7 @@ import { CreateNotificationDto, UpdateNotificationDto } from './dto';
 import { NotificationResponseDto } from '../../common/dto/notification-response.dto';
 import { SuccessResponseDto } from '../../common/dto/success-response.dto';
 import { PaginatedResponseDto, PaginationMetaDto } from '../../common/dto/paginated-response.dto';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 // Define a specific response DTO for paginated notifications
 class PaginatedNotificationsResponseDto extends PaginatedResponseDto<NotificationResponseDto> {
@@ -44,8 +45,9 @@ export class NotificationsController {
   })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
-  create(@Body() createNotificationDto: CreateNotificationDto) {
-    return this.notificationsService.create(createNotificationDto);
+  create(@Body() createNotificationDto: CreateNotificationDto, @CurrentUser() user: any) {
+    const companyId = user?.company ? (user.company._id || user.company).toString() : null;
+    return this.notificationsService.create(createNotificationDto, companyId);
   }
 
   @Get()
@@ -87,6 +89,7 @@ export class NotificationsController {
     }
   })
   findAll(
+    @CurrentUser() user: any,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
     @Query('sortBy') sortBy?: string,
@@ -97,7 +100,12 @@ export class NotificationsController {
     @Query('channel') channel?: string,
     @Query('isRead') isRead?: string,
   ) {
-    return this.notificationsService.findAll();
+    const companyId = user?.isKaeyrosUser
+      ? null
+      : user?.company
+        ? (user.company._id || user.company).toString()
+        : null;
+    return this.notificationsService.findAll(companyId);
   }
 
   @Get(':id')
@@ -121,8 +129,13 @@ export class NotificationsController {
       }
     }
   })
-  findOne(@Param('id') id: string) {
-    return this.notificationsService.findOne(id);
+  findOne(@Param('id') id: string, @CurrentUser() user: any) {
+    const companyId = user?.isKaeyrosUser
+      ? null
+      : user?.company
+        ? (user.company._id || user.company).toString()
+        : null;
+    return this.notificationsService.findOne(id, companyId);
   }
 
   @Patch(':id')
@@ -158,8 +171,13 @@ export class NotificationsController {
       }
     }
   })
-  update(@Param('id') id: string, @Body() updateNotificationDto: UpdateNotificationDto) {
-    return this.notificationsService.update(id, updateNotificationDto);
+  update(@Param('id') id: string, @Body() updateNotificationDto: UpdateNotificationDto, @CurrentUser() user: any) {
+    const companyId = user?.isKaeyrosUser
+      ? null
+      : user?.company
+        ? (user.company._id || user.company).toString()
+        : null;
+    return this.notificationsService.update(id, updateNotificationDto, companyId);
   }
 
   @Delete(':id')
@@ -183,7 +201,12 @@ export class NotificationsController {
       }
     }
   })
-  remove(@Param('id') id: string) {
-    return this.notificationsService.remove(id);
+  remove(@Param('id') id: string, @CurrentUser() user: any) {
+    const companyId = user?.isKaeyrosUser
+      ? null
+      : user?.company
+        ? (user.company._id || user.company).toString()
+        : null;
+    return this.notificationsService.remove(id, companyId);
   }
 }

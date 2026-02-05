@@ -5,6 +5,7 @@ import { CreateOfficeDto, UpdateOfficeDto } from './dto';
 import { OfficeResponseDto } from '../../common/dto/office-response.dto';
 import { SuccessResponseDto } from '../../common/dto/success-response.dto';
 import { PaginatedResponseDto, PaginationMetaDto } from '../../common/dto/paginated-response.dto';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 class PaginatedOfficesResponseDto extends PaginatedResponseDto<OfficeResponseDto> {
   @ApiProperty({ type: [OfficeResponseDto] })
@@ -31,8 +32,15 @@ export class OfficesController {
   @ApiResponse({ status: 400, description: 'Bad Request.' })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
-  create(@Body() createOfficeDto: CreateOfficeDto) {
-    return this.officesService.create(createOfficeDto);
+  create(@Body() createOfficeDto: CreateOfficeDto, @CurrentUser() user: any) {
+    const companyId = user?.company ? (user.company._id || user.company).toString() : createOfficeDto.companyId;
+    const { companyId: _companyId, location, ...rest } = createOfficeDto as any;
+
+    return this.officesService.create({
+      ...rest,
+      ...(companyId ? { company: companyId } : {}),
+      ...(location && !rest.city ? { city: location } : {}),
+    });
   }
 
   @Get()
@@ -54,6 +62,7 @@ export class OfficesController {
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
   findAll(
+    @CurrentUser() user: any,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
     @Query('sortBy') sortBy?: string,
@@ -64,7 +73,13 @@ export class OfficesController {
     @Query('manager') manager?: string,
     @Query('isActive') isActive?: string,
   ) {
-    return this.officesService.findAll();
+    const companyId = user?.isKaeyrosUser
+      ? null
+      : user?.company
+        ? (user.company._id || user.company).toString()
+        : null;
+
+    return this.officesService.findAll(companyId);
   }
 
   @Get(':id')
@@ -78,8 +93,14 @@ export class OfficesController {
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
   @ApiResponse({ status: 404, description: 'Office not found.' })
-  findOne(@Param('id') id: string) {
-    return this.officesService.findOne(id);
+  findOne(@Param('id') id: string, @CurrentUser() user: any) {
+    const companyId = user?.isKaeyrosUser
+      ? null
+      : user?.company
+        ? (user.company._id || user.company).toString()
+        : null;
+
+    return this.officesService.findOne(id, companyId);
   }
 
   @Patch(':id')
@@ -95,8 +116,14 @@ export class OfficesController {
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
   @ApiResponse({ status: 404, description: 'Office not found.' })
-  update(@Param('id') id: string, @Body() updateOfficeDto: UpdateOfficeDto) {
-    return this.officesService.update(id, updateOfficeDto);
+  update(@Param('id') id: string, @Body() updateOfficeDto: UpdateOfficeDto, @CurrentUser() user: any) {
+    const companyId = user?.isKaeyrosUser
+      ? null
+      : user?.company
+        ? (user.company._id || user.company).toString()
+        : null;
+
+    return this.officesService.update(id, updateOfficeDto, companyId);
   }
 
   @Delete(':id')
@@ -110,7 +137,13 @@ export class OfficesController {
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
   @ApiResponse({ status: 404, description: 'Office not found.' })
-  remove(@Param('id') id: string) {
-    return this.officesService.remove(id);
+  remove(@Param('id') id: string, @CurrentUser() user: any) {
+    const companyId = user?.isKaeyrosUser
+      ? null
+      : user?.company
+        ? (user.company._id || user.company).toString()
+        : null;
+
+    return this.officesService.remove(id, companyId);
   }
 }

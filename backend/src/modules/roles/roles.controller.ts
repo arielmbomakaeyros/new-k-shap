@@ -2,6 +2,7 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestj
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiBody, ApiQuery } from '@nestjs/swagger';
 import { RolesService } from './roles.service';
 import { CreateRoleDto, UpdateRoleDto } from './dto';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 @ApiTags('Roles')
 @Controller('roles')
@@ -30,8 +31,13 @@ export class RolesController {
   @ApiResponse({ status: 400, description: 'Bad Request.' })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
-  create(@Body() createRoleDto: CreateRoleDto) {
-    return this.rolesService.create(createRoleDto);
+  create(@Body() createRoleDto: CreateRoleDto, @CurrentUser() user: any) {
+    const companyId = user?.company ? (user.company._id || user.company).toString() : (createRoleDto as any).companyId;
+
+    return this.rolesService.create({
+      ...createRoleDto,
+      ...(companyId ? { company: companyId } : {}),
+    });
   }
 
   @Get()
@@ -70,6 +76,7 @@ export class RolesController {
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
   findAll(
+    @CurrentUser() user: any,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
     @Query('sortBy') sortBy?: string,
@@ -77,7 +84,13 @@ export class RolesController {
     @Query('search') search?: string,
     @Query('isActive') isActive?: string,
   ) {
-    return this.rolesService.findAll();
+    const companyId = user?.isKaeyrosUser
+      ? null
+      : user?.company
+        ? (user.company._id || user.company).toString()
+        : null;
+
+    return this.rolesService.findAll(companyId);
   }
 
   @Get(':id')
@@ -101,8 +114,14 @@ export class RolesController {
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
   @ApiResponse({ status: 404, description: 'Role not found.' })
-  findOne(@Param('id') id: string) {
-    return this.rolesService.findOne(id);
+  findOne(@Param('id') id: string, @CurrentUser() user: any) {
+    const companyId = user?.isKaeyrosUser
+      ? null
+      : user?.company
+        ? (user.company._id || user.company).toString()
+        : null;
+
+    return this.rolesService.findOne(id, companyId);
   }
 
   @Patch(':id')
@@ -128,8 +147,14 @@ export class RolesController {
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
   @ApiResponse({ status: 404, description: 'Role not found.' })
-  update(@Param('id') id: string, @Body() updateRoleDto: UpdateRoleDto) {
-    return this.rolesService.update(id, updateRoleDto);
+  update(@Param('id') id: string, @Body() updateRoleDto: UpdateRoleDto, @CurrentUser() user: any) {
+    const companyId = user?.isKaeyrosUser
+      ? null
+      : user?.company
+        ? (user.company._id || user.company).toString()
+        : null;
+
+    return this.rolesService.update(id, updateRoleDto, companyId);
   }
 
   @Delete(':id')
@@ -148,7 +173,13 @@ export class RolesController {
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
   @ApiResponse({ status: 404, description: 'Role not found.' })
-  remove(@Param('id') id: string) {
-    return this.rolesService.remove(id);
+  remove(@Param('id') id: string, @CurrentUser() user: any) {
+    const companyId = user?.isKaeyrosUser
+      ? null
+      : user?.company
+        ? (user.company._id || user.company).toString()
+        : null;
+
+    return this.rolesService.remove(id, companyId);
   }
 }

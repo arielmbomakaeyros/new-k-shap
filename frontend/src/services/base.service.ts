@@ -40,7 +40,24 @@ export abstract class BaseService<
    */
   async findAll(params?: Filters): Promise<PaginatedResponse<T>> {
     const queryString = buildQueryString(params);
-    return api.get<PaginatedResponse<T>>(`${this.basePath}${queryString}`);
+    const response = await api.get<any>(`${this.basePath}${queryString}`);
+
+    // Normalize nested paginated responses returned by the backend
+    if (response && typeof response === 'object') {
+      const maybeData = (response as any).data;
+      const maybePagination = maybeData?.pagination;
+      if ((response as any).success && Array.isArray(maybeData?.data) && maybePagination) {
+        return {
+          success: (response as any).success,
+          data: maybeData.data,
+          pagination: maybePagination,
+          message: (response as any).message,
+          errors: (response as any).errors,
+        } as PaginatedResponse<T>;
+      }
+    }
+
+    return response as PaginatedResponse<T>;
   }
 
   /**

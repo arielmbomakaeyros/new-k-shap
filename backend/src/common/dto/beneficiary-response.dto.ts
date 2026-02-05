@@ -10,18 +10,29 @@ export class BeneficiaryResponseDto {
   _id: string;
 
   @ApiProperty({
-    description: 'First name of the beneficiary',
-    example: 'Jane',
+    description: 'Beneficiary name',
+    example: 'Supermonth',
   })
   @IsString()
-  firstName: string;
+  name: string;
 
   @ApiProperty({
-    description: 'Last name of the beneficiary',
-    example: 'Smith',
+    description: 'Beneficiary type',
+    example: 'supplier',
+    required: false,
   })
   @IsString()
-  lastName: string;
+  @IsOptional()
+  type?: string;
+
+  @ApiProperty({
+    description: 'Disbursement type ID for this beneficiary',
+    example: '507f1f77bcf86cd799439011',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  disbursementType?: string;
 
   @ApiProperty({
     description: 'Email address of the beneficiary',
@@ -40,13 +51,13 @@ export class BeneficiaryResponseDto {
   phone?: string;
 
   @ApiProperty({
-    description: 'Account number of the beneficiary',
-    example: '1234567890',
+    description: 'Address of the beneficiary',
+    example: '123 Main Street',
     required: false,
   })
   @IsString()
   @IsOptional()
-  accountNumber?: string;
+  address?: string;
 
   @ApiProperty({
     description: 'Bank name of the beneficiary',
@@ -56,6 +67,33 @@ export class BeneficiaryResponseDto {
   @IsString()
   @IsOptional()
   bankName?: string;
+
+  @ApiProperty({
+    description: 'Account number of the beneficiary',
+    example: '1234567890',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  accountNumber?: string;
+
+  @ApiProperty({
+    description: 'Tax ID of the beneficiary',
+    example: 'TX-123456',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  taxId?: string;
+
+  @ApiProperty({
+    description: 'Notes about the beneficiary',
+    example: 'Preferred supplier',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  notes?: string;
 
   @ApiProperty({
     description: 'Whether the beneficiary is active',

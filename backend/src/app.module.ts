@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ScheduleModule } from '@nestjs/schedule';
-import { ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 
 // Core modules
@@ -22,6 +22,7 @@ import { OfficesModule } from './modules/offices/offices.module';
 import { DisbursementsModule } from './modules/disbursements/disbursements.module';
 import { CollectionsModule } from './modules/collections/collections.module';
 import { DisbursementTypesModule } from './modules/disbursement-types/disbursement-types.module';
+import { DisbursementTemplatesModule } from './modules/disbursement-templates/disbursement-templates.module';
 import { BeneficiariesModule } from './modules/beneficiaries/beneficiaries.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { ChatModule } from './modules/chat/chat.module';
@@ -31,6 +32,7 @@ import { ExportsModule } from './modules/exports/exports.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { KaeyrosModule } from './modules/kaeyros/kaeyros.module';
 import { FileUploadModule } from './modules/file-upload/file-upload.module';
+import { PlatformSettingsModule } from './modules/platform-settings/platform-settings.module';
 
 // Jobs
 import { JobsModule } from './jobs/jobs.module';
@@ -42,6 +44,7 @@ import { CompanyAccessGuard } from './common/guards/company-access.guard';
 
 // Interceptors
 import { AuditLogInterceptor } from './common/interceptors/audit-log.interceptor';
+import { TenantContextInterceptor } from './common/interceptors/tenant-context.interceptor';
 
 @Module({
   imports: [
@@ -94,6 +97,7 @@ import { AuditLogInterceptor } from './common/interceptors/audit-log.interceptor
     DisbursementsModule,
     CollectionsModule,
     DisbursementTypesModule,
+    DisbursementTemplatesModule,
     BeneficiariesModule,
     NotificationsModule,
     ChatModule,
@@ -104,9 +108,14 @@ import { AuditLogInterceptor } from './common/interceptors/audit-log.interceptor
     KaeyrosModule,
     FileUploadModule,
     JobsModule,
+    PlatformSettingsModule,
   ],
   providers: [
     // Global guards (order matters!)
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard, // First: Rate limiting
+    },
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard, // First: Authentication
@@ -120,6 +129,10 @@ import { AuditLogInterceptor } from './common/interceptors/audit-log.interceptor
       useClass: PermissionsGuard, // Third: Authorization
     },
     // Global interceptors - AuditLogInterceptor is provided by AuditLogsModule
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: TenantContextInterceptor, // Set request-scoped tenant context
+    },
     {
       provide: APP_INTERCEPTOR,
       useExisting: AuditLogInterceptor, // Log all write actions

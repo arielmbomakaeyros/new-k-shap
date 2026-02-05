@@ -25,14 +25,14 @@ class CollectionsService extends BaseService<
    * Get collections by department
    */
   async getByDepartment(departmentId: string, params?: CollectionFilters) {
-    return this.findAll({ ...params, departmentId });
+    return this.findAll({ ...params, department: departmentId });
   }
 
   /**
    * Get collections by revenue category
    */
   async getByRevenueCategory(revenueCategory: string, params?: CollectionFilters) {
-    return this.findAll({ ...params, revenueCategory });
+    return this.findAll({ ...params, serviceCategory: revenueCategory });
   }
 }
 

@@ -56,9 +56,10 @@ export interface Company {
 
 export enum SubscriptionStatus {
   Active = 'active',
-  Inactive = 'inactive',
   Suspended = 'suspended',
+  Trial = 'trial',
   Expired = 'expired',
+  Deleted = 'deleted',
 }
 
 export interface Department {

@@ -6,6 +6,7 @@ import { CreateReportDto, ReportType, ReportPeriod } from './dto';
 import { ReportResponseDto } from '../../common/dto/report-response.dto';
 import { SuccessResponseDto } from '../../common/dto/success-response.dto';
 import { PaginatedResponseDto, PaginationMetaDto } from '../../common/dto/paginated-response.dto';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 class PaginatedReportsResponseDto extends PaginatedResponseDto<ReportResponseDto> {
   @ApiProperty({ type: [ReportResponseDto] })
@@ -33,8 +34,13 @@ export class ReportsController {
   @ApiResponse({ status: 400, description: 'Bad Request - Invalid report configuration.' })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
-  create(@Body() createReportDto: CreateReportDto) {
-    return this.reportsService.create(createReportDto);
+  create(@Body() createReportDto: CreateReportDto, @CurrentUser() user: any) {
+    const companyId = user?.isKaeyrosUser
+      ? null
+      : user?.company
+        ? (user.company._id || user.company).toString()
+        : null;
+    return this.reportsService.create(createReportDto, companyId);
   }
 
   @Get()
@@ -55,6 +61,7 @@ export class ReportsController {
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
   findAll(
+    @CurrentUser() user: any,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
     @Query('sortBy') sortBy?: string,
@@ -64,7 +71,12 @@ export class ReportsController {
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ) {
-    return this.reportsService.findAll();
+    const companyId = user?.isKaeyrosUser
+      ? null
+      : user?.company
+        ? (user.company._id || user.company).toString()
+        : null;
+    return this.reportsService.findAll(companyId);
   }
 
   @Get('dashboard')
@@ -96,8 +108,13 @@ export class ReportsController {
   })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
-  getDashboard(@Query('period') period?: string) {
-    return this.reportsService.findAll();
+  getDashboard(@CurrentUser() user: any, @Query('period') period?: string) {
+    const companyId = user?.isKaeyrosUser
+      ? null
+      : user?.company
+        ? (user.company._id || user.company).toString()
+        : null;
+    return this.reportsService.findAll(companyId);
   }
 
   @Get('disbursements/summary')
@@ -118,8 +135,14 @@ export class ReportsController {
     @Query('department') department?: string,
     @Query('status') status?: string,
     @Query('groupBy') groupBy?: string,
+    @CurrentUser() user?: any,
   ) {
-    return this.reportsService.findAll();
+    const companyId = user?.isKaeyrosUser
+      ? null
+      : user?.company
+        ? (user.company._id || user.company).toString()
+        : null;
+    return this.reportsService.findAll(companyId);
   }
 
   @Get('collections/summary')
@@ -140,8 +163,14 @@ export class ReportsController {
     @Query('department') department?: string,
     @Query('paymentType') paymentType?: string,
     @Query('groupBy') groupBy?: string,
+    @CurrentUser() user?: any,
   ) {
-    return this.reportsService.findAll();
+    const companyId = user?.isKaeyrosUser
+      ? null
+      : user?.company
+        ? (user.company._id || user.company).toString()
+        : null;
+    return this.reportsService.findAll(companyId);
   }
 
   @Get(':id')
@@ -155,8 +184,13 @@ export class ReportsController {
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
   @ApiResponse({ status: 404, description: 'Report not found.' })
-  findOne(@Param('id') id: string) {
-    return this.reportsService.findOne(id);
+  findOne(@Param('id') id: string, @CurrentUser() user: any) {
+    const companyId = user?.isKaeyrosUser
+      ? null
+      : user?.company
+        ? (user.company._id || user.company).toString()
+        : null;
+    return this.reportsService.findOne(id, companyId);
   }
 
   @Delete(':id')
@@ -170,7 +204,12 @@ export class ReportsController {
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
   @ApiResponse({ status: 404, description: 'Report not found.' })
-  remove(@Param('id') id: string) {
-    return this.reportsService.remove(id);
+  remove(@Param('id') id: string, @CurrentUser() user: any) {
+    const companyId = user?.isKaeyrosUser
+      ? null
+      : user?.company
+        ? (user.company._id || user.company).toString()
+        : null;
+    return this.reportsService.remove(id, companyId);
   }
 }

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { CompanyLayout } from '@/src/components/company/CompanyLayout';
 import { ProtectedRoute } from '@/src/components/ProtectedRoute';
+import { Modal, ModalHeader, ModalTitle, ModalBody, ModalFooter } from '@/src/components/ui/modal';
 import {
   useRoles,
   useCreateRole,
@@ -93,11 +94,20 @@ function RolesContent() {
   const roles = rolesData?.data ?? [];
   const permissions = permissionsData?.data ?? [];
 
-  // Get permission label by code
-  const getPermissionLabel = (code: string) => {
-    const perm = permissions.find((p) => p.code === code);
-    return perm?.name || code;
+  const getPermissionCode = (perm: string | Permission) =>
+    typeof perm === 'string' ? perm : perm.code;
+
+  const getPermissionLabel = (perm: string | Permission) => {
+    if (typeof perm !== 'string') {
+      return perm.name || perm.code;
+    }
+
+    const found = permissions.find((p) => p.code === perm);
+    return found?.name || perm;
   };
+
+  const getRolePermissionCodes = (role: Role) =>
+    (role.permissions || []).map(getPermissionCode).filter(Boolean);
 
   return (
     <CompanyLayout companyName="Company">
@@ -116,10 +126,16 @@ function RolesContent() {
         </div>
 
         {/* Create Role Form */}
-        {showForm && (
-          <div className="rounded-lg border border-border bg-card p-6">
-            <h2 className="text-lg font-semibold text-foreground">Create New Role</h2>
-            <div className="mt-4 space-y-4">
+        <Modal
+          isOpen={showForm}
+          onClose={() => setShowForm(false)}
+          size="lg"
+        >
+          <ModalHeader>
+            <ModalTitle>Create New Role</ModalTitle>
+          </ModalHeader>
+          <ModalBody>
+            <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-foreground">Role Name *</label>
                 <input
@@ -161,20 +177,20 @@ function RolesContent() {
                   </p>
                 )}
               </div>
-              <div className="flex gap-4">
-                <Button
-                  onClick={handleCreateRole}
-                  disabled={createMutation.isPending || !formData.name || formData.permissions.length === 0}
-                >
-                  {createMutation.isPending ? 'Creating...' : 'Create Role'}
-                </Button>
-                <Button variant="outline" onClick={() => setShowForm(false)}>
-                  Cancel
-                </Button>
-              </div>
             </div>
-          </div>
-        )}
+          </ModalBody>
+          <ModalFooter className="flex gap-4">
+            <Button
+              onClick={handleCreateRole}
+              disabled={createMutation.isPending || !formData.name || formData.permissions.length === 0}
+            >
+              {createMutation.isPending ? 'Creating...' : 'Create Role'}
+            </Button>
+            <Button variant="outline" onClick={() => setShowForm(false)}>
+              Cancel
+            </Button>
+          </ModalFooter>
+        </Modal>
 
         {/* Empty State */}
         {roles.length === 0 && !showForm && (
@@ -204,7 +220,7 @@ function RolesContent() {
                 </p>
                 <div className="space-y-1">
                   {role.permissions.slice(0, 3).map((perm) => (
-                    <p key={perm} className="text-xs text-muted-foreground">
+                    <p key={getPermissionCode(perm)} className="text-xs text-muted-foreground">
                       ✓ {getPermissionLabel(perm)}
                     </p>
                   ))}
@@ -266,7 +282,7 @@ function RolesContent() {
                     <label key={perm.id} className="flex items-center gap-2">
                       <input
                         type="checkbox"
-                        checked={selectedRole.permissions.includes(perm.code)}
+                        checked={getRolePermissionCodes(selectedRole).includes(perm.code)}
                         className="rounded border-input"
                         disabled
                       />

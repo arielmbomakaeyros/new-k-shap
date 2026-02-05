@@ -3,13 +3,19 @@ import {
   Get,
   Post,
   Put,
+  Patch,
   Delete,
   Body,
   Param,
   Query,
   UseGuards,
+  UploadedFile,
+  UseInterceptors,
+  Req,
+  ForbiddenException,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiQuery, ApiProperty } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiQuery, ApiProperty, ApiConsumes } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { UsersService } from './users.service';
 import { CreateUserDto, UpdateUserDto } from './dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -83,6 +89,9 @@ export class UsersController {
   ) {
     // Kaeyros admins (no company) can see all users; company users only see their company's users
     const companyId = user.company ? (user.company._id || user.company).toString() : null;
+    if (!user?.isKaeyrosUser && !companyId) {
+      throw new ForbiddenException('Company context is required for this operation');
+    }
 
     return this.usersService.findAll(
       companyId,
@@ -113,6 +122,9 @@ export class UsersController {
     @CurrentUser() user: any,
   ) {
     const companyId = user.company ? (user.company._id || user.company).toString() : null;
+    if (!user?.isKaeyrosUser && !companyId) {
+      throw new ForbiddenException('Company context is required for this operation');
+    }
     return this.usersService.findById(id, companyId);
   }
 
@@ -134,6 +146,33 @@ export class UsersController {
     @Body() dto: UpdateUserDto,
     @CurrentUser() user: any,
   ) {
+    if (!user?.isKaeyrosUser && !user?.company) {
+      throw new ForbiddenException('Company context is required for this operation');
+    }
+    return this.usersService.update(id, dto, user);
+  }
+
+  @Patch(':id')
+  @RequirePermissions('user.update')
+  @ApiOperation({ summary: 'Patch user by ID' })
+  @ApiParam({ name: 'id', description: 'User ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'User updated successfully.',
+    type: UserResponseDto
+  })
+  @ApiResponse({ status: 400, description: 'Bad Request.' })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  @ApiResponse({ status: 403, description: 'Forbidden.' })
+  @ApiResponse({ status: 404, description: 'User not found.' })
+  async patch(
+    @Param('id', ParseObjectIdPipe) id: string,
+    @Body() dto: UpdateUserDto,
+    @CurrentUser() user: any,
+  ) {
+    if (!user?.isKaeyrosUser && !user?.company) {
+      throw new ForbiddenException('Company context is required for this operation');
+    }
     return this.usersService.update(id, dto, user);
   }
 
@@ -153,8 +192,27 @@ export class UsersController {
     @Param('id', ParseObjectIdPipe) id: string,
     @CurrentUser() user: any,
   ) {
+    if (!user?.isKaeyrosUser && !user?.company) {
+      throw new ForbiddenException('Company context is required for this operation');
+    }
     await this.usersService.delete(id, user);
     return { success: true, message: 'User deleted successfully' };
+  }
+
+
+  @Post(':id/avatar')
+  @RequirePermissions('user.update')
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Upload user avatar' })
+  @ApiParam({ name: 'id', description: 'User ID' })
+  @ApiResponse({ status: 200, description: 'User avatar updated successfully.' })
+  async uploadAvatar(
+    @Param('id', ParseObjectIdPipe) id: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Req() req: any,
+  ) {
+    return this.usersService.updateAvatar(id, file, req.user);
   }
 
   @Post(':id/restore')
@@ -173,6 +231,9 @@ export class UsersController {
     @Param('id', ParseObjectIdPipe) id: string,
     @CurrentUser() user: any,
   ) {
+    if (!user?.isKaeyrosUser && !user?.company) {
+      throw new ForbiddenException('Company context is required for this operation');
+    }
     return this.usersService.restore(id, user);
   }
 
@@ -192,6 +253,9 @@ export class UsersController {
     @Param('id', ParseObjectIdPipe) id: string,
     @CurrentUser() user: any,
   ) {
+    if (!user?.isKaeyrosUser && !user?.company) {
+      throw new ForbiddenException('Company context is required for this operation');
+    }
     await this.usersService.resendActivation(id, user);
     return { success: true, message: 'Activation email sent' };
   }

@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { ProtectedRoute } from '@/src/components/ProtectedRoute';
 import { ProtectedLayout } from '@/src/components/layout/ProtectedLayout';
-import { useCollections } from '@/src/hooks/queries';
+import { useCollections, useCompanySettings } from '@/src/hooks/queries';
 import type { PaymentType } from '@/src/services';
 
 function CollectionsContent() {
@@ -27,6 +27,8 @@ function CollectionsContent() {
 
   // Fetch collections from API
   const { data: collectionsData, isLoading, error } = useCollections(filters);
+  const { data: settings } = useCompanySettings();
+  const displayCurrency = settings?.defaultCurrency || 'XAF';
 
   // Calculate stats from data
   const stats = useMemo(() => {
@@ -88,7 +90,7 @@ function CollectionsContent() {
         <div className="rounded-lg border border-border bg-card p-6">
           <p className="text-sm text-muted-foreground">{t('collections.totalCollectedPage')}</p>
           <p className="mt-2 text-3xl font-bold text-foreground">
-            USD {stats.totalCollected.toLocaleString()}
+            {displayCurrency} {stats.totalCollected.toLocaleString()}
           </p>
         </div>
         <div className="rounded-lg border border-border bg-card p-6">
@@ -100,7 +102,7 @@ function CollectionsContent() {
         <div className="rounded-lg border border-border bg-card p-6">
           <p className="text-sm text-muted-foreground">{t('collections.averageTransaction')}</p>
           <p className="mt-2 text-3xl font-bold text-foreground">
-            USD {stats.averageAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+            {displayCurrency} {stats.averageAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })}
           </p>
         </div>
       </div>

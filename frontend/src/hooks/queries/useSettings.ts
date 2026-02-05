@@ -55,3 +55,17 @@ export function useUpdateEmailNotificationSettings() {
     },
   });
 }
+
+/**
+ * Hook to update company preferences (currency, payment methods, branding, channels)
+ */
+export function useUpdateCompanyPreferences() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: Record<string, unknown>) => settingsService.updateCompanyPreferences(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.settings.company() });
+    },
+  });
+}

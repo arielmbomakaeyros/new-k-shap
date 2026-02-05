@@ -115,7 +115,11 @@ export class FileUploadController {
   ) {
     const context = {
       userId: req.user._id?.toString() || req.user.id,
-      companyId: req.user.company ? (req.user.company._id || req.user.company).toString() : undefined,
+      companyId: req.user?.isKaeyrosUser
+        ? null
+        : req.user?.company
+          ? (req.user.company._id || req.user.company).toString()
+          : undefined,
     };
     return this.fileUploadService.uploadFile(file, body, context);
   }
@@ -167,7 +171,11 @@ export class FileUploadController {
   ) {
     const context = {
       userId: req.user._id?.toString() || req.user.id,
-      companyId: req.user.company ? (req.user.company._id || req.user.company).toString() : undefined,
+      companyId: req.user?.isKaeyrosUser
+        ? null
+        : req.user?.company
+          ? (req.user.company._id || req.user.company).toString()
+          : undefined,
     };
     return this.fileUploadService.uploadMultipleFiles(files, body, context);
   }
@@ -240,7 +248,11 @@ export class FileUploadController {
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ) {
-    const companyId = req.user.company ? (req.user.company._id || req.user.company).toString() : undefined;
+    const companyId = req.user?.isKaeyrosUser
+      ? null
+      : req.user?.company
+        ? (req.user.company._id || req.user.company).toString()
+        : undefined;
     return this.fileUploadService.findAll(companyId, {
       page,
       limit,
@@ -270,7 +282,11 @@ export class FileUploadController {
     @Param('entityType') entityType: FileEntityType,
     @Param('entityId') entityId: string,
   ) {
-    const companyId = req.user.company ? (req.user.company._id || req.user.company).toString() : undefined;
+    const companyId = req.user?.isKaeyrosUser
+      ? null
+      : req.user?.company
+        ? (req.user.company._id || req.user.company).toString()
+        : undefined;
     return this.fileUploadService.findByEntity(companyId, entityType, entityId);
   }
 
@@ -284,7 +300,11 @@ export class FileUploadController {
   })
   @ApiResponse({ status: 404, description: 'File not found.' })
   findOne(@Param('id') id: string, @Req() req: any) {
-    const companyId = req.user.company ? (req.user.company._id || req.user.company).toString() : undefined;
+    const companyId = req.user?.isKaeyrosUser
+      ? null
+      : req.user?.company
+        ? (req.user.company._id || req.user.company).toString()
+        : undefined;
     return this.fileUploadService.findOne(id, companyId);
   }
 
@@ -303,7 +323,11 @@ export class FileUploadController {
     },
   })
   getDownloadUrl(@Param('id') id: string, @Req() req: any) {
-    const companyId = req.user.company ? (req.user.company._id || req.user.company).toString() : undefined;
+    const companyId = req.user?.isKaeyrosUser
+      ? null
+      : req.user?.company
+        ? (req.user.company._id || req.user.company).toString()
+        : undefined;
     return this.fileUploadService.getDownloadUrl(id, companyId);
   }
 
@@ -317,7 +341,11 @@ export class FileUploadController {
   })
   @ApiResponse({ status: 404, description: 'File not found.' })
   remove(@Param('id') id: string, @Req() req: any) {
-    const companyId = req.user.company ? (req.user.company._id || req.user.company).toString() : undefined;
+    const companyId = req.user?.isKaeyrosUser
+      ? null
+      : req.user?.company
+        ? (req.user.company._id || req.user.company).toString()
+        : undefined;
     return this.fileUploadService.remove(id, companyId);
   }
 
@@ -330,7 +358,11 @@ export class FileUploadController {
     type: SuccessResponseDto,
   })
   permanentDelete(@Param('id') id: string, @Req() req: any) {
-    const companyId = req.user.company ? (req.user.company._id || req.user.company).toString() : undefined;
+    const companyId = req.user?.isKaeyrosUser
+      ? null
+      : req.user?.company
+        ? (req.user.company._id || req.user.company).toString()
+        : undefined;
     return this.fileUploadService.permanentDelete(id, companyId);
   }
 }

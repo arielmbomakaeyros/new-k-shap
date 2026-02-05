@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useTranslation } from '@/node_modules/react-i18next';
 // import { CompanyLayout } from '@/components/company/CompanyLayout';
 // import { ProtectedRoute } from '@/components/ProtectedRoute';
@@ -47,8 +48,8 @@ function CompanyDashboardContent() {
             <p className="mt-2 text-sm text-muted-foreground">
               Add, manage, and assign roles to your team members
             </p>
-            <Button className="mt-4 w-full bg-transparent" variant="outline">
-              Manage Users
+            <Button className="mt-4 w-full bg-transparent" variant="outline" asChild>
+              <Link href="/company/users">Manage Users</Link>
             </Button>
           </div>
 
@@ -59,13 +60,35 @@ function CompanyDashboardContent() {
               Create departments and offices for better organization
             </p>
             <div className="mt-4 flex gap-2">
-              <Button className="flex-1 bg-transparent" variant="outline">
-                Departments
+              <Button className="flex-1 bg-transparent" variant="outline" asChild>
+                <Link href="/company/departments">Departments</Link>
               </Button>
-              <Button className="flex-1 bg-transparent" variant="outline">
-                Offices
+              <Button className="flex-1 bg-transparent" variant="outline" asChild>
+                <Link href="/company/offices">Offices</Link>
               </Button>
             </div>
+          </div>
+
+          {/* Beneficiaries */}
+          <div className="rounded-lg border border-border bg-card p-6">
+            <h2 className="text-lg font-semibold text-foreground">Beneficiaries</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Add and manage payees for disbursements
+            </p>
+            <Button className="mt-4 w-full bg-transparent" variant="outline" asChild>
+              <Link href="/company/beneficiaries">Manage Beneficiaries</Link>
+            </Button>
+          </div>
+
+          {/* Disbursement Types */}
+          <div className="rounded-lg border border-border bg-card p-6">
+            <h2 className="text-lg font-semibold text-foreground">Disbursement Types</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Define and organize disbursement categories
+            </p>
+            <Button className="mt-4 w-full bg-transparent" variant="outline" asChild>
+              <Link href="/company/disbursement-types">Manage Disbursement Types</Link>
+            </Button>
           </div>
 
           {/* Roles & Permissions */}
@@ -74,8 +97,8 @@ function CompanyDashboardContent() {
             <p className="mt-2 text-sm text-muted-foreground">
               Define custom roles and assign specific permissions to users
             </p>
-            <Button className="mt-4 w-full bg-transparent" variant="outline">
-              Configure Roles
+            <Button className="mt-4 w-full bg-transparent" variant="outline" asChild>
+              <Link href="/company/roles">Configure Roles</Link>
             </Button>
           </div>
 
@@ -85,8 +108,8 @@ function CompanyDashboardContent() {
             <p className="mt-2 text-sm text-muted-foreground">
               Update company information and preferences
             </p>
-            <Button className="mt-4 w-full bg-transparent" variant="outline">
-              Edit Settings
+            <Button className="mt-4 w-full bg-transparent" variant="outline" asChild>
+              <Link href="/company/settings">Edit Settings</Link>
             </Button>
           </div>
         </div>

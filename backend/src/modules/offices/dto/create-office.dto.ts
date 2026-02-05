@@ -3,6 +3,15 @@ import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
 
 export class CreateOfficeDto {
   @ApiProperty({
+    description: 'Company ID associated with the office',
+    example: '507f1f77bcf86cd799439011',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  companyId?: string;
+
+  @ApiProperty({
     description: 'Name of the office',
     example: 'Headquarters',
   })
@@ -36,6 +45,15 @@ export class CreateOfficeDto {
   @IsString()
   @IsOptional()
   city?: string;
+
+  @ApiProperty({
+    description: 'Convenience location field (mapped to city/country if provided)',
+    example: 'Douala, Cameroon',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  location?: string;
 
   @ApiProperty({
     description: 'Country where the office is located',

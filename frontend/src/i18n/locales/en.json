@@ -119,7 +119,18 @@
     "invalidCode": "Invalid verification code",
     "invalidResetLink": "Invalid reset link. Please request a new password reset.",
     "backToPasswordReset": "Back to Password Reset",
-    "completeAccountSetup": "Complete your account setup by choosing a password."
+    "completeAccountSetup": "Complete your account setup by choosing a password.",
+    "activateAccount": "Activate Your Account",
+    "setPasswordToActivate": "Set your password to activate your account.",
+    "invalidActivationLink": "Invalid activation link. Please request a new activation email.",
+    "backToLogin": "Back to Login"
+  },
+  
+  "companies": {
+    "activationSentTitle": "Activation Email Sent",
+    "activationSentBody": "Activation email sent to {{name}}.",
+    "activationFailedTitle": "Activation Email Failed",
+    "activationFailedBody": "Failed to send activation email for {{name}}."
   },
   "disbursements": {
     "title": "Disbursements",
@@ -392,6 +403,7 @@
     "deactivate": "Deactivate",
     "resetPassword": "Reset Password",
     "sendActivation": "Send Activation",
+    "statusLabel": "Status",
     "status": {
       "active": "Active",
       "inactive": "Inactive",
@@ -433,7 +445,11 @@
     "activationSent": "Activation email sent successfully",
     "deleteConfirm": "Are you sure you want to delete this user?",
     "activateConfirm": "Are you sure you want to activate this user?",
-    "deactivateConfirm": "Are you sure you want to deactivate this user?"
+    "deactivateConfirm": "Are you sure you want to deactivate this user?",
+    "statusUpdated": "User status updated successfully.",
+    "statusUpdateFailed": "Failed to update user status.",
+    "deleteFailed": "Failed to delete user.",
+    "deleteNotAllowed": "Cannot delete company super admin."
   },
   "beneficiaries": {
     "title": "Beneficiaries",

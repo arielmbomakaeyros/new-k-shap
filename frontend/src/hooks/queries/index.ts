@@ -115,3 +115,10 @@ export {
   useUpdateWorkflowSettings,
   useUpdateEmailNotificationSettings,
 } from './useSettings';
+
+export * from './useBeneficiaries';
+export * from './useDisbursementTypes';
+
+export * from './useDisbursementTemplates';
+export * from './usePlatformSettings';
+export * from './useKaeyros';

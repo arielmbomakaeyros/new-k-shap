@@ -40,8 +40,8 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b border-border bg-card">
-        <div className="mx-auto max-w-7xl px-4 py-4 flex items-center justify-between sm:px-6 lg:px-8">
+      <header className="fixed top-0 z-40 w-full border-b border-border bg-card/95 backdrop-blur">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
           <Link href="/" className="flex items-center gap-2 cursor-pointer">
             <h1 className="text-2xl font-bold text-primary">K-shap</h1>
             <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
@@ -59,9 +59,9 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         </div>
       </header>
 
-      <div className="flex min-h-[calc(100vh-80px)]">
+      <div className="flex min-h-screen pt-[72px]">
         {/* Sidebar */}
-        <aside className="w-64 border-r border-border bg-card">
+        <aside className="fixed left-0 top-[72px] h-[calc(100vh-72px)] w-64 border-r border-border bg-card/95 backdrop-blur">
           <nav className="space-y-1 p-4">
             {adminNavigation.map((item) => (
               <Link
@@ -81,7 +81,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-auto">
+        <main className="flex-1 overflow-auto pl-64">
           <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">{children}</div>
         </main>
       </div>

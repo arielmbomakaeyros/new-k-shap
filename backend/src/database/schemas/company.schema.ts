@@ -1,7 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Schema as MongooseSchema } from 'mongoose';
 import { BaseEntity } from './base-entity.schema';
-import { CompanyStatus } from './enums';
+import { CompanyStatus, PaymentType } from './enums';
 
 @Schema({ timestamps: true })
 export class Company extends BaseEntity {
@@ -12,6 +12,9 @@ export class Company extends BaseEntity {
   slug: string;
 
   @Prop({ trim: true })
+  description: string;
+
+  @Prop({ trim: true })
   email: string;
 
   @Prop({ trim: true })
@@ -19,6 +22,9 @@ export class Company extends BaseEntity {
 
   @Prop({ trim: true })
   address: string;
+
+  @Prop({ trim: true })
+  website: string;
 
   @Prop({ trim: true })
   city: string;
@@ -99,6 +105,52 @@ export class Company extends BaseEntity {
   @Prop({ type: String, default: 'XAF' })
   defaultCurrency: string;
 
+  @Prop({
+    type: [String],
+    enum: PaymentType,
+    default: [PaymentType.CASH, PaymentType.BANK_TRANSFER, PaymentType.MOBILE_MONEY, PaymentType.CHECK, PaymentType.CARD],
+  })
+  paymentMethods: PaymentType[];
+
+  @Prop({ type: Object, default: {} })
+  approvalLimitsByRole: Record<string, number>;
+
+  @Prop({ type: [MongooseSchema.Types.ObjectId], ref: 'Beneficiary', default: [] })
+  defaultBeneficiaries: MongooseSchema.Types.ObjectId[];
+
+  @Prop({ type: Object, default: {} })
+  officeSpendCaps: Record<string, number>;
+
+  @Prop({
+    type: Object,
+    default: {
+      frequency: 'monthly',
+      dayOfMonth: 25,
+      dayOfWeek: 'friday',
+    },
+  })
+  payoutSchedule: {
+    frequency: 'weekly' | 'biweekly' | 'monthly';
+    dayOfMonth?: number;
+    dayOfWeek?: string;
+  };
+
+  @Prop({
+    type: Object,
+    default: {
+      email: true,
+      sms: false,
+      whatsapp: false,
+      inApp: true,
+    },
+  })
+  notificationChannels: {
+    email: boolean;
+    sms: boolean;
+    whatsapp: boolean;
+    inApp: boolean;
+  };
+
   @Prop({ type: String, default: 'Africa/Douala' })
   timezone: string;
 
@@ -125,8 +177,6 @@ export const CompanySchema = SchemaFactory.createForClass(Company);
 
 // Virtual field to map 'status' to 'subscriptionStatus' for frontend compatibility
 CompanySchema.virtual('subscriptionStatus').get(function() {
-  // Map 'trial' to 'active' for frontend display
-  if (this.status === 'trial') return 'active';
   return this.status;
 });
 

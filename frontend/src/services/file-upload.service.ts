@@ -9,6 +9,16 @@ export interface FileUploadFilters extends QueryParams {
   mimeType?: string;
 }
 
+export type FileUploadCategory =
+  | 'invoice'
+  | 'receipt'
+  | 'contract'
+  | 'attachment'
+  | 'profile_picture'
+  | 'company_logo'
+  | 'report'
+  | 'other';
+
 class FileUploadService {
   private basePath = '/file-upload';
 
@@ -43,13 +53,17 @@ class FileUploadService {
   async upload(
     file: File,
     options?: {
+      category?: FileUploadCategory;
       entityType?: string;
       entityId?: string;
+      description?: string;
+      tags?: string[];
       onProgress?: (progress: number) => void;
     }
   ): Promise<ApiResponse<FileUpload>> {
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('category', options?.category || 'attachment');
 
     if (options?.entityType) {
       formData.append('entityType', options.entityType);
@@ -57,14 +71,17 @@ class FileUploadService {
     if (options?.entityId) {
       formData.append('entityId', options.entityId);
     }
+    if (options?.description) {
+      formData.append('description', options.description);
+    }
+    if (options?.tags?.length) {
+      formData.append('tags', options.tags.join(','));
+    }
 
     const response = await axiosClient.post<ApiResponse<FileUpload>>(
-      this.basePath,
+      `${this.basePath}/upload`,
       formData,
       {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
         onUploadProgress: (progressEvent) => {
           if (options?.onProgress && progressEvent.total) {
             const progress = Math.round(
@@ -85,8 +102,11 @@ class FileUploadService {
   async uploadMultiple(
     files: File[],
     options?: {
+      category?: FileUploadCategory;
       entityType?: string;
       entityId?: string;
+      description?: string;
+      tags?: string[];
       onProgress?: (progress: number) => void;
     }
   ): Promise<ApiResponse<FileUpload[]>> {
@@ -94,6 +114,7 @@ class FileUploadService {
     files.forEach((file) => {
       formData.append('files', file);
     });
+    formData.append('category', options?.category || 'attachment');
 
     if (options?.entityType) {
       formData.append('entityType', options.entityType);
@@ -101,14 +122,17 @@ class FileUploadService {
     if (options?.entityId) {
       formData.append('entityId', options.entityId);
     }
+    if (options?.description) {
+      formData.append('description', options.description);
+    }
+    if (options?.tags?.length) {
+      formData.append('tags', options.tags.join(','));
+    }
 
     const response = await axiosClient.post<ApiResponse<FileUpload[]>>(
-      `${this.basePath}/multiple`,
+      `${this.basePath}/upload-multiple`,
       formData,
       {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
         onUploadProgress: (progressEvent) => {
           if (options?.onProgress && progressEvent.total) {
             const progress = Math.round(

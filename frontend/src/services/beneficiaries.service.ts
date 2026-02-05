@@ -3,7 +3,8 @@ import type { QueryParams, Beneficiary, CreateBeneficiaryDto, UpdateBeneficiaryD
 
 export interface BeneficiaryFilters extends QueryParams {
   companyId?: string;
-  type?: 'individual' | 'company';
+  isActive?: boolean;
+  disbursementType?: string;
 }
 
 class BeneficiariesService extends BaseService<Beneficiary, CreateBeneficiaryDto, UpdateBeneficiaryDto, BeneficiaryFilters> {

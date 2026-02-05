@@ -5,6 +5,7 @@ import { CreateDisbursementTypeDto, UpdateDisbursementTypeDto } from './dto';
 import { DisbursementTypeResponseDto } from '../../common/dto/disbursement-type-response.dto';
 import { SuccessResponseDto } from '../../common/dto/success-response.dto';
 import { PaginatedResponseDto, PaginationMetaDto } from '../../common/dto/paginated-response.dto';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 // Define a specific response DTO for paginated disbursement types
 class PaginatedDisbursementTypesResponseDto extends PaginatedResponseDto<DisbursementTypeResponseDto> {
@@ -42,8 +43,9 @@ export class DisbursementTypesController {
   })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
-  create(@Body() createDisbursementTypeDto: CreateDisbursementTypeDto) {
-    return this.disbursementTypesService.create(createDisbursementTypeDto);
+  create(@Body() createDisbursementTypeDto: CreateDisbursementTypeDto, @CurrentUser() user: any) {
+    const companyId = user?.company ? (user.company._id || user.company).toString() : null;
+    return this.disbursementTypesService.create(createDisbursementTypeDto, companyId);
   }
 
   @Get()
@@ -81,13 +83,19 @@ export class DisbursementTypesController {
     }
   })
   findAll(
+    @CurrentUser() user: any,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
     @Query('sortBy') sortBy?: string,
     @Query('sortOrder') sortOrder?: 'asc' | 'desc',
     @Query('search') search?: string,
   ) {
-    return this.disbursementTypesService.findAll();
+    const companyId = user?.isKaeyrosUser
+      ? null
+      : user?.company
+        ? (user.company._id || user.company).toString()
+        : null;
+    return this.disbursementTypesService.findAll(companyId);
   }
 
   @Get(':id')
@@ -111,8 +119,13 @@ export class DisbursementTypesController {
       }
     }
   })
-  findOne(@Param('id') id: string) {
-    return this.disbursementTypesService.findOne(id);
+  findOne(@Param('id') id: string, @CurrentUser() user: any) {
+    const companyId = user?.isKaeyrosUser
+      ? null
+      : user?.company
+        ? (user.company._id || user.company).toString()
+        : null;
+    return this.disbursementTypesService.findOne(id, companyId);
   }
 
   @Patch(':id')
@@ -148,8 +161,13 @@ export class DisbursementTypesController {
       }
     }
   })
-  update(@Param('id') id: string, @Body() updateDisbursementTypeDto: UpdateDisbursementTypeDto) {
-    return this.disbursementTypesService.update(id, updateDisbursementTypeDto);
+  update(@Param('id') id: string, @Body() updateDisbursementTypeDto: UpdateDisbursementTypeDto, @CurrentUser() user: any) {
+    const companyId = user?.isKaeyrosUser
+      ? null
+      : user?.company
+        ? (user.company._id || user.company).toString()
+        : null;
+    return this.disbursementTypesService.update(id, updateDisbursementTypeDto, companyId);
   }
 
   @Delete(':id')
@@ -173,7 +191,12 @@ export class DisbursementTypesController {
       }
     }
   })
-  remove(@Param('id') id: string) {
-    return this.disbursementTypesService.remove(id);
+  remove(@Param('id') id: string, @CurrentUser() user: any) {
+    const companyId = user?.isKaeyrosUser
+      ? null
+      : user?.company
+        ? (user.company._id || user.company).toString()
+        : null;
+    return this.disbursementTypesService.remove(id, companyId);
   }
 }

@@ -8,7 +8,7 @@ import type {
 
 export interface DisbursementTypeFilters extends QueryParams {
   companyId?: string;
-  requiresApproval?: boolean;
+  isActive?: boolean;
 }
 
 class DisbursementTypesService extends BaseService<

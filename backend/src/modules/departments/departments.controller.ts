@@ -2,6 +2,7 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestj
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiBody, ApiQuery } from '@nestjs/swagger';
 import { DepartmentsService } from './departments.service';
 import { CreateDepartmentDto, UpdateDepartmentDto } from './dto';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 @ApiTags('Departments')
 @Controller('departments')
@@ -30,8 +31,15 @@ export class DepartmentsController {
   @ApiResponse({ status: 400, description: 'Bad Request.' })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
-  create(@Body() createDepartmentDto: CreateDepartmentDto) {
-    return this.departmentsService.create(createDepartmentDto);
+  create(@Body() createDepartmentDto: CreateDepartmentDto, @CurrentUser() user: any) {
+    const companyId = user?.company ? (user.company._id || user.company).toString() : createDepartmentDto.companyId;
+    const { companyId: _companyId, headId, ...rest } = createDepartmentDto as any;
+
+    return this.departmentsService.create({
+      ...rest,
+      ...(companyId ? { company: companyId } : {}),
+      ...(headId ? { head: headId } : {}),
+    });
   }
 
   @Get()
@@ -70,6 +78,7 @@ export class DepartmentsController {
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
   findAll(
+    @CurrentUser() user: any,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
     @Query('sortBy') sortBy?: string,
@@ -77,7 +86,13 @@ export class DepartmentsController {
     @Query('search') search?: string,
     @Query('isActive') isActive?: string,
   ) {
-    return this.departmentsService.findAll();
+    const companyId = user?.isKaeyrosUser
+      ? null
+      : user?.company
+        ? (user.company._id || user.company).toString()
+        : null;
+
+    return this.departmentsService.findAll(companyId);
   }
 
   @Get(':id')
@@ -101,8 +116,14 @@ export class DepartmentsController {
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
   @ApiResponse({ status: 404, description: 'Department not found.' })
-  findOne(@Param('id') id: string) {
-    return this.departmentsService.findOne(id);
+  findOne(@Param('id') id: string, @CurrentUser() user: any) {
+    const companyId = user?.isKaeyrosUser
+      ? null
+      : user?.company
+        ? (user.company._id || user.company).toString()
+        : null;
+
+    return this.departmentsService.findOne(id, companyId);
   }
 
   @Patch(':id')
@@ -128,8 +149,14 @@ export class DepartmentsController {
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
   @ApiResponse({ status: 404, description: 'Department not found.' })
-  update(@Param('id') id: string, @Body() updateDepartmentDto: UpdateDepartmentDto) {
-    return this.departmentsService.update(id, updateDepartmentDto);
+  update(@Param('id') id: string, @Body() updateDepartmentDto: UpdateDepartmentDto, @CurrentUser() user: any) {
+    const companyId = user?.isKaeyrosUser
+      ? null
+      : user?.company
+        ? (user.company._id || user.company).toString()
+        : null;
+
+    return this.departmentsService.update(id, updateDepartmentDto, companyId);
   }
 
   @Delete(':id')
@@ -148,7 +175,13 @@ export class DepartmentsController {
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
   @ApiResponse({ status: 404, description: 'Department not found.' })
-  remove(@Param('id') id: string) {
-    return this.departmentsService.remove(id);
+  remove(@Param('id') id: string, @CurrentUser() user: any) {
+    const companyId = user?.isKaeyrosUser
+      ? null
+      : user?.company
+        ? (user.company._id || user.company).toString()
+        : null;
+
+    return this.departmentsService.remove(id, companyId);
   }
 }

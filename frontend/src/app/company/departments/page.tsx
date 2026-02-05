@@ -4,16 +4,21 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { CompanyLayout } from '@/src/components/company/CompanyLayout';
 import { ProtectedRoute } from '@/src/components/ProtectedRoute';
+import { Modal, ModalHeader, ModalTitle, ModalBody, ModalFooter } from '@/src/components/ui/modal';
 import {
   useDepartments,
   useCreateDepartment,
+  useUpdateDepartment,
   useDeleteDepartment,
   useUsers,
 } from '@/src/hooks/queries';
 
 function DepartmentsContent() {
   const [showForm, setShowForm] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ name: '', description: '', headId: '' });
+  const [editFormData, setEditFormData] = useState({ name: '', description: '', headId: '' });
 
   // Fetch departments from API
   const { data: departmentsData, isLoading, error } = useDepartments();
@@ -23,6 +28,7 @@ function DepartmentsContent() {
 
   // Mutations
   const createMutation = useCreateDepartment();
+  const updateMutation = useUpdateDepartment();
   const deleteMutation = useDeleteDepartment();
 
   const handleAddDepartment = async () => {
@@ -48,6 +54,34 @@ function DepartmentsContent() {
       } catch (error) {
         console.error('Failed to delete department:', error);
       }
+    }
+  };
+
+  const handleEditDepartment = (dept: any) => {
+    setSelectedDepartmentId(dept.id);
+    setEditFormData({
+      name: dept.name || '',
+      description: dept.description || '',
+      headId: dept.head?.id || dept.head?._id || '',
+    });
+    setShowEditModal(true);
+  };
+
+  const handleUpdateDepartment = async () => {
+    if (!selectedDepartmentId || !editFormData.name) return;
+    try {
+      await updateMutation.mutateAsync({
+        id: selectedDepartmentId,
+        data: {
+          name: editFormData.name,
+          description: editFormData.description || undefined,
+          headId: editFormData.headId || undefined,
+        },
+      });
+      setShowEditModal(false);
+      setSelectedDepartmentId(null);
+    } catch (error) {
+      console.error('Failed to update department:', error);
     }
   };
 
@@ -94,10 +128,16 @@ function DepartmentsContent() {
         </div>
 
         {/* Add Department Form */}
-        {showForm && (
-          <div className="glass-card rounded-xl p-6">
-            <h2 className="text-lg font-semibold gradient-text">Create New Department</h2>
-            <div className="mt-4 space-y-4">
+        <Modal
+          isOpen={showForm}
+          onClose={() => setShowForm(false)}
+          size="lg"
+        >
+          <ModalHeader>
+            <ModalTitle>Create New Department</ModalTitle>
+          </ModalHeader>
+          <ModalBody>
+            <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-foreground">
                   Department Name *
@@ -139,20 +179,20 @@ function DepartmentsContent() {
                   ))}
                 </select>
               </div>
-              <div className="flex gap-4">
-                <Button
-                  onClick={handleAddDepartment}
-                  disabled={createMutation.isPending || !formData.name}
-                >
-                  {createMutation.isPending ? 'Creating...' : 'Create Department'}
-                </Button>
-                <Button variant="outline" onClick={() => setShowForm(false)}>
-                  Cancel
-                </Button>
-              </div>
             </div>
-          </div>
-        )}
+          </ModalBody>
+          <ModalFooter className="flex gap-4">
+            <Button
+              onClick={handleAddDepartment}
+              disabled={createMutation.isPending || !formData.name}
+            >
+              {createMutation.isPending ? 'Creating...' : 'Create Department'}
+            </Button>
+            <Button variant="outline" onClick={() => setShowForm(false)}>
+              Cancel
+            </Button>
+          </ModalFooter>
+        </Modal>
 
         {/* Empty State */}
         {departments.length === 0 && (
@@ -178,7 +218,12 @@ function DepartmentsContent() {
                 Created: {new Date(dept.createdAt).toLocaleDateString()}
               </p>
               <div className="mt-4 flex gap-2">
-                <Button size="sm" variant="outline" className="flex-1 bg-transparent">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex-1 bg-transparent"
+                  onClick={() => handleEditDepartment(dept)}
+                >
                   Edit
                 </Button>
                 <Button
@@ -195,6 +240,71 @@ function DepartmentsContent() {
           ))}
         </div>
       </div>
+
+      {/* Edit Department Modal */}
+      <Modal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        size="lg"
+      >
+        <ModalHeader>
+          <ModalTitle>Edit Department</ModalTitle>
+        </ModalHeader>
+        <ModalBody>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-foreground">
+                Department Name *
+              </label>
+              <input
+                type="text"
+                value={editFormData.name}
+                onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-foreground placeholder-muted-foreground"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-foreground">
+                Description
+              </label>
+              <textarea
+                value={editFormData.description}
+                onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
+                rows={2}
+                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-foreground placeholder-muted-foreground"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-foreground">
+                Department Head
+              </label>
+              <select
+                value={editFormData.headId}
+                onChange={(e) => setEditFormData({ ...editFormData, headId: e.target.value })}
+                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-foreground"
+              >
+                <option value="">Select a user</option>
+                {users?.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.firstName} {user.lastName}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </ModalBody>
+        <ModalFooter className="flex gap-4">
+          <Button
+            onClick={handleUpdateDepartment}
+            disabled={updateMutation.isPending || !editFormData.name}
+          >
+            {updateMutation.isPending ? 'Updating...' : 'Update Department'}
+          </Button>
+          <Button variant="outline" onClick={() => setShowEditModal(false)}>
+            Cancel
+          </Button>
+        </ModalFooter>
+      </Modal>
     </CompanyLayout>
   );
 }

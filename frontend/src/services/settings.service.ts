@@ -16,8 +16,11 @@ class SettingsService {
    * Get company settings (company info, workflow settings, notification settings)
    */
   async getCompanySettings(): Promise<CompanySettings> {
-    const response = await api.get<CompanySettings>(`${this.basePath}/company`);
-    return response;
+    const response = await api.get<any>(`${this.basePath}/company`);
+    if (response && typeof response === 'object' && 'success' in response) {
+      return (response as any).data as CompanySettings;
+    }
+    return response as CompanySettings;
   }
 
   /**
@@ -46,6 +49,14 @@ class SettingsService {
       `${this.basePath}/company/notifications`,
       data
     );
+    return response;
+  }
+
+  /**
+   * Update company preferences (currency, payment methods, branding, channels)
+   */
+  async updateCompanyPreferences(data: Partial<CompanySettings>): Promise<CompanySettings> {
+    const response = await api.patch<CompanySettings>(`${this.basePath}/company/preferences`, data);
     return response;
   }
 

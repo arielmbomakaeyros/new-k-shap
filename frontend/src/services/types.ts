@@ -65,6 +65,7 @@ export interface User extends BaseEntity {
   maxApprovalAmount?: number;
   isActive: boolean;
   lastLogin?: string;
+  _id?: string;
 }
 
 export interface CreateUserDto {
@@ -73,9 +74,9 @@ export interface CreateUserDto {
   lastName: string;
   systemRoles: string[];
   companyId?: string;
-  departmentIds?: string[];
-  officeIds?: string[];
-  roleIds?: string[];
+  departments?: string[];
+  offices?: string[];
+  roles?: string[];
   phone?: string;
 }
 
@@ -94,7 +95,7 @@ export interface Company extends BaseEntity {
   city?: string;
   country?: string;
   industry?: string;
-  subscriptionStatus: 'active' | 'inactive' | 'suspended' | 'expired';
+  subscriptionStatus: 'active' | 'suspended' | 'trial' | 'expired' | 'deleted';
   subscriptionEndDate?: string;
   features: string[];
   logo?: string;
@@ -111,7 +112,7 @@ export interface CreateCompanyDto {
 }
 
 export interface UpdateCompanyDto extends Partial<CreateCompanyDto> {
-  subscriptionStatus?: 'active' | 'inactive' | 'suspended' | 'expired';
+  subscriptionStatus?: 'active' | 'suspended' | 'trial' | 'expired' | 'deleted';
   features?: string[];
 }
 
@@ -155,11 +156,12 @@ export interface Role extends BaseEntity {
   name: string;
   companyId: string;
   description?: string;
-  permissions: string[];
+  permissions: Array<string | Permission>;
   isSystemRole?: boolean;
 }
 
 export interface CreateRoleDto {
+  _id?: string;
   name: string;
   description?: string;
   permissions: string[];
@@ -178,29 +180,30 @@ export interface Permission extends BaseEntity {
 // Beneficiary Types
 export interface Beneficiary extends BaseEntity {
   name: string;
-  companyId: string;
-  type: 'individual' | 'company';
+  type?: 'individual' | 'company' | 'supplier' | 'employee' | 'other';
+  disbursementType?: string | DisbursementType;
   email?: string;
   phone?: string;
   address?: string;
-  bankAccount?: {
-    bankName: string;
-    accountNumber: string;
-    accountName: string;
-  };
+  bankName?: string;
+  accountNumber?: string;
+  taxId?: string;
+  notes?: string;
+  isActive?: boolean;
 }
 
 export interface CreateBeneficiaryDto {
   name: string;
-  type: 'individual' | 'company';
+  type?: 'individual' | 'company' | 'supplier' | 'employee' | 'other';
+  disbursementType: string;
   email?: string;
   phone?: string;
   address?: string;
-  bankAccount?: {
-    bankName: string;
-    accountNumber: string;
-    accountName: string;
-  };
+  bankName?: string;
+  accountNumber?: string;
+  taxId?: string;
+  notes?: string;
+  isActive?: boolean;
 }
 
 export interface UpdateBeneficiaryDto extends Partial<CreateBeneficiaryDto> {}
@@ -208,12 +211,15 @@ export interface UpdateBeneficiaryDto extends Partial<CreateBeneficiaryDto> {}
 // Disbursement Types
 export type DisbursementStatus =
   | 'draft'
-  | 'pending'
-  | 'approved_by_head'
-  | 'approved_by_validator'
+  | 'pending_dept_head'
+  | 'pending_validator'
+  | 'pending_cashier'
   | 'completed'
   | 'rejected'
   | 'cancelled';
+
+export type DisbursementPriority = 'low' | 'medium' | 'high' | 'urgent';
+export type DisbursementPaymentMethod = 'cash' | 'bank_transfer' | 'mobile_money' | 'check' | 'card';
 
 export interface ApprovalStep {
   id: string;
@@ -226,38 +232,49 @@ export interface ApprovalStep {
 }
 
 export interface Disbursement extends BaseEntity {
-  companyId: string;
-  departmentId: string;
-  officeId?: string;
+  company: string | Company;
+  referenceNumber: string;
   amount: number;
   currency: string;
   status: DisbursementStatus;
-  typeId: string;
-  type?: DisbursementType;
-  beneficiaryId: string;
-  beneficiary?: Beneficiary;
-  description?: string;
-  requestedBy: string;
-  requester?: User;
-  approvalSteps: ApprovalStep[];
+  disbursementType: string | DisbursementType;
+  beneficiary: string | Beneficiary;
+  description: string;
+  purpose?: string;
+  department: string | Department;
+  office?: string | Office | null;
+  paymentMethod?: DisbursementPaymentMethod;
+  expectedPaymentDate?: string;
+  actualPaymentDate?: string;
   invoices?: string[];
   attachments?: string[];
-  notes?: string;
+  priority?: DisbursementPriority;
+  deadline?: string;
+  isUrgent?: boolean;
+  isRetroactive?: boolean;
   tags?: string[];
+  internalNotes?: string;
+  actionHistory?: any[];
 }
 
 export interface CreateDisbursementDto {
-  departmentId: string;
-  officeId?: string;
   amount: number;
   currency?: string;
-  typeId: string;
-  beneficiaryId: string;
-  description?: string;
+  disbursementType: string;
+  beneficiary: string;
+  description: string;
+  purpose?: string;
+  department: string;
+  office?: string;
+  paymentMethod?: DisbursementPaymentMethod;
+  expectedPaymentDate?: string;
   invoices?: string[];
   attachments?: string[];
-  notes?: string;
+  priority?: DisbursementPriority;
+  isUrgent?: boolean;
+  isRetroactive?: boolean;
   tags?: string[];
+  internalNotes?: string;
 }
 
 export interface UpdateDisbursementDto extends Partial<CreateDisbursementDto> {
@@ -266,70 +283,83 @@ export interface UpdateDisbursementDto extends Partial<CreateDisbursementDto> {
 
 export interface DisbursementFilters extends QueryParams, DateRange, AmountRange {
   status?: DisbursementStatus | DisbursementStatus[];
-  departmentId?: string;
-  officeId?: string;
-  typeId?: string;
-  beneficiaryId?: string;
-  requestedBy?: string;
+  department?: string;
+  office?: string;
+  disbursementType?: string;
+  beneficiary?: string;
+  paymentMethod?: DisbursementPaymentMethod;
+  priority?: DisbursementPriority;
+  isUrgent?: boolean;
+  isRetroactive?: boolean;
+  isCompleted?: boolean;
   tags?: string[];
 }
 
 // Disbursement Type Types
 export interface DisbursementType extends BaseEntity {
   name: string;
-  companyId: string;
   description?: string;
-  requiresApproval?: boolean;
-  approvalThreshold?: number;
+  isActive?: boolean;
 }
 
 export interface CreateDisbursementTypeDto {
   name: string;
   description?: string;
-  requiresApproval?: boolean;
-  approvalThreshold?: number;
+  isActive?: boolean;
 }
 
 export interface UpdateDisbursementTypeDto extends Partial<CreateDisbursementTypeDto> {}
 
 // Collection Types
-export type PaymentType = 'cash' | 'check' | 'transfer' | 'credit' | 'other';
+export type PaymentType = 'cash' | 'bank_transfer' | 'mobile_money' | 'check' | 'card';
 
 export interface Collection extends BaseEntity {
-  companyId: string;
-  departmentId?: string;
-  officeId?: string;
-  sellerName: string;
+  company: string | Company;
+  department?: string | Department;
+  office?: string | Office;
+  sellerName?: string;
   buyerName: string;
+  buyerCompanyName?: string;
+  buyerEmail?: string;
+  buyerPhone?: string;
   amount: number;
-  advancePayment: number;
-  remainingBalance: number;
   currency: string;
   paymentType: PaymentType;
-  productType: string;
-  revenueCategory?: string;
+  productType?: string;
+  serviceCategory?: string;
+  totalAmountDue?: number;
+  advancePayment?: number;
+  remainingBalance?: number;
+  isFullyPaid?: boolean;
   invoices?: string[];
   attachments?: string[];
   comment?: string;
+  internalNotes?: string;
   tags?: string[];
-  collectedBy: string;
-  collector?: User;
+  handledBy?: string | User;
 }
 
 export interface CreateCollectionDto {
-  departmentId?: string;
-  officeId?: string;
-  sellerName: string;
-  buyerName: string;
   amount: number;
-  advancePayment?: number;
   currency?: string;
+  buyerName: string;
+  buyerCompanyName?: string;
+  buyerEmail?: string;
+  buyerPhone?: string;
+  sellerName?: string;
+  handledBy?: string;
   paymentType: PaymentType;
-  productType: string;
-  revenueCategory?: string;
+  productType?: string;
+  serviceCategory?: string;
+  totalAmountDue?: number;
+  advancePayment?: number;
+  remainingBalance?: number;
+  department?: string;
+  office?: string;
   invoices?: string[];
   attachments?: string[];
   comment?: string;
+  internalNotes?: string;
   tags?: string[];
 }
 
@@ -337,11 +367,11 @@ export interface UpdateCollectionDto extends Partial<CreateCollectionDto> {}
 
 export interface CollectionFilters extends QueryParams, DateRange, AmountRange {
   paymentType?: PaymentType | PaymentType[];
-  departmentId?: string;
-  officeId?: string;
+  department?: string;
+  office?: string;
   productType?: string;
-  revenueCategory?: string;
-  collectedBy?: string;
+  serviceCategory?: string;
+  handledBy?: string;
   tags?: string[];
 }
 
@@ -433,6 +463,26 @@ export interface EmailNotificationSettings {
 
 export interface CompanySettings {
   companyInfo: CompanyInfo;
+  paymentMethods?: string[];
+  defaultCurrency?: string;
+  branding?: {
+    logoUrl: string;
+    primaryColor: string;
+  };
+  notificationChannels?: {
+    email: boolean;
+    sms: boolean;
+    whatsapp: boolean;
+    inApp: boolean;
+  };
+  payoutSchedule?: {
+    frequency: 'weekly' | 'biweekly' | 'monthly';
+    dayOfMonth?: number;
+    dayOfWeek?: string;
+  };
+  approvalLimitsByRole?: Record<string, number>;
+  officeSpendCaps?: Record<string, number>;
+  defaultBeneficiaries?: string[];
   workflowSettings: WorkflowSettings;
   emailNotificationSettings: EmailNotificationSettings;
 }
@@ -503,14 +553,133 @@ export interface CollectionSummary {
 
 // File Upload Types
 export interface FileUpload extends BaseEntity {
-  companyId: string;
-  userId: string;
-  filename: string;
+  companyId?: string;
+  userId?: string;
+  filename?: string;
   originalName: string;
   mimeType: string;
   size: number;
-  path: string;
+  path?: string;
   url: string;
+  category?: string;
   entityType?: string;
   entityId?: string;
+}
+
+// Disbursement Template Types
+export interface DisbursementTemplate extends BaseEntity {
+  name: string;
+  description?: string;
+  amount: number;
+  currency: string;
+  disbursementType: any;
+  beneficiary: any;
+  department: any;
+  office?: any;
+  paymentMethod?: string;
+  purpose?: string;
+  priority?: string;
+  isUrgent?: boolean;
+  tags?: string[];
+  isActive?: boolean;
+}
+
+export interface CreateDisbursementTemplateDto {
+  name: string;
+  description?: string;
+  amount: number;
+  currency?: string;
+  disbursementType: string;
+  beneficiary: string;
+  department: string;
+  office?: string;
+  paymentMethod?: string;
+  purpose?: string;
+  priority?: string;
+  isUrgent?: boolean;
+  tags?: string[];
+}
+
+export interface UpdateDisbursementTemplateDto extends Partial<CreateDisbursementTemplateDto> {}
+
+// Platform Settings Types
+export interface PlatformSettings extends BaseEntity {
+  emailConfig: {
+    smtpHost: string;
+    smtpPort: number;
+    smtpUser: string;
+    fromEmail: string;
+  };
+  notifications: {
+    sendErrorAlerts: boolean;
+    dailyActivitySummary: boolean;
+    suspiciousLoginAlerts: boolean;
+    subscriptionReminders: boolean;
+  };
+  subscriptionPlans: Array<{
+    name: string;
+    price: number;
+    billingPeriod: 'monthly' | 'yearly';
+    maxUsers: number;
+    features: string[];
+  }>;
+  apiConfig: {
+    apiBaseUrl: string;
+    rateLimitingEnabled: boolean;
+    rateLimit: number;
+  };
+  branding: {
+    primaryColor: string;
+    logoUrl: string;
+  };
+  slaThresholds?: {
+    deptHeadHours: number;
+    validatorHours: number;
+    cashierHours: number;
+  };
+  auditLogRetentionDays?: number;
+  defaultWorkflowTemplate?: {
+    name: string;
+    stages: string[];
+  };
+  billingGracePeriodDays?: number;
+  webhookSettings?: {
+    enabled: boolean;
+    url: string;
+    secret: string;
+  };
+  emailDomainsAllowlist?: string[];
+  featureFlagsByPlan?: Record<string, Record<string, boolean>>;
+}
+
+// Kaeyros Platform Stats Types
+export interface PlatformStats {
+  totals: {
+    totalCompanies: number;
+    activeCompanies: number;
+    totalUsers: number;
+    totalDisbursements: number;
+    totalCollections: number;
+    disbursementAmount: number;
+    collectionAmount: number;
+  };
+  trends: {
+    disbursementChange: number;
+    collectionChange: number;
+    newCompaniesChange: number;
+    newUsersChange: number;
+  };
+  topCompanies: Array<{
+    companyId: string;
+    name: string;
+    disbursementsTotal: number;
+    disbursementsCount: number;
+  }>;
+  monthly?: Array<{
+    month: string;
+    disbursements: number;
+    collections: number;
+    newCompanies: number;
+    newUsers: number;
+  }>;
 }

@@ -37,7 +37,6 @@ export class AuthService {
       .findOne({ email: dto.email.toLowerCase(), isDeleted: false })
       .populate('company')
       .exec();
-    console.log("user found:", user);
 
     if (!user) {
       throw new UnauthorizedException('Invalid email or password');
@@ -89,8 +88,24 @@ export class AuthService {
     return { success: true, message: 'Logged out successfully' };
   }
 
-  async refreshTokens(userId: string, refreshToken: string) {
-    const user = await this.userModel.findById(userId).populate('company').exec();
+  async refreshTokens(refreshToken: string) {
+    if (!refreshToken) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    let payload: JwtPayload;
+    try {
+      payload = await this.jwtService.verifyAsync(refreshToken, {
+        secret: this.configService.get('JWT_REFRESH_SECRET'),
+      });
+    } catch {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    const user = await this.userModel
+      .findById(payload.sub)
+      .populate('company')
+      .exec();
 
     if (!user || !user.refreshToken) {
       throw new UnauthorizedException('Invalid refresh token');
@@ -98,6 +113,27 @@ export class AuthService {
 
     if (user.refreshToken !== refreshToken) {
       throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    if (!user.canLogin) {
+      throw new UnauthorizedException(
+        'Account is not activated. Please set your password first.',
+      );
+    }
+
+    if (!user.isActive) {
+      throw new UnauthorizedException('Account is deactivated');
+    }
+
+    // Check company status for non-Kaeyros users
+    if (!user.isKaeyrosUser && user.company) {
+      const company = user.company as any;
+      if (company.status === 'suspended') {
+        throw new UnauthorizedException('Company account is suspended');
+      }
+      if (company.status === 'expired') {
+        throw new UnauthorizedException('Company subscription has expired');
+      }
     }
 
     const tokens = await this.generateTokens(user);
@@ -188,7 +224,7 @@ export class AuthService {
     await user.save();
 
     // Send email
-    const resetUrl = `${this.configService.get('FRONTEND_URL')}/reset-password?token=${resetToken}`;
+    const resetUrl = `${this.configService.get('FRONTEND_URL')}/auth/reset-password?token=${resetToken}`;
     await this.emailService.send({
       to: user.email,
       subject: 'Password Reset Request',
@@ -235,7 +271,7 @@ export class AuthService {
     const user = await this.userModel
       .findById(userId)
       .populate('company')
-      .populate('roles')
+      .populate({ path: 'roles', populate: { path: 'permissions' } })
       .populate('departments')
       .populate('offices')
       .exec();

@@ -146,7 +146,7 @@ function DisbursementsContent() {
                       {disbursement.description || 'No description'}
                     </td>
                     <td className="px-6 py-4 text-sm text-foreground">
-                      {disbursement.beneficiary?.name || 'N/A'}
+                      {disbursement.beneficiary?.name || disbursement.beneficiary?.email || 'N/A'}
                     </td>
                     <td className="px-6 py-4 text-sm font-semibold text-foreground">
                       {disbursement.currency} {disbursement.amount.toLocaleString()}

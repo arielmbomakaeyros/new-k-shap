@@ -24,7 +24,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     const user = await this.userModel
       .findById(payload.sub)
       .populate('company')
-      .populate('roles')
+      .populate({ path: 'roles', populate: { path: 'permissions' } })
       .populate('departments')
       .populate('offices')
       .exec();
@@ -36,6 +36,22 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     if (!user.isActive) {
       throw new UnauthorizedException('Account is deactivated');
     }
+
+    const permissions = new Set<string>();
+    const roles: any[] = (user.roles as any[]) || [];
+
+    for (const role of roles) {
+      const perms = role?.permissions || [];
+      for (const perm of perms) {
+        if (typeof perm === 'string') {
+          permissions.add(perm);
+        } else if (perm?.code) {
+          permissions.add(perm.code);
+        }
+      }
+    }
+
+    (user as any).permissions = Array.from(permissions);
 
     return user;
   }

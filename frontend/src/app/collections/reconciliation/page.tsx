@@ -5,9 +5,12 @@ import { useTranslation } from '@/node_modules/react-i18next';
 import { Button } from '@/components/ui/button';
 import { ProtectedRoute } from '@/src/components/ProtectedRoute';
 import { ProtectedLayout } from '@/src/components/layout/ProtectedLayout';
+import { useCompanySettings } from '@/src/hooks/queries';
 
 function ReconciliationContent() {
   const { t } = useTranslation();
+  const { data: settings } = useCompanySettings();
+  const displayCurrency = settings?.defaultCurrency || 'XAF';
   const [selectedPeriod, setSelectedPeriod] = useState('current_month');
   const [showReconcile, setShowReconcile] = useState(false);
 
@@ -97,25 +100,25 @@ function ReconciliationContent() {
             <div className="flex justify-between">
               <span className="text-muted-foreground">{t('collections.reconciliation.openingBalance')}</span>
               <span className="font-medium text-foreground">
-                USD {reconciliationData.bankStatement.openingBalance.toLocaleString()}
+                {displayCurrency} {reconciliationData.bankStatement.openingBalance.toLocaleString()}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">{t('collections.reconciliation.deposits')}</span>
               <span className="font-medium text-green-600">
-                +USD {reconciliationData.bankStatement.deposits.toLocaleString()}
+                +{displayCurrency} {reconciliationData.bankStatement.deposits.toLocaleString()}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">{t('collections.reconciliation.withdrawals')}</span>
               <span className="font-medium text-red-600">
-                -USD {reconciliationData.bankStatement.withdrawals.toLocaleString()}
+                -{displayCurrency} {reconciliationData.bankStatement.withdrawals.toLocaleString()}
               </span>
             </div>
             <div className="border-t border-border pt-4 flex justify-between">
               <span className="text-muted-foreground">{t('collections.reconciliation.closingBalance')}</span>
               <span className="font-semibold text-foreground">
-                USD {reconciliationData.bankStatement.closingBalance.toLocaleString()}
+                {displayCurrency} {reconciliationData.bankStatement.closingBalance.toLocaleString()}
               </span>
             </div>
             <p className="text-xs text-muted-foreground mt-4">
@@ -131,25 +134,25 @@ function ReconciliationContent() {
             <div className="flex justify-between">
               <span className="text-muted-foreground">{t('collections.reconciliation.openingBalance')}</span>
               <span className="font-medium text-foreground">
-                USD {reconciliationData.systemRecords.openingBalance.toLocaleString()}
+                {displayCurrency} {reconciliationData.systemRecords.openingBalance.toLocaleString()}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">{t('collections.reconciliation.deposits')}</span>
               <span className="font-medium text-green-600">
-                +USD {reconciliationData.systemRecords.deposits.toLocaleString()}
+                +{displayCurrency} {reconciliationData.systemRecords.deposits.toLocaleString()}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">{t('collections.reconciliation.withdrawals')}</span>
               <span className="font-medium text-red-600">
-                -USD {reconciliationData.systemRecords.withdrawals.toLocaleString()}
+                -{displayCurrency} {reconciliationData.systemRecords.withdrawals.toLocaleString()}
               </span>
             </div>
             <div className="border-t border-border pt-4 flex justify-between">
               <span className="text-muted-foreground">{t('collections.reconciliation.systemBalance')}</span>
               <span className="font-semibold text-foreground">
-                USD {reconciliationData.systemRecords.systemBalance.toLocaleString()}
+                {displayCurrency} {reconciliationData.systemRecords.systemBalance.toLocaleString()}
               </span>
             </div>
             <div className="mt-4 rounded-md bg-green-50 dark:bg-green-900/20 p-3 flex items-center gap-2">
@@ -187,7 +190,7 @@ function ReconciliationContent() {
                   <td className="px-4 py-3 text-sm text-foreground">{item.date}</td>
                   <td className="px-4 py-3 text-sm text-foreground">{item.description}</td>
                   <td className="px-4 py-3 text-right text-sm font-medium text-foreground">
-                    USD {item.amount.toLocaleString()}
+                    {displayCurrency} {item.amount.toLocaleString()}
                   </td>
                   <td className="px-4 py-3 text-center">
                     <span className="inline-flex rounded-full px-2 py-1 text-xs font-semibold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">

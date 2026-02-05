@@ -28,3 +28,7 @@ export * from './error-log.schema';
 // Settings
 export * from './email-settings.schema';
 export * from './reminder-settings.schema';
+
+// Templates
+export * from './disbursement-template.schema';
+export * from './platform-settings.schema';

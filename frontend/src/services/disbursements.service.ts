@@ -51,7 +51,10 @@ class DisbursementsService extends BaseService<
    * Get disbursements pending approval for current user
    */
   async getPendingApprovals(params?: DisbursementFilters) {
-    return this.findAll({ ...params, status: 'pending' });
+    return this.findAll({
+      ...params,
+      status: ['pending_dept_head', 'pending_validator', 'pending_cashier'],
+    });
   }
 
   /**
@@ -65,7 +68,7 @@ class DisbursementsService extends BaseService<
    * Get disbursements by department
    */
   async getByDepartment(departmentId: string, params?: DisbursementFilters) {
-    return this.findAll({ ...params, departmentId });
+    return this.findAll({ ...params, department: departmentId });
   }
 
   /**

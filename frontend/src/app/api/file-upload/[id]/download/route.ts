@@ -8,7 +8,7 @@ export async function GET(
 ) {
   try {
     const params = await context.params;
-    return await proxyRequest('GET', `/file-upload/${params.id}/download`, request);
+    return await proxyRequest('GET', `/file-upload/${params.id}/download`, request, undefined, { responseType: 'arraybuffer' });
   } catch (error) {
     return handleApiError(error);
   }

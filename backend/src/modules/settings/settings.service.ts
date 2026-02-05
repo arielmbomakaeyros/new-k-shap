@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Company } from '../../database/schemas/company.schema';
@@ -11,6 +11,26 @@ export interface CompanySettingsResponse {
     address: string;
     industry: string;
   };
+  paymentMethods: string[];
+  defaultCurrency: string;
+  branding: {
+    logoUrl: string;
+    primaryColor: string;
+  };
+  notificationChannels: {
+    email: boolean;
+    sms: boolean;
+    whatsapp: boolean;
+    inApp: boolean;
+  };
+  payoutSchedule: {
+    frequency: 'weekly' | 'biweekly' | 'monthly';
+    dayOfMonth?: number;
+    dayOfWeek?: string;
+  };
+  approvalLimitsByRole: Record<string, number>;
+  officeSpendCaps: Record<string, number>;
+  defaultBeneficiaries: string[];
   workflowSettings: {
     requireDeptHeadApproval: boolean;
     requireValidatorApproval: boolean;
@@ -49,6 +69,27 @@ export interface UpdateEmailNotificationSettingsDto {
   dailySummary?: boolean;
 }
 
+export interface UpdateCompanyPreferencesDto {
+  defaultCurrency?: string;
+  paymentMethods?: string[];
+  logoUrl?: string;
+  primaryColor?: string;
+  notificationChannels?: {
+    email?: boolean;
+    sms?: boolean;
+    whatsapp?: boolean;
+    inApp?: boolean;
+  };
+  payoutSchedule?: {
+    frequency?: 'weekly' | 'biweekly' | 'monthly';
+    dayOfMonth?: number;
+    dayOfWeek?: string;
+  };
+  approvalLimitsByRole?: Record<string, number>;
+  officeSpendCaps?: Record<string, number>;
+  defaultBeneficiaries?: string[];
+}
+
 @Injectable()
 export class SettingsService {
   constructor(
@@ -69,6 +110,26 @@ export class SettingsService {
         address: company.address || '',
         industry: company.industry || '',
       },
+      paymentMethods: company.paymentMethods || [],
+      defaultCurrency: company.defaultCurrency || 'XAF',
+      branding: {
+        logoUrl: company.logoUrl || '',
+        primaryColor: company.primaryColor || '#1d4ed8',
+      },
+      notificationChannels: company.notificationChannels || {
+        email: true,
+        sms: false,
+        whatsapp: false,
+        inApp: true,
+      },
+      payoutSchedule: company.payoutSchedule || {
+        frequency: 'monthly',
+        dayOfMonth: 25,
+        dayOfWeek: 'friday',
+      },
+      approvalLimitsByRole: company.approvalLimitsByRole || {},
+      officeSpendCaps: company.officeSpendCaps || {},
+      defaultBeneficiaries: (company.defaultBeneficiaries || []).map((id: any) => id.toString()),
       workflowSettings: company.workflowSettings || {
         requireDeptHeadApproval: true,
         requireValidatorApproval: true,
@@ -154,6 +215,60 @@ export class SettingsService {
     }
     if (updateDto.dailySummary !== undefined) {
       updateFields['emailNotificationSettings.dailySummary'] = updateDto.dailySummary;
+    }
+
+    const company = await this.companyModel.findByIdAndUpdate(
+      companyId,
+      { $set: updateFields },
+      { new: true },
+    );
+
+    if (!company) {
+      throw new NotFoundException('Company not found');
+    }
+
+    return this.getCompanySettings(companyId);
+  }
+
+  async updateCompanyPreferences(
+    companyId: string,
+    updateDto: UpdateCompanyPreferencesDto,
+  ): Promise<CompanySettingsResponse> {
+    const updateFields: Record<string, any> = {};
+
+    if (updateDto.defaultCurrency !== undefined) {
+      updateFields.defaultCurrency = updateDto.defaultCurrency;
+    }
+    if (updateDto.paymentMethods !== undefined) {
+      if (updateDto.paymentMethods.length === 0) {
+        throw new BadRequestException('At least one payment method is required');
+      }
+      updateFields.paymentMethods = updateDto.paymentMethods;
+    }
+    if (updateDto.logoUrl !== undefined) {
+      updateFields.logoUrl = updateDto.logoUrl;
+    }
+    if (updateDto.primaryColor !== undefined) {
+      updateFields.primaryColor = updateDto.primaryColor;
+    }
+    if (updateDto.notificationChannels) {
+      Object.entries(updateDto.notificationChannels).forEach(([key, value]) => {
+        updateFields[`notificationChannels.${key}`] = value;
+      });
+    }
+    if (updateDto.payoutSchedule) {
+      Object.entries(updateDto.payoutSchedule).forEach(([key, value]) => {
+        updateFields[`payoutSchedule.${key}`] = value;
+      });
+    }
+    if (updateDto.approvalLimitsByRole !== undefined) {
+      updateFields.approvalLimitsByRole = updateDto.approvalLimitsByRole;
+    }
+    if (updateDto.officeSpendCaps !== undefined) {
+      updateFields.officeSpendCaps = updateDto.officeSpendCaps;
+    }
+    if (updateDto.defaultBeneficiaries !== undefined) {
+      updateFields.defaultBeneficiaries = updateDto.defaultBeneficiaries.map((id) => new Types.ObjectId(id));
     }
 
     const company = await this.companyModel.findByIdAndUpdate(

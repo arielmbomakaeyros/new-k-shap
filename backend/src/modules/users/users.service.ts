@@ -12,6 +12,7 @@ import * as crypto from 'crypto';
 import { User } from '../../database/schemas/user.schema';
 import { Company } from '../../database/schemas/company.schema';
 import { EmailService } from '../../email/email.service';
+import { FileUploadService } from '../file-upload/file-upload.service';
 import { ConfigService } from '@nestjs/config';
 import { CreateUserDto, UpdateUserDto } from './dto';
 import { UserRole } from '../../database/schemas/enums';
@@ -24,6 +25,7 @@ export class UsersService {
     @InjectModel(Company.name) private companyModel: Model<Company>,
     private emailService: EmailService,
     private configService: ConfigService,
+    private fileUploadService: FileUploadService,
   ) {}
 
   async create(dto: CreateUserDto, creatorUser: any): Promise<User> {
@@ -102,7 +104,7 @@ export class UsersService {
     // If companyId is null (Kaeyros admin), show all users; otherwise filter by company
     const query: any = { isDeleted: false };
     if (companyId) {
-      query.company = companyId;
+      query.company = new Types.ObjectId(companyId);
     }
 
     if (filters?.search) {
@@ -334,4 +336,34 @@ export class UsersService {
       },
     });
   }
+
+  async updateAvatar(id: string, file: Express.Multer.File, updaterUser: any) {
+    let query = this.userModel.findById(id).where('isDeleted').equals(false);
+
+    if (updaterUser.company) {
+      query = query.where('company').equals((updaterUser.company._id || updaterUser.company).toString());
+    }
+
+    const user = await query.exec();
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const context = {
+      userId: updaterUser._id?.toString() || updaterUser.id,
+      companyId: updaterUser.company ? (updaterUser.company._id || updaterUser.company).toString() : undefined,
+    };
+
+    const uploadResult = await this.fileUploadService.uploadFile(file, {
+      category: 'profile_picture',
+      entityType: 'user',
+      entityId: user._id.toString(),
+    } as any, context as any);
+
+    user.avatar = uploadResult.url;
+    await user.save();
+
+    return user;
+  }
+
 }

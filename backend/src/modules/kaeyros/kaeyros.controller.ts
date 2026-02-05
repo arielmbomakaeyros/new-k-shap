@@ -2,10 +2,11 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards } f
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiBody, ApiQuery, ApiProperty } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { KaeyrosService } from './kaeyros.service';
-import { CreateCompanyByKaeyrosDto, UpdateCompanyStatusDto, ToggleCompanyFeatureDto, CompanyStatus } from './dto';
+import { CreateCompanyByKaeyrosDto, UpdateCompanyStatusDto, ToggleCompanyFeatureDto, UpdateCompanyByKaeyrosDto, CompanyStatus } from './dto';
 import { CompanyWithStatsResponseDto, PlatformStatsResponseDto } from '../../common/dto/kaeyros-response.dto';
 import { SuccessResponseDto } from '../../common/dto/success-response.dto';
 import { PaginatedResponseDto, PaginationMetaDto } from '../../common/dto/paginated-response.dto';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 class PaginatedCompaniesWithStatsResponseDto extends PaginatedResponseDto<CompanyWithStatsResponseDto> {
   @ApiProperty({ type: [CompanyWithStatsResponseDto] })
@@ -48,7 +49,7 @@ export class KaeyrosController {
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden - Platform Admin access required.' })
   getPlatformStats() {
-    return this.kaeyrosService.findAll();
+    return this.kaeyrosService.getPlatformStats();
   }
 
   @Get('companies')
@@ -82,7 +83,7 @@ export class KaeyrosController {
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ) {
-    return this.kaeyrosService.findAll();
+    return this.kaeyrosService.getCompanies({ page, limit, sortBy, sortOrder, search, status, plan, isActive, startDate, endDate });
   }
 
   @Get('companies/:id')
@@ -115,6 +116,23 @@ export class KaeyrosController {
   @ApiResponse({ status: 404, description: 'Company not found.' })
   updateStatus(@Param('id') id: string, @Body() updateStatusDto: UpdateCompanyStatusDto) {
     return this.kaeyrosService.update(id, updateStatusDto);
+  }
+
+  @Patch('companies/:id')
+  @ApiOperation({ summary: 'Update company details (Platform Admin only)' })
+  @ApiParam({ name: 'id', description: 'Company ID', example: '507f1f77bcf86cd799439011' })
+  @ApiBody({ type: UpdateCompanyByKaeyrosDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Company updated successfully.',
+    type: CompanyWithStatsResponseDto,
+  })
+  @ApiResponse({ status: 400, description: 'Bad Request.' })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Platform Admin access required.' })
+  @ApiResponse({ status: 404, description: 'Company not found.' })
+  updateCompany(@Param('id') id: string, @Body() updateDto: UpdateCompanyByKaeyrosDto) {
+    return this.kaeyrosService.update(id, updateDto);
   }
 
   @Patch('companies/:id/features')
@@ -164,6 +182,21 @@ export class KaeyrosController {
     return this.kaeyrosService.remove(id);
   }
 
+  @Post('companies/:id/resend-activation')
+  @ApiOperation({ summary: 'Resend activation email to the company primary admin' })
+  @ApiParam({ name: 'id', description: 'Company ID', example: '507f1f77bcf86cd799439011' })
+  @ApiResponse({
+    status: 200,
+    description: 'Activation email sent successfully.',
+    type: SuccessResponseDto,
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Platform Admin access required.' })
+  @ApiResponse({ status: 404, description: 'Company or admin user not found.' })
+  resendActivation(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.kaeyrosService.resendCompanyAdminActivation(id, user);
+  }
+
   @Get('audit-logs')
   @ApiOperation({ summary: 'Get platform-wide audit logs (Platform Admin only)' })
   @ApiQuery({ name: 'page', required: false, description: 'Page number', example: 1 })
@@ -201,6 +234,6 @@ export class KaeyrosController {
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ) {
-    return this.kaeyrosService.findAll();
+    return this.kaeyrosService.getAuditLogs({ page, limit, company, action, startDate, endDate });
   }
 }

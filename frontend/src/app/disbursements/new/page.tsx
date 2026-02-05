@@ -1,6 +1,6 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslation } from '@/node_modules/react-i18next';
 import { CreateDisbursementForm } from '@/src/components/disbursement/CreateDisbursementForm';
 import { ProtectedRoute } from '@/src/components/ProtectedRoute';
@@ -8,6 +8,8 @@ import { ProtectedLayout } from '@/src/components/layout/ProtectedLayout';
 
 function NewDisbursementContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const templateId = searchParams.get('template');
   const { t } = useTranslation();
 
   return (
@@ -23,6 +25,7 @@ function NewDisbursementContent() {
 
       <div className="rounded-lg border border-border bg-card p-8">
         <CreateDisbursementForm
+          initialTemplateId={templateId}
           onSuccess={() => {
             router.push('/disbursements');
           }}

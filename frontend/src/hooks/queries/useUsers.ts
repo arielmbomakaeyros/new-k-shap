@@ -143,6 +143,21 @@ export function useUpdateUserPermissions() {
 }
 
 /**
+ * Hook for updating user avatar
+ */
+export function useUpdateUserAvatar() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, file }: { id: string; file: File }) => usersService.updateAvatar(id, file),
+    onSuccess: (_data, { id }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.detail(id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.lists() });
+    },
+  });
+}
+
+/**
  * Hook for toggling user active status
  */
 export function useToggleUserActive() {

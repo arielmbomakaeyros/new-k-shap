@@ -53,7 +53,9 @@ async function bootstrap() {
   // Setup Swagger documentation
   const config = new DocumentBuilder()
     .setTitle('K-shap Backend API')
-    .setDescription('Comprehensive API documentation for the K-shap backend system')
+    .setDescription(
+      'Comprehensive API documentation for the K-shap backend system',
+    )
     .setVersion('1.0')
     .addBearerAuth()
     .build();
@@ -75,12 +77,24 @@ async function bootstrap() {
       logger.error(`❌ MongoDB connection error: ${err.message}`, 'Database');
     });
   } catch (error) {
-    logger.error(`❌ Could not access MongoDB connection: ${error.message}`, 'Database');
+    logger.error(
+      `❌ Could not access MongoDB connection: ${error.message}`,
+      'Database',
+    );
   }
 
-  logger.log(`🚀 K-shap API running on http://localhost:${port}/${configService.get('API_PREFIX')}`, 'Bootstrap');
+  logger.log(
+    `🚀 K-shap API running on http://localhost:${port}/${configService.get('API_PREFIX')}`,
+    'Bootstrap',
+  );
   logger.log(`📚 Environment: ${configService.get('NODE_ENV')}`, 'Bootstrap');
-  logger.log(`🗄️  MongoDB URI: ${configService.get('MONGODB_URI')}`, 'Bootstrap');
-  logger.log(`📖 Swagger documentation available at http://localhost:${port}/api-docs`, 'Bootstrap');
+  logger.log(
+    `🗄️  MongoDB URI: ${configService.get('MONGODB_URI')}`,
+    'Bootstrap',
+  );
+  logger.log(
+    `📖 Swagger documentation available at http://localhost:${port}/api-docs`,
+    'Bootstrap',
+  );
 }
 bootstrap();

@@ -235,7 +235,11 @@ export class DisbursementsController {
     @Query('endDate') endDate?: string,
     @Query('tags') tags?: string,
   ) {
-    const companyId = req.user?.company ? (req.user.company._id || req.user.company).toString() : undefined;
+    const companyId = req.user?.isKaeyrosUser
+      ? undefined
+      : req.user?.company
+        ? (req.user.company._id || req.user.company).toString()
+        : undefined;
     return this.disbursementsService.findAll(companyId, {
       page,
       limit,
@@ -266,8 +270,13 @@ export class DisbursementsController {
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
   @ApiResponse({ status: 404, description: 'Disbursement not found.' })
-  findOne(@Param('id') id: string) {
-    return this.disbursementsService.findOne(id);
+  findOne(@Param('id') id: string, @Req() req: any) {
+    const companyId = req.user?.isKaeyrosUser
+      ? undefined
+      : req.user?.company
+        ? (req.user.company._id || req.user.company).toString()
+        : undefined;
+    return this.disbursementsService.findOne(id, companyId);
   }
 
   @Patch(':id')
@@ -299,7 +308,12 @@ export class DisbursementsController {
     @Req() req: any,
   ) {
     const userId = req.user?._id?.toString();
-    return this.disbursementsService.update(id, updateDisbursementDto, userId);
+    const companyId = req.user?.isKaeyrosUser
+      ? undefined
+      : req.user?.company
+        ? (req.user.company._id || req.user.company).toString()
+        : undefined;
+    return this.disbursementsService.update(id, updateDisbursementDto, userId, companyId);
   }
 
   @Delete(':id')
@@ -322,7 +336,12 @@ export class DisbursementsController {
   @ApiResponse({ status: 404, description: 'Disbursement not found.' })
   remove(@Param('id') id: string, @Req() req: any) {
     const userId = req.user?._id?.toString();
-    return this.disbursementsService.remove(id, userId);
+    const companyId = req.user?.isKaeyrosUser
+      ? undefined
+      : req.user?.company
+        ? (req.user.company._id || req.user.company).toString()
+        : undefined;
+    return this.disbursementsService.remove(id, userId, companyId);
   }
 
   @Post(':id/submit')
@@ -342,7 +361,12 @@ export class DisbursementsController {
   })
   submit(@Param('id') id: string, @Req() req: any) {
     const userId = req.user?._id?.toString();
-    return this.disbursementsService.submit(id, userId);
+    const companyId = req.user?.isKaeyrosUser
+      ? undefined
+      : req.user?.company
+        ? (req.user.company._id || req.user.company).toString()
+        : undefined;
+    return this.disbursementsService.submit(id, userId, companyId);
   }
 
   @Post(':id/approve')
@@ -369,7 +393,12 @@ export class DisbursementsController {
     @Req() req: any,
   ) {
     const userId = req.user?._id?.toString();
-    return this.disbursementsService.approve(id, userId, notes);
+    const companyId = req.user?.isKaeyrosUser
+      ? undefined
+      : req.user?.company
+        ? (req.user.company._id || req.user.company).toString()
+        : undefined;
+    return this.disbursementsService.approve(id, userId, notes, companyId);
   }
 
   @Post(':id/reject')
@@ -400,7 +429,12 @@ export class DisbursementsController {
     @Req() req: any,
   ) {
     const userId = req.user?._id?.toString();
-    return this.disbursementsService.reject(id, userId, reason);
+    const companyId = req.user?.isKaeyrosUser
+      ? undefined
+      : req.user?.company
+        ? (req.user.company._id || req.user.company).toString()
+        : undefined;
+    return this.disbursementsService.reject(id, userId, reason, companyId);
   }
 
   @Post(':id/cancel')
@@ -431,6 +465,11 @@ export class DisbursementsController {
     @Req() req: any,
   ) {
     const userId = req.user?._id?.toString();
-    return this.disbursementsService.cancel(id, userId, reason);
+    const companyId = req.user?.isKaeyrosUser
+      ? undefined
+      : req.user?.company
+        ? (req.user.company._id || req.user.company).toString()
+        : undefined;
+    return this.disbursementsService.cancel(id, userId, reason, companyId);
   }
 }

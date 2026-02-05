@@ -9,10 +9,18 @@ export class EmailService {
   private transporter: nodemailer.Transporter;
 
   constructor(private configService: ConfigService) {
+    const smtpSecureRaw = String(
+      this.configService.get('SMTP_SECURE', 'false'),
+    ).toLowerCase();
+    const smtpSecure =
+      smtpSecureRaw === 'true' ||
+      smtpSecureRaw === '1' ||
+      smtpSecureRaw === 'yes';
+
     this.transporter = nodemailer.createTransport({
       host: this.configService.get('SMTP_HOST'),
       port: this.configService.get('SMTP_PORT', 587),
-      secure: this.configService.get('SMTP_SECURE', false),
+      secure: smtpSecure,
       auth: {
         user: this.configService.get('SMTP_USER'),
         pass: this.configService.get('SMTP_PASS'),
@@ -42,7 +50,10 @@ export class EmailService {
     }
   }
 
-  private renderTemplate(template: string, context: Record<string, any>): string {
+  private renderTemplate(
+    template: string,
+    context: Record<string, any>,
+  ): string {
     const templates: Record<string, (ctx: any) => string> = {
       welcome: this.welcomeTemplate,
       'password-reset': this.passwordResetTemplate,

@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    return await proxyRequest('POST', '/file-upload', request);
+    return await proxyRequest('POST', '/file-upload/upload', request);
   } catch (error) {
     return handleApiError(error);
   }

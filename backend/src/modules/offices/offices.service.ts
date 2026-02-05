@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { Office } from '../../database/schemas/office.schema';
 
 @Injectable()
@@ -12,19 +12,29 @@ export class OfficesService {
     return createdOffice.save();
   }
 
-  async findAll() {
-    return this.officeModel.find();
+  async findAll(companyId?: string | null) {
+    const filter = companyId ? { company: new Types.ObjectId(companyId) } : {};
+    return this.officeModel.find(filter as any);
   }
 
-  async findOne(id: string) {
-    return this.officeModel.findById(id);
+  async findOne(id: string, companyId?: string | null) {
+    const filter = companyId
+      ? { _id: new Types.ObjectId(id), company: new Types.ObjectId(companyId) }
+      : { _id: new Types.ObjectId(id) };
+    return this.officeModel.findOne(filter as any);
   }
 
-  async update(id: string, updateOfficeDto: any) {
-    return this.officeModel.findByIdAndUpdate(id, updateOfficeDto, { new: true });
+  async update(id: string, updateOfficeDto: any, companyId?: string | null) {
+    const filter = companyId
+      ? { _id: new Types.ObjectId(id), company: new Types.ObjectId(companyId) }
+      : { _id: new Types.ObjectId(id) };
+    return this.officeModel.findOneAndUpdate(filter as any, updateOfficeDto, { new: true });
   }
 
-  async remove(id: string) {
-    return this.officeModel.findByIdAndDelete(id);
+  async remove(id: string, companyId?: string | null) {
+    const filter = companyId
+      ? { _id: new Types.ObjectId(id), company: new Types.ObjectId(companyId) }
+      : { _id: new Types.ObjectId(id) };
+    return this.officeModel.findOneAndDelete(filter as any);
   }
 }

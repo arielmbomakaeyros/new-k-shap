@@ -6,6 +6,7 @@ import { CreateChatDto, UpdateChatDto } from './dto';
 import { ChatResponseDto } from '../../common/dto/chat-response.dto';
 import { SuccessResponseDto } from '../../common/dto/success-response.dto';
 import { PaginatedResponseDto, PaginationMetaDto } from '../../common/dto/paginated-response.dto';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 // Define a specific response DTO for paginated chats
 class PaginatedChatsResponseDto extends PaginatedResponseDto<ChatResponseDto> {
@@ -44,8 +45,9 @@ export class ChatController {
   })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
-  create(@Body() createChatDto: CreateChatDto) {
-    return this.chatService.create(createChatDto);
+  create(@Body() createChatDto: CreateChatDto, @CurrentUser() user: any) {
+    const companyId = user?.company ? (user.company._id || user.company).toString() : null;
+    return this.chatService.create(createChatDto, companyId);
   }
 
   @Get()
@@ -87,6 +89,7 @@ export class ChatController {
     }
   })
   findAll(
+    @CurrentUser() user: any,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
     @Query('sortBy') sortBy?: string,
@@ -97,7 +100,12 @@ export class ChatController {
     @Query('isArchived') isArchived?: string,
     @Query('isPinned') isPinned?: string,
   ) {
-    return this.chatService.findAll();
+    const companyId = user?.isKaeyrosUser
+      ? null
+      : user?.company
+        ? (user.company._id || user.company).toString()
+        : null;
+    return this.chatService.findAll(companyId);
   }
 
   @Get(':id')
@@ -121,8 +129,13 @@ export class ChatController {
       }
     }
   })
-  findOne(@Param('id') id: string) {
-    return this.chatService.findOne(id);
+  findOne(@Param('id') id: string, @CurrentUser() user: any) {
+    const companyId = user?.isKaeyrosUser
+      ? null
+      : user?.company
+        ? (user.company._id || user.company).toString()
+        : null;
+    return this.chatService.findOne(id, companyId);
   }
 
   @Patch(':id')
@@ -158,8 +171,13 @@ export class ChatController {
       }
     }
   })
-  update(@Param('id') id: string, @Body() updateChatDto: UpdateChatDto) {
-    return this.chatService.update(id, updateChatDto);
+  update(@Param('id') id: string, @Body() updateChatDto: UpdateChatDto, @CurrentUser() user: any) {
+    const companyId = user?.isKaeyrosUser
+      ? null
+      : user?.company
+        ? (user.company._id || user.company).toString()
+        : null;
+    return this.chatService.update(id, updateChatDto, companyId);
   }
 
   @Delete(':id')
@@ -183,7 +201,12 @@ export class ChatController {
       }
     }
   })
-  remove(@Param('id') id: string) {
-    return this.chatService.remove(id);
+  remove(@Param('id') id: string, @CurrentUser() user: any) {
+    const companyId = user?.isKaeyrosUser
+      ? null
+      : user?.company
+        ? (user.company._id || user.company).toString()
+        : null;
+    return this.chatService.remove(id, companyId);
   }
 }

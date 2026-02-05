@@ -9,8 +9,8 @@ import type {
 } from './types';
 
 export interface ReportFilters extends DateRange {
-  departmentId?: string;
-  officeId?: string;
+  department?: string;
+  office?: string;
   companyId?: string;
 }
 

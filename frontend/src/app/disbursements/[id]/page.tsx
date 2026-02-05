@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { useTranslation } from '@/node_modules/react-i18next';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/src/components/disbursement/StatusBadge';
@@ -9,69 +9,92 @@ import { WorkflowTimeline } from '@/src/components/disbursement/WorkflowTimeline
 import { ApprovalDialog } from '@/src/components/disbursement/ApprovalDialog';
 import { ProtectedRoute } from '@/src/components/ProtectedRoute';
 import { ProtectedLayout } from '@/src/components/layout/ProtectedLayout';
+import { useDisbursement } from '@/src/hooks/queries/useDisbursements';
+import { formatPrice } from '@/src/lib/format';
+import QRCode from 'qrcode';
 
 function DisbursementDetailContent() {
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const { t } = useTranslation();
   const [showApprovalDialog, setShowApprovalDialog] = useState(false);
+  const [qrUrl, setQrUrl] = useState<string | null>(null);
 
-  // Mock disbursement data
-  const disbursement = {
-    id: params.id,
-    title: 'Office Supplies Purchase',
-    description: 'Monthly office supplies for the finance department',
-    amount: 500,
-    currency: 'USD',
-    status: 'pending_department_head',
-    payeeType: 'vendor',
-    payeeName: 'ABC Supplies Inc',
-    payeeEmail: 'contact@abcsupplies.com',
-    payeePhone: '+1-555-123-4567',
-    department: 'Finance',
-    office: 'New York',
-    justification: 'Regular office supplies needed for ongoing operations',
-    createdAt: '2024-01-15T10:30:00Z',
-    createdBy: 'John Doe',
-    approvals: [
-      {
-        stage: 'department_head',
-        approver_name: 'Jane Smith',
-        action: 'pending',
-        approved_at: null,
-        notes: null,
-      },
-    ],
-  };
+  const id = params.id as string;
+  const { data: disbursement, isLoading, error } = useDisbursement(id);
 
-  const canApprove = ['pending_department_head', 'pending_validator', 'pending_cashier'].includes(
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <span className="ml-2 text-muted-foreground">{t('common.loading', { defaultValue: 'Loading...' })}</span>
+      </div>
+    );
+  }
+
+  if (error || !disbursement) {
+    return (
+      <div className="rounded-lg border border-destructive bg-destructive/10 p-6 text-center">
+        <p className="text-destructive">{t('disbursements.loadFailed', { defaultValue: 'Failed to load disbursement.' })}</p>
+      </div>
+    );
+  }
+
+  const canApprove = ['pending_dept_head', 'pending_validator', 'pending_cashier'].includes(
     disbursement.status
   );
+  const stage =
+    disbursement.status === 'pending_validator'
+      ? 'validator'
+      : disbursement.status === 'pending_cashier'
+        ? 'cashier'
+        : 'department_head';
+
+  const attachments = disbursement.attachments || [];
+
+  useEffect(() => {
+    if (!canApprove) return;
+    const approveParam = searchParams.get('approve');
+    const shouldOpen = approveParam === '1' || approveParam === 'true';
+    if (shouldOpen) {
+      setShowApprovalDialog(true);
+    }
+  }, [canApprove, searchParams]);
+
+  const handleGenerateQr = async () => {
+    if (typeof window === 'undefined') return;
+    const url = `${window.location.origin}/disbursements/${id}?approve=1&stage=${stage}`;
+    const dataUrl = await QRCode.toDataURL(url, { margin: 2, width: 220 });
+    setQrUrl(dataUrl);
+  };
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-      {/* Header */}
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground">
-            {disbursement.title}
+            {disbursement.description}
           </h1>
           <p className="mt-1 text-muted-foreground">
-            {t('disbursements.requestNumber', { id: disbursement.id })}
+            {t('disbursements.requestNumber', { id: disbursement.referenceNumber || disbursement._id })}
           </p>
         </div>
         <div className="flex gap-3">
           {canApprove && (
             <Button onClick={() => setShowApprovalDialog(true)}>{t('disbursements.approveReview')}</Button>
           )}
-          <Button variant="outline">{t('disbursements.downloadPdf')}</Button>
+          {canApprove && (
+            <Button variant="outline" onClick={handleGenerateQr}>
+              {t('disbursements.approvalQr', { defaultValue: 'Generate Approval QR' })}
+            </Button>
+          )}
+          <Button variant="outline">{t('disbursements.downloadPdf', { defaultValue: 'Download PDF' })}</Button>
         </div>
       </div>
 
       <div className="grid gap-8 md:grid-cols-3">
-        {/* Main Content */}
         <div className="md:col-span-2 space-y-6">
-          {/* Status Card */}
           <div className="rounded-lg border border-border bg-card p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -83,43 +106,42 @@ function DisbursementDetailContent() {
               <div className="text-right">
                 <p className="text-sm text-muted-foreground">{t('disbursements.totalAmount')}</p>
                 <p className="mt-2 text-3xl font-bold text-foreground">
-                  {disbursement.currency} {disbursement.amount}
+                  {formatPrice(disbursement.amount)}
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Details */}
           <div className="rounded-lg border border-border bg-card p-6">
             <h2 className="text-lg font-semibold text-foreground mb-4">{t('disbursements.requestDetails')}</h2>
 
             <div className="space-y-6">
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
-                  <p className="text-sm text-muted-foreground">{t('disbursements.payeeName')}</p>
-                  <p className="mt-1 font-medium text-foreground">{disbursement.payeeName}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">{t('disbursements.payeeType')}</p>
+                  <p className="text-sm text-muted-foreground">{t('disbursements.beneficiary', { defaultValue: 'Beneficiary' })}</p>
                   <p className="mt-1 font-medium text-foreground">
-                    {disbursement.payeeType.replace('_', ' ')}
+                    {disbursement.beneficiary?.name || disbursement.beneficiary?.email || '—'}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">{t('common.email')}</p>
-                  <p className="mt-1 font-medium text-foreground">{disbursement.payeeEmail}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">{t('common.phone')}</p>
-                  <p className="mt-1 font-medium text-foreground">{disbursement.payeePhone}</p>
+                  <p className="text-sm text-muted-foreground">{t('disbursements.type', { defaultValue: 'Type' })}</p>
+                  <p className="mt-1 font-medium text-foreground">{disbursement.disbursementType?.name || '—'}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">{t('users.department')}</p>
-                  <p className="mt-1 font-medium text-foreground">{disbursement.department}</p>
+                  <p className="mt-1 font-medium text-foreground">{disbursement.department?.name || '—'}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">{t('users.office')}</p>
-                  <p className="mt-1 font-medium text-foreground">{disbursement.office}</p>
+                  <p className="mt-1 font-medium text-foreground">{disbursement.office?.name || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">{t('disbursements.paymentMethod', { defaultValue: 'Payment Method' })}</p>
+                  <p className="mt-1 font-medium text-foreground">{disbursement.paymentMethod || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">{t('disbursements.priorityLabel', { defaultValue: 'Priority' })}</p>
+                  <p className="mt-1 font-medium text-foreground">{disbursement.priority || '—'}</p>
                 </div>
               </div>
 
@@ -128,57 +150,72 @@ function DisbursementDetailContent() {
                 <p className="mt-1 text-foreground">{disbursement.description}</p>
               </div>
 
-              <div>
-                <p className="text-sm text-muted-foreground">{t('disbursements.justification')}</p>
-                <p className="mt-1 text-foreground">{disbursement.justification}</p>
-              </div>
+              {disbursement.purpose && (
+                <div>
+                  <p className="text-sm text-muted-foreground">{t('disbursements.purpose', { defaultValue: 'Purpose' })}</p>
+                  <p className="mt-1 text-foreground">{disbursement.purpose}</p>
+                </div>
+              )}
 
               <div className="grid gap-4 md:grid-cols-2 text-sm">
                 <div>
-                  <p className="text-muted-foreground">{t('disbursements.createdBy')}</p>
-                  <p className="mt-1 font-medium text-foreground">{disbursement.createdBy}</p>
-                </div>
-                <div>
                   <p className="text-muted-foreground">{t('disbursements.createdOn')}</p>
-                  <p className="mt-1 font-medium text-foreground">{disbursement.createdAt}</p>
+                  <p className="mt-1 font-medium text-foreground">
+                    {new Date(disbursement.createdAt).toLocaleDateString()}
+                  </p>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Workflow Timeline */}
           <div className="rounded-lg border border-border bg-card p-6">
             <WorkflowTimeline disbursement={disbursement as any} />
           </div>
         </div>
 
-        {/* Sidebar */}
         <div className="space-y-6">
-          {/* Quick Actions */}
           {canApprove && (
             <div className="rounded-lg border border-border bg-card p-6">
               <h3 className="font-semibold text-foreground mb-4">{t('common.actions')}</h3>
-              <Button
-                className="w-full"
-                onClick={() => setShowApprovalDialog(true)}
-              >
+              <Button className="w-full" onClick={() => setShowApprovalDialog(true)}>
                 {t('disbursements.reviewApprove')}
               </Button>
             </div>
           )}
 
-          {/* Attachments (placeholder) */}
+          {qrUrl && (
+            <div className="rounded-lg border border-border bg-card p-6">
+              <h3 className="font-semibold text-foreground mb-4">{t('disbursements.approvalQrTitle', { defaultValue: 'Approval QR Code' })}</h3>
+              <div className="flex flex-col items-center gap-3">
+                <img src={qrUrl} alt="Approval QR code" className="h-40 w-40 rounded-md border border-border bg-white p-2" />
+                <p className="text-xs text-muted-foreground text-center">
+                  {t('disbursements.approvalQrHelp', { defaultValue: 'Scan to open this disbursement with approval ready.' })}
+                </p>
+              </div>
+            </div>
+          )}
+
           <div className="rounded-lg border border-border bg-card p-6">
             <h3 className="font-semibold text-foreground mb-4">{t('disbursements.attachments')}</h3>
-            <p className="text-sm text-muted-foreground">{t('disbursements.noAttachments')}</p>
+            {attachments.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{t('disbursements.noAttachments')}</p>
+            ) : (
+              <div className="space-y-2">
+                {attachments.map((url: string, idx: number) => (
+                  <a key={idx} href={url} className="block text-sm text-primary underline" target="_blank" rel="noreferrer">
+                    {t('common.attachment', { defaultValue: 'Attachment' })} {idx + 1}
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
 
       {showApprovalDialog && (
         <ApprovalDialog
-          disbursementId={disbursement.id as string}
-          stage="department_head"
+          disbursementId={disbursement._id as string}
+          stage={stage as any}
           onClose={() => setShowApprovalDialog(false)}
           onSuccess={() => {
             setShowApprovalDialog(false);

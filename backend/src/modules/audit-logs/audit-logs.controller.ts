@@ -6,6 +6,7 @@ import { CreateAuditLogDto } from './dto';
 import { AuditLogResponseDto } from '../../common/dto/audit-log-response.dto';
 import { SuccessResponseDto } from '../../common/dto/success-response.dto';
 import { PaginatedResponseDto, PaginationMetaDto } from '../../common/dto/paginated-response.dto';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 // Define a specific response DTO for paginated audit logs
 class PaginatedAuditLogsResponseDto extends PaginatedResponseDto<AuditLogResponseDto> {
@@ -44,8 +45,9 @@ export class AuditLogsController {
   })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
-  create(@Body() createAuditLogDto: CreateAuditLogDto) {
-    return this.auditLogsService.create(createAuditLogDto);
+  create(@Body() createAuditLogDto: CreateAuditLogDto, @CurrentUser() user: any) {
+    const companyId = user?.company ? (user.company._id || user.company).toString() : null;
+    return this.auditLogsService.create(createAuditLogDto, companyId);
   }
 
   @Get()
@@ -89,6 +91,7 @@ export class AuditLogsController {
     }
   })
   findAll(
+    @CurrentUser() user: any,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
     @Query('sortBy') sortBy?: string,
@@ -101,7 +104,12 @@ export class AuditLogsController {
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ) {
-    return this.auditLogsService.findAll();
+    const companyId = user?.isKaeyrosUser
+      ? null
+      : user?.company
+        ? (user.company._id || user.company).toString()
+        : null;
+    return this.auditLogsService.findAll(companyId);
   }
 
   @Get(':id')
@@ -125,8 +133,13 @@ export class AuditLogsController {
       }
     }
   })
-  findOne(@Param('id') id: string) {
-    return this.auditLogsService.findOne(id);
+  findOne(@Param('id') id: string, @CurrentUser() user: any) {
+    const companyId = user?.isKaeyrosUser
+      ? null
+      : user?.company
+        ? (user.company._id || user.company).toString()
+        : null;
+    return this.auditLogsService.findOne(id, companyId);
   }
 
   @Patch(':id')
@@ -145,9 +158,14 @@ export class AuditLogsController {
   })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
-  update(@Param('id') id: string, @Body() updateAuditLogDto: any) {
+  update(@Param('id') id: string, @Body() updateAuditLogDto: any, @CurrentUser() user: any) {
     // Audit logs are typically immutable, so this would return a 405 Method Not Allowed
-    return this.auditLogsService.update(id, updateAuditLogDto);
+    const companyId = user?.isKaeyrosUser
+      ? null
+      : user?.company
+        ? (user.company._id || user.company).toString()
+        : null;
+    return this.auditLogsService.update(id, updateAuditLogDto, companyId);
   }
 
   @Delete(':id')
@@ -160,8 +178,13 @@ export class AuditLogsController {
   })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
-  remove(@Param('id') id: string) {
+  remove(@Param('id') id: string, @CurrentUser() user: any) {
     // Audit logs are typically immutable and not deletable, so this would return a 405 Method Not Allowed
-    return this.auditLogsService.remove(id);
+    const companyId = user?.isKaeyrosUser
+      ? null
+      : user?.company
+        ? (user.company._id || user.company).toString()
+        : null;
+    return this.auditLogsService.remove(id, companyId);
   }
 }

@@ -15,6 +15,8 @@ export interface ProxyOptions {
   headers?: Record<string, string>;
   /** Timeout in milliseconds */
   timeout?: number;
+  /** Axios responseType override (useful for downloads) */
+  responseType?: AxiosRequestConfig['responseType'];
 }
 
 export interface ProxyResult {
@@ -62,17 +64,15 @@ export async function proxyRequest(
     // Get ID from dynamic route params
     const params = context?.params ? await context.params : undefined;
     const id = params?.id;
-    console.warn("request goes")
 
     // Build backend URL
     let backendUrl = options.backendPath || basePath;
-    if (id) {
+    if (id && !options.backendPath) {
       backendUrl = `${backendUrl}/${id}`;
     }
 
     // Forward query parameters
     const url = new URL(request.url);
-    console.warn("url, ooooooooooooo")
     const queryString = url.searchParams.toString();
     if (queryString) {
       backendUrl = `${backendUrl}?${queryString}`;
@@ -96,25 +96,53 @@ export async function proxyRequest(
       }
     }
 
+    const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
+
     // Build axios config
+    const headers: Record<string, string> = {
+      ...(authHeader && { Authorization: authHeader }),
+      ...options.headers,
+    };
+
+    if (!isFormData) {
+      headers['Content-Type'] = 'application/json';
+    }
+
     const config: AxiosRequestConfig = {
       method,
       url: `${BACKEND_URL}${backendUrl}`,
       timeout: options.timeout || 30000,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(authHeader && { Authorization: authHeader }),
-        ...options.headers,
-      },
+      headers,
+      responseType: options.responseType,
     };
 
     if (body !== undefined) {
       // Attach body as data for non-GET requests; Axios accepts various body types (JSON, FormData, etc.)
-      (config as AxiosRequestConfig).data = body;
+      config.data = body as AxiosRequestConfig['data'];
     }
 
     // Make request to backend
     const response = await axios(config);
+
+    const contentType = response.headers?.['content-type'] || '';
+    const isJson = contentType.includes('application/json');
+    const isBinary = options.responseType === 'arraybuffer' || options.responseType === 'stream' || !isJson;
+
+    if (isBinary) {
+      const responseHeaders = new Headers();
+      if (contentType) {
+        responseHeaders.set('Content-Type', contentType);
+      }
+      const disposition = response.headers?.['content-disposition'];
+      if (disposition) {
+        responseHeaders.set('Content-Disposition', disposition);
+      }
+
+      return new NextResponse(response.data, {
+        status: response.status,
+        headers: responseHeaders,
+      });
+    }
 
     // Transform response if needed
     let responseData = response.data;

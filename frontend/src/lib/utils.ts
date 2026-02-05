@@ -5,7 +5,7 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 
 export async function fetchAPI<T>(
   endpoint: string,

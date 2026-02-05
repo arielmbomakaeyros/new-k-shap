@@ -4,7 +4,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { Disbursement } from '../../database/schemas/disbursement.schema';
 import {
   DisbursementStatus,
@@ -37,7 +37,7 @@ export class DisbursementsService {
     const disbursementData = {
       ...createDisbursementDto,
       createdBy: userId,
-      company: companyId,
+      company: companyId ? new Types.ObjectId(companyId) : undefined,
       status: DisbursementStatus.DRAFT,
       statusTimeline: {
         draft: new Date(),
@@ -62,7 +62,7 @@ export class DisbursementsService {
     const query: any = {};
 
     if (companyId) {
-      query.company = companyId;
+      query.company = new Types.ObjectId(companyId);
     }
 
     if (search) {
@@ -77,11 +77,11 @@ export class DisbursementsService {
     }
 
     if (department) {
-      query.department = department;
+      query.department = new Types.ObjectId(department);
     }
 
     if (beneficiary) {
-      query.beneficiary = beneficiary;
+      query.beneficiary = new Types.ObjectId(beneficiary);
     }
 
     const skip = (page - 1) * limit;
@@ -89,7 +89,7 @@ export class DisbursementsService {
 
     const [data, total] = await Promise.all([
       this.disbursementModel
-        .find(query)
+        .find(query as any)
         .sort(sort)
         .skip(skip)
         .limit(limit)
@@ -98,7 +98,7 @@ export class DisbursementsService {
         .populate('office')
         .populate('disbursementType')
         .exec(),
-      this.disbursementModel.countDocuments(query),
+      this.disbursementModel.countDocuments(query as any),
     ]);
 
     return {
@@ -112,9 +112,12 @@ export class DisbursementsService {
     };
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, companyId?: string) {
     const disbursement = await this.disbursementModel
-      .findById(id)
+      .findOne({
+        _id: new Types.ObjectId(id),
+        ...(companyId ? { company: new Types.ObjectId(companyId) } : {}),
+      } as any)
       .populate('beneficiary')
       .populate('department')
       .populate('office')
@@ -128,14 +131,17 @@ export class DisbursementsService {
     return disbursement;
   }
 
-  async update(id: string, updateDisbursementDto: any, userId?: string) {
+  async update(id: string, updateDisbursementDto: any, userId?: string, companyId?: string) {
     const updateData = {
       ...updateDisbursementDto,
       updatedBy: userId,
     };
 
-    const disbursement = await this.disbursementModel.findByIdAndUpdate(
-      id,
+    const disbursement = await this.disbursementModel.findOneAndUpdate(
+      {
+        _id: new Types.ObjectId(id),
+        ...(companyId ? { company: new Types.ObjectId(companyId) } : {}),
+      } as any,
       updateData,
       { new: true },
     );
@@ -148,8 +154,11 @@ export class DisbursementsService {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async remove(id: string, userId?: string) {
-    const disbursement = await this.disbursementModel.findByIdAndDelete(id);
+  async remove(id: string, userId?: string, companyId?: string) {
+    const disbursement = await this.disbursementModel.findOneAndDelete({
+      _id: new Types.ObjectId(id),
+      ...(companyId ? { company: new Types.ObjectId(companyId) } : {}),
+    } as any);
 
     if (!disbursement) {
       throw new NotFoundException(`Disbursement with ID ${id} not found`);
@@ -158,8 +167,11 @@ export class DisbursementsService {
     return { success: true, message: 'Disbursement deleted successfully' };
   }
 
-  async submit(id: string, userId?: string) {
-    const disbursement = await this.disbursementModel.findById(id);
+  async submit(id: string, userId?: string, companyId?: string) {
+    const disbursement = await this.disbursementModel.findOne({
+      _id: new Types.ObjectId(id),
+      ...(companyId ? { company: new Types.ObjectId(companyId) } : {}),
+    } as any);
 
     if (!disbursement) {
       throw new NotFoundException(`Disbursement with ID ${id} not found`);
@@ -198,8 +210,11 @@ export class DisbursementsService {
     return disbursement.save();
   }
 
-  async approve(id: string, userId?: string, notes?: string) {
-    const disbursement = await this.disbursementModel.findById(id);
+  async approve(id: string, userId?: string, notes?: string, companyId?: string) {
+    const disbursement = await this.disbursementModel.findOne({
+      _id: new Types.ObjectId(id),
+      ...(companyId ? { company: new Types.ObjectId(companyId) } : {}),
+    } as any);
 
     if (!disbursement) {
       throw new NotFoundException(`Disbursement with ID ${id} not found`);
@@ -285,8 +300,11 @@ export class DisbursementsService {
     return disbursement.save();
   }
 
-  async reject(id: string, userId?: string, reason?: string) {
-    const disbursement = await this.disbursementModel.findById(id);
+  async reject(id: string, userId?: string, reason?: string, companyId?: string) {
+    const disbursement = await this.disbursementModel.findOne({
+      _id: new Types.ObjectId(id),
+      ...(companyId ? { company: new Types.ObjectId(companyId) } : {}),
+    } as any);
 
     if (!disbursement) {
       throw new NotFoundException(`Disbursement with ID ${id} not found`);
@@ -327,8 +345,11 @@ export class DisbursementsService {
     return disbursement.save();
   }
 
-  async cancel(id: string, userId?: string, reason?: string) {
-    const disbursement = await this.disbursementModel.findById(id);
+  async cancel(id: string, userId?: string, reason?: string, companyId?: string) {
+    const disbursement = await this.disbursementModel.findOne({
+      _id: new Types.ObjectId(id),
+      ...(companyId ? { company: new Types.ObjectId(companyId) } : {}),
+    } as any);
 
     if (!disbursement) {
       throw new NotFoundException(`Disbursement with ID ${id} not found`);

@@ -39,10 +39,12 @@ export function CompaniesTable({
         return 'bg-green-100 text-green-800';
       case 'suspended':
         return 'bg-red-100 text-red-800';
-      case 'inactive':
-        return 'bg-gray-100 text-gray-800';
+      case 'trial':
+        return 'bg-blue-100 text-blue-800';
       case 'expired':
         return 'bg-yellow-100 text-yellow-800';
+      case 'deleted':
+        return 'bg-gray-100 text-gray-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -100,8 +102,9 @@ export function CompaniesTable({
                 >
                   <option value="active">Active</option>
                   <option value="suspended">Suspended</option>
-                  <option value="inactive">Inactive</option>
+                  <option value="trial">Trial</option>
                   <option value="expired">Expired</option>
+                  <option value="deleted">Deleted</option>
                 </select>
               </td>
               <td className="px-4 py-3 text-sm">{company.usersCount}</td>

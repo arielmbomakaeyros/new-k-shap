@@ -2,7 +2,7 @@ import { BaseService } from './base.service';
 import type { QueryParams, Company, CreateCompanyDto, UpdateCompanyDto } from './types';
 
 export interface CompanyFilters extends QueryParams {
-  subscriptionStatus?: 'active' | 'inactive' | 'suspended' | 'expired';
+  subscriptionStatus?: 'active' | 'suspended' | 'trial' | 'expired' | 'deleted';
   industry?: string;
   country?: string;
 }

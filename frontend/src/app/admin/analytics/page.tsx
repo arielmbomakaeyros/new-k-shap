@@ -4,78 +4,118 @@ import { AdminLayout } from '@/src/components/admin/AdminLayout';
 import { ProtectedRoute } from '@/src/components/ProtectedRoute';
 import { useTranslation } from '@/node_modules/react-i18next';
 import { formatPrice } from '@/src/lib/format';
+import { useKaeyrosStats } from '@/src/hooks/queries/useKaeyros';
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, BarChart, Bar, Legend } from 'recharts';
 
 function AnalyticsContent() {
   const { t } = useTranslation();
+  const { data: stats, isLoading, error } = useKaeyrosStats();
+
+  if (isLoading) {
+    return (
+      <AdminLayout>
+        <div className="flex items-center justify-center p-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <span className="ml-2 text-muted-foreground">{t('common.loading', { defaultValue: 'Loading...' })}</span>
+        </div>
+      </AdminLayout>
+    );
+  }
+
+  if (error || !stats) {
+    return (
+      <AdminLayout>
+        <div className="rounded-lg border border-destructive bg-destructive/10 p-6 text-center">
+          <p className="text-destructive">{t('analytics.loadFailed', { defaultValue: 'Failed to load analytics.' })}</p>
+        </div>
+      </AdminLayout>
+    );
+  }
+
+  const monthly = stats.monthly || [];
 
   return (
     <AdminLayout>
       <div className="space-y-8">
-        {/* Header */}
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Analytics</h1>
-          <p className="mt-2 text-muted-foreground">View platform usage and financial metrics</p>
+          <h1 className="text-3xl font-bold text-foreground">{t('analytics.title', { defaultValue: 'Analytics' })}</h1>
+          <p className="mt-2 text-muted-foreground">{t('analytics.subtitle', { defaultValue: 'View platform usage and financial metrics' })}</p>
         </div>
 
-        {/* Key Metrics */}
         <div className="grid gap-4 md:grid-cols-3">
           <div className="rounded-lg border border-border bg-card p-6">
-            <p className="text-sm text-muted-foreground">Total Transactions</p>
-            <p className="mt-2 text-3xl font-bold text-foreground">12,543</p>
-            <p className="mt-2 text-xs text-green-600">↑ 12% from last month</p>
+            <p className="text-sm text-muted-foreground">{t('analytics.totalCompanies', { defaultValue: 'Total Companies' })}</p>
+            <p className="mt-2 text-3xl font-bold text-foreground">{stats.totals.totalCompanies}</p>
+            <p className="mt-2 text-xs text-green-600">{t('analytics.newCompanies', { defaultValue: 'Δ {{value}}% vs previous 30d', value: stats.trends.newCompaniesChange.toFixed(1) })}</p>
           </div>
           <div className="rounded-lg border border-border bg-card p-6">
-            <p className="text-sm text-muted-foreground">Total Disbursements</p>
-            <p className="mt-2 text-3xl font-bold text-foreground">{formatPrice(325200000)}</p>
-            <p className="mt-2 text-xs text-green-600">↑ 8% from last month</p>
+            <p className="text-sm text-muted-foreground">{t('analytics.totalDisbursements', { defaultValue: 'Total Disbursements' })}</p>
+            <p className="mt-2 text-3xl font-bold text-foreground">{formatPrice(stats.totals.disbursementAmount)}</p>
+            <p className="mt-2 text-xs text-green-600">{t('analytics.disbursementChange', { defaultValue: 'Δ {{value}}% vs previous 30d', value: stats.trends.disbursementChange.toFixed(1) })}</p>
           </div>
           <div className="rounded-lg border border-border bg-card p-6">
-            <p className="text-sm text-muted-foreground">Avg. Response Time</p>
-            <p className="mt-2 text-3xl font-bold text-foreground">2.3s</p>
-            <p className="mt-2 text-xs text-green-600">↑ 5% improvement</p>
+            <p className="text-sm text-muted-foreground">{t('analytics.totalCollections', { defaultValue: 'Total Collections' })}</p>
+            <p className="mt-2 text-3xl font-bold text-foreground">{formatPrice(stats.totals.collectionAmount)}</p>
+            <p className="mt-2 text-xs text-green-600">{t('analytics.collectionChange', { defaultValue: 'Δ {{value}}% vs previous 30d', value: stats.trends.collectionChange.toFixed(1) })}</p>
           </div>
         </div>
 
-        {/* Charts Placeholder */}
         <div className="grid gap-8 lg:grid-cols-2">
           <div className="rounded-lg border border-border bg-card p-6">
-            <h2 className="text-lg font-semibold text-foreground">Revenue Trend</h2>
-            <div className="mt-4 flex h-64 items-center justify-center bg-muted/50 rounded text-muted-foreground">
-              <p className="text-center">
-                Chart component<br/>
-                (Recharts integration)
-              </p>
+            <h2 className="text-lg font-semibold text-foreground">{t('analytics.newCompanies', { defaultValue: 'New Companies (Last 6 Months)' })}</h2>
+            <div className="mt-4 h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={monthly}>
+                  <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+                  <YAxis tick={{ fontSize: 12 }} />
+                  <Tooltip />
+                  <Line type="monotone" dataKey="newCompanies" stroke="#2563eb" strokeWidth={2} />
+                </LineChart>
+              </ResponsiveContainer>
             </div>
           </div>
 
           <div className="rounded-lg border border-border bg-card p-6">
-            <h2 className="text-lg font-semibold text-foreground">Active Companies</h2>
-            <div className="mt-4 flex h-64 items-center justify-center bg-muted/50 rounded text-muted-foreground">
-              <p className="text-center">
-                Chart component<br/>
-                (Recharts integration)
-              </p>
+            <h2 className="text-lg font-semibold text-foreground">{t('analytics.newUsers', { defaultValue: 'New Users (Last 6 Months)' })}</h2>
+            <div className="mt-4 h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={monthly}>
+                  <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+                  <YAxis tick={{ fontSize: 12 }} />
+                  <Tooltip />
+                  <Line type="monotone" dataKey="newUsers" stroke="#16a34a" strokeWidth={2} />
+                </LineChart>
+              </ResponsiveContainer>
             </div>
           </div>
         </div>
 
-        {/* Top Companies */}
         <div className="rounded-lg border border-border bg-card p-6">
-          <h2 className="text-lg font-semibold text-foreground">Top Companies by Revenue</h2>
+          <h2 className="text-lg font-semibold text-foreground">{t('analytics.disbursementVsCollections', { defaultValue: 'Disbursements vs Collections (Last 6 Months)' })}</h2>
+          <div className="mt-4 h-72">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={monthly}>
+                <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 12 }} />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="disbursements" fill="#1d4ed8" name={t('analytics.totalDisbursements', { defaultValue: 'Disbursements' })} />
+                <Bar dataKey="collections" fill="#0f766e" name={t('analytics.totalCollections', { defaultValue: 'Collections' })} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-border bg-card p-6">
+          <h2 className="text-lg font-semibold text-foreground">{t('analytics.topCompanies', { defaultValue: 'Top Companies by Disbursement' })}</h2>
           <div className="mt-4 space-y-3">
-            {[
-              { name: 'Tech Innovations', revenue: 27000000, users: 23 },
-              { name: 'Acme Corp', revenue: 19200000, users: 15 },
-              { name: 'Global Solutions', revenue: 16800000, users: 18 },
-              { name: 'Future Enterprises', revenue: 13200000, users: 12 },
-              { name: 'Innovation Hub', revenue: 10800000, users: 9 },
-            ].map((company, idx) => (
-              <div key={idx} className="flex items-center justify-between border-b border-border py-3 last:border-0">
+            {stats.topCompanies.map((company: any) => (
+              <div key={company.companyId} className="flex items-center justify-between border-b border-border py-3 last:border-0">
                 <div>
                   <p className="font-medium text-foreground">{company.name}</p>
-                  <p className="text-xs text-muted-foreground">{company.users} users</p>
+                  <p className="text-xs text-muted-foreground">{company.disbursementsCount} {t('analytics.transactions', { defaultValue: 'transactions' })}</p>
                 </div>
-                <p className="font-semibold text-foreground">{formatPrice(company.revenue)}</p>
+                <p className="font-semibold text-foreground">{formatPrice(company.disbursementsTotal)}</p>
               </div>
             ))}
           </div>

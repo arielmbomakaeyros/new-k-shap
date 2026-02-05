@@ -15,6 +15,8 @@ import { ThemeSwitcher } from '@/components/theme-switcher';
 const companyNavigation = [
   { name: 'Dashboard', href: '/company', icon: '📊' },
   { name: 'Users', href: '/company/users', icon: '👥' },
+  { name: 'Beneficiaries', href: '/company/beneficiaries', icon: '🧾' },
+  { name: 'Disbursement Types', href: '/company/disbursement-types', icon: '💳' },
   { name: 'Departments', href: '/company/departments', icon: '🏛️' },
   { name: 'Offices', href: '/company/offices', icon: '🏢' },
   { name: 'Roles & Permissions', href: '/company/roles', icon: '🔐' },

@@ -12,6 +12,7 @@ import type {
   UpdateCompanyInfoDto,
   UpdateWorkflowSettingsDto,
   UpdateEmailNotificationSettingsDto,
+  UpdateCompanyPreferencesDto,
 } from './settings.service';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 
@@ -125,5 +126,54 @@ export class SettingsController {
       companyId,
       updateDto,
     );
+  }
+
+  @Patch('company/preferences')
+  @RequirePermissions('settings:update')
+  @ApiOperation({ summary: 'Update company preferences (currency, payment methods, branding, channels)' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        defaultCurrency: { type: 'string' },
+        paymentMethods: { type: 'array', items: { type: 'string' } },
+        logoUrl: { type: 'string' },
+        primaryColor: { type: 'string' },
+        notificationChannels: {
+          type: 'object',
+          properties: {
+            email: { type: 'boolean' },
+            sms: { type: 'boolean' },
+            whatsapp: { type: 'boolean' },
+            inApp: { type: 'boolean' },
+          },
+        },
+        payoutSchedule: {
+          type: 'object',
+          properties: {
+            frequency: { type: 'string' },
+            dayOfMonth: { type: 'number' },
+            dayOfWeek: { type: 'string' },
+          },
+        },
+        approvalLimitsByRole: { type: 'object' },
+        officeSpendCaps: { type: 'object' },
+        defaultBeneficiaries: { type: 'array', items: { type: 'string' } },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Company preferences updated successfully.',
+  })
+  @ApiResponse({ status: 400, description: 'Bad Request.' })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  @ApiResponse({ status: 403, description: 'Forbidden.' })
+  async updateCompanyPreferences(
+    @Req() req: any,
+    @Body() updateDto: UpdateCompanyPreferencesDto,
+  ) {
+    const companyId = req.user?.company;
+    return this.settingsService.updateCompanyPreferences(companyId, updateDto);
   }
 }

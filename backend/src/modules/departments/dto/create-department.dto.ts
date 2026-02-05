@@ -27,4 +27,13 @@ export class CreateDepartmentDto {
   @IsString()
   @IsOptional()
   companyId?: string;
+
+  @ApiProperty({
+    description: 'User ID of the department head',
+    example: '507f1f77bcf86cd799439013',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  headId?: string;
 }

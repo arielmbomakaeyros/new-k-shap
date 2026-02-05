@@ -5,6 +5,7 @@ import { CreateCollectionDto, UpdateCollectionDto, PaymentType } from './dto';
 import { CollectionResponseDto } from '../../common/dto/collection-response.dto';
 import { SuccessResponseDto } from '../../common/dto/success-response.dto';
 import { PaginatedResponseDto, PaginationMetaDto } from '../../common/dto/paginated-response.dto';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 class PaginatedCollectionsResponseDto extends PaginatedResponseDto<CollectionResponseDto> {
   @ApiProperty({ type: [CollectionResponseDto] })
@@ -31,8 +32,9 @@ export class CollectionsController {
   @ApiResponse({ status: 400, description: 'Bad Request - Invalid input data.' })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
-  create(@Body() createCollectionDto: CreateCollectionDto) {
-    return this.collectionsService.create(createCollectionDto);
+  create(@Body() createCollectionDto: CreateCollectionDto, @CurrentUser() user: any) {
+    const companyId = user?.company ? (user.company._id || user.company).toString() : null;
+    return this.collectionsService.create(createCollectionDto, companyId);
   }
 
   @Get()
@@ -64,6 +66,7 @@ export class CollectionsController {
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
   findAll(
+    @CurrentUser() user: any,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
     @Query('sortBy') sortBy?: string,
@@ -84,7 +87,12 @@ export class CollectionsController {
     @Query('projectReference') projectReference?: string,
     @Query('contractReference') contractReference?: string,
   ) {
-    return this.collectionsService.findAll();
+    const companyId = user?.isKaeyrosUser
+      ? null
+      : user?.company
+        ? (user.company._id || user.company).toString()
+        : null;
+    return this.collectionsService.findAll(companyId);
   }
 
   @Get(':id')
@@ -98,8 +106,13 @@ export class CollectionsController {
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
   @ApiResponse({ status: 404, description: 'Collection not found.' })
-  findOne(@Param('id') id: string) {
-    return this.collectionsService.findOne(id);
+  findOne(@Param('id') id: string, @CurrentUser() user: any) {
+    const companyId = user?.isKaeyrosUser
+      ? null
+      : user?.company
+        ? (user.company._id || user.company).toString()
+        : null;
+    return this.collectionsService.findOne(id, companyId);
   }
 
   @Patch(':id')
@@ -115,8 +128,13 @@ export class CollectionsController {
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
   @ApiResponse({ status: 404, description: 'Collection not found.' })
-  update(@Param('id') id: string, @Body() updateCollectionDto: UpdateCollectionDto) {
-    return this.collectionsService.update(id, updateCollectionDto);
+  update(@Param('id') id: string, @Body() updateCollectionDto: UpdateCollectionDto, @CurrentUser() user: any) {
+    const companyId = user?.isKaeyrosUser
+      ? null
+      : user?.company
+        ? (user.company._id || user.company).toString()
+        : null;
+    return this.collectionsService.update(id, updateCollectionDto, companyId);
   }
 
   @Delete(':id')
@@ -130,7 +148,12 @@ export class CollectionsController {
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
   @ApiResponse({ status: 404, description: 'Collection not found.' })
-  remove(@Param('id') id: string) {
-    return this.collectionsService.remove(id);
+  remove(@Param('id') id: string, @CurrentUser() user: any) {
+    const companyId = user?.isKaeyrosUser
+      ? null
+      : user?.company
+        ? (user.company._id || user.company).toString()
+        : null;
+    return this.collectionsService.remove(id, companyId);
   }
 }

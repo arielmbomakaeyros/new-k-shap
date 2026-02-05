@@ -96,6 +96,16 @@ export const queryKeys = {
     detail: (id: string) => [...queryKeys.disbursementTypes.details(), id] as const,
   },
 
+
+  // Disbursement Templates
+  disbursementTemplates: {
+    all: ['disbursement-templates'] as const,
+    lists: () => [...queryKeys.disbursementTemplates.all, 'list'] as const,
+    list: () => [...queryKeys.disbursementTemplates.lists()] as const,
+    details: () => [...queryKeys.disbursementTemplates.all, 'detail'] as const,
+    detail: (id: string) => [...queryKeys.disbursementTemplates.details(), id] as const,
+  },
+
   // Collections
   collections: {
     all: ['collections'] as const,

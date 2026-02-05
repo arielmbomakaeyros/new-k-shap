@@ -1,10 +1,9 @@
-import React from "react"
+import React from "react";
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 // import { Analytics } from '@vercel/analytics/next';
-// import { RootProvider } from '@/components/providers/RootProvider';
 import './globals.css';
-import { RootProvider } from "../components/providers/RootProvider";
+import { RootProvider } from '@/src/components/providers/RootProvider';
 
 const _geist = Geist({ subsets: ['latin'] });
 const _geistMono = Geist_Mono({ subsets: ['latin'] });
