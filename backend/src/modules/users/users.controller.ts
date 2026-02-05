@@ -13,7 +13,10 @@ import {
   UseInterceptors,
   Req,
   ForbiddenException,
+  Res,
 } from '@nestjs/common';
+import type { Response } from 'express';
+import * as ExcelJS from 'exceljs';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiQuery, ApiProperty, ApiConsumes } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UsersService } from './users.service';
@@ -105,6 +108,108 @@ export class UsersController {
         isActive: isActive !== undefined ? isActive === 'true' : undefined,
       },
     );
+  }
+
+  @Get('template')
+  @RequirePermissions('user.create')
+  @ApiOperation({ summary: 'Download user import template (CSV)' })
+  @ApiResponse({ status: 200, description: 'Template generated successfully.' })
+  async downloadTemplate(
+    @CurrentUser() user: any,
+    @Query('format') format: string,
+    @Res() res: Response,
+  ) {
+    if (!user?.isKaeyrosUser && !user?.company) {
+      throw new ForbiddenException('Company context is required for this operation');
+    }
+
+    const normalizedFormat = (format || 'csv').toLowerCase();
+    const datePart = new Date().toISOString().slice(0, 10);
+
+    if (normalizedFormat === 'xlsx') {
+      const workbook = new ExcelJS.Workbook();
+      const sheet = workbook.addWorksheet('Users');
+      sheet.columns = [
+        { header: 'email', key: 'email', width: 28 },
+        { header: 'firstName', key: 'firstName', width: 16 },
+        { header: 'lastName', key: 'lastName', width: 16 },
+        { header: 'phone', key: 'phone', width: 16 },
+        { header: 'systemRoles', key: 'systemRoles', width: 24 },
+        { header: 'roles', key: 'roles', width: 24 },
+        { header: 'departments', key: 'departments', width: 24 },
+        { header: 'offices', key: 'offices', width: 24 },
+      ];
+      sheet.addRow({
+        email: 'john.doe@example.com',
+        firstName: 'John',
+        lastName: 'Doe',
+        phone: '+237600000000',
+        systemRoles: 'company_super_admin',
+        roles: '',
+        departments: '',
+        offices: '',
+      });
+      sheet.getRow(1).font = { bold: true };
+      const buffer = await workbook.xlsx.writeBuffer();
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="users-template-${datePart}.xlsx"`,
+      );
+      return res.send(Buffer.from(buffer as any));
+    }
+
+    const headers = [
+      'email',
+      'firstName',
+      'lastName',
+      'phone',
+      'systemRoles',
+      'roles',
+      'departments',
+      'offices',
+    ];
+    const sample = [
+      'john.doe@example.com',
+      'John',
+      'Doe',
+      '+237600000000',
+      'company_super_admin',
+      '',
+      '',
+      '',
+    ];
+
+    const escape = (value: string) => {
+      if (value.includes('"') || value.includes(',') || value.includes('\n')) {
+        return `"${value.replace(/"/g, '""')}"`;
+      }
+      return value;
+    };
+
+    const csv = [
+      headers.map(escape).join(','),
+      sample.map(escape).join(','),
+    ].join('\n');
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="users-template-${datePart}.csv"`,
+    );
+    return res.send(csv);
+  }
+
+  @Post('bulk-import')
+  @RequirePermissions('user.create')
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Bulk import users from CSV/XLSX' })
+  async bulkImport(
+    @UploadedFile() file: Express.Multer.File,
+    @CurrentUser() user: any,
+  ) {
+    return this.usersService.bulkImport(file, user);
   }
 
   @Get(':id')

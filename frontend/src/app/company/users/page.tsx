@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { CompanyLayout } from "@/src/components/company/CompanyLayout";
 import { ProtectedRoute } from "@/src/components/ProtectedRoute";
 import { Button } from "@/components/ui/button";
@@ -39,9 +40,11 @@ import {
 } from "@/src/hooks/queries";
 import { useUpdateUserAvatar } from "@/src/hooks/queries/useUsers";
 import type { User } from "@/src/services";
+import { usersService } from "@/src/services";
 
 function CompanyUsersContent() {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterRole, setFilterRole] = useState("all");
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -68,6 +71,8 @@ function CompanyUsersContent() {
       variant?: "success" | "error";
     }[]
   >([]);
+  const [isImporting, setIsImporting] = useState(false);
+  const importInputRef = useRef<HTMLInputElement | null>(null);
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -76,6 +81,67 @@ function CompanyUsersContent() {
     roleId: "",
     departmentId: "",
   });
+
+  const handleDownloadTemplate = async (format: "csv" | "xlsx") => {
+    const blob = await usersService.downloadTemplate(format);
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `users-template-${new Date().toISOString().slice(0, 10)}.${format}`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  };
+
+  const handleImportUsers = async (file: File) => {
+    setIsImporting(true);
+    try {
+      const response = await usersService.bulkImport(file);
+      const data = response.data;
+      setUploadToasts((prev) => [
+        {
+          id: `${Date.now()}`,
+          title: t("users.importSuccess", {
+            defaultValue: "Import completed",
+          }),
+          description: t("users.importSummary", {
+            defaultValue: "{{created}} created, {{failed}} failed",
+            created: data.createdCount,
+            failed: data.failedCount,
+          }),
+          variant: data.failedCount > 0 ? "error" : "success",
+        },
+        ...prev,
+      ]);
+      if (data.failedCount > 0 && data.errors?.length) {
+        setErrorModal({
+          title: t("users.importErrors", {
+            defaultValue: "Import errors",
+          }),
+          message: t("users.importErrorsMessage", {
+            defaultValue: "Some rows could not be imported.",
+          }),
+          details: data.errors.map(
+            (err) => `Row ${err.row}${err.email ? ` (${err.email})` : ""}: ${err.message}`,
+          ),
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ["users", "list"] });
+    } catch (error) {
+      const { message, details } = getErrorDetails(
+        error,
+        t("users.importFailed", { defaultValue: "Failed to import users." }),
+      );
+      setErrorModal({
+        title: t("users.importFailed", { defaultValue: "Import failed" }),
+        message,
+        details,
+      });
+    } finally {
+      setIsImporting(false);
+    }
+  };
 
   // Fetch data from API
   const { data: usersData, isLoading, error } = useUsers();
@@ -514,12 +580,46 @@ function CompanyUsersContent() {
               })}
             </p>
           </div>
-          <Button
-            onClick={handleOpenCreate}
-            className="btn-3d gradient-bg-primary text-white"
-          >
-            {t("users.invite", { defaultValue: "+ Invite User" })}
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={() => handleDownloadTemplate("csv")}>
+              {t("users.downloadTemplateCsv", {
+                defaultValue: "Template CSV",
+              })}
+            </Button>
+            <Button variant="outline" onClick={() => handleDownloadTemplate("xlsx")}>
+              {t("users.downloadTemplateXlsx", {
+                defaultValue: "Template XLSX",
+              })}
+            </Button>
+            <input
+              ref={importInputRef}
+              type="file"
+              accept=".csv,.xlsx"
+              className="hidden"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) {
+                  void handleImportUsers(file);
+                }
+                event.currentTarget.value = "";
+              }}
+            />
+            <Button
+              variant="outline"
+              disabled={isImporting}
+              onClick={() => importInputRef.current?.click()}
+            >
+              {isImporting
+                ? t("users.importing", { defaultValue: "Importing..." })
+                : t("users.importUsers", { defaultValue: "Import Users" })}
+            </Button>
+            <Button
+              onClick={handleOpenCreate}
+              className="btn-3d gradient-bg-primary text-white"
+            >
+              {t("users.invite", { defaultValue: "+ Invite User" })}
+            </Button>
+          </div>
         </div>
 
         {/* Filters */}

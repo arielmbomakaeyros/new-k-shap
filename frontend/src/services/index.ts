@@ -9,6 +9,7 @@ export { permissionsService } from './permissions.service';
 export { beneficiariesService } from './beneficiaries.service';
 export { disbursementsService } from './disbursements.service';
 export { disbursementTypesService } from './disbursement-types.service';
+export { paymentMethodsService } from './payment-methods.service';
 export { disbursementTemplatesService } from './disbursement-templates.service';
 export { collectionsService } from './collections.service';
 export { notificationsService } from './notifications.service';

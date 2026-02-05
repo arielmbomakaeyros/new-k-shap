@@ -65,6 +65,32 @@ class UsersService extends BaseService<User, CreateUserDto, UpdateUserDto, UserF
   async toggleActive(id: string, isActive: boolean): Promise<ApiResponse<User>> {
     return api.patch<ApiResponse<User>>(`${this.basePath}/${id}`, { isActive });
   }
+
+  /**
+   * Download user import template
+   */
+  async downloadTemplate(format: 'csv' | 'xlsx' = 'csv'): Promise<Blob> {
+    const response = await axiosClient.get(`${this.basePath}/template`, {
+      params: { format },
+      responseType: 'blob',
+    });
+    return response.data;
+  }
+
+  /**
+   * Bulk import users from CSV/XLSX
+   */
+  async bulkImport(file: File): Promise<ApiResponse<{
+    createdCount: number;
+    failedCount: number;
+    errors: { row: number; email?: string; message: string }[];
+  }>> {
+    return uploadMultipart<ApiResponse<{
+      createdCount: number;
+      failedCount: number;
+      errors: { row: number; email?: string; message: string }[];
+    }>>(`${this.basePath}/bulk-import`, file);
+  }
 }
 
 export const usersService = new UsersService();

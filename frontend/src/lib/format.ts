@@ -2,10 +2,11 @@
  * Format a number as FCFA currency
  * Uses French-Cameroon locale for proper formatting
  */
-export const formatPrice = (price: number): string => {
+export const formatPrice = (price: number, currency: string = 'XAF'): string => {
+  const normalizedCurrency = currency === 'FCFA' ? 'XAF' : currency;
   return new Intl.NumberFormat('fr-CM', {
     style: 'currency',
-    currency: 'XAF',
+    currency: normalizedCurrency,
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(price);

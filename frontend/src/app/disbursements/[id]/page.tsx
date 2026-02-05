@@ -24,34 +24,20 @@ function DisbursementDetailContent() {
   const id = params.id as string;
   const { data: disbursement, isLoading, error } = useDisbursement(id);
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        <span className="ml-2 text-muted-foreground">{t('common.loading', { defaultValue: 'Loading...' })}</span>
-      </div>
-    );
-  }
 
-  if (error || !disbursement) {
-    return (
-      <div className="rounded-lg border border-destructive bg-destructive/10 p-6 text-center">
-        <p className="text-destructive">{t('disbursements.loadFailed', { defaultValue: 'Failed to load disbursement.' })}</p>
-      </div>
-    );
-  }
 
   const canApprove = ['pending_dept_head', 'pending_validator', 'pending_cashier'].includes(
-    disbursement.status
+    disbursement?.status || ''
   );
   const stage =
-    disbursement.status === 'pending_validator'
+    disbursement?.status === 'pending_validator'
       ? 'validator'
-      : disbursement.status === 'pending_cashier'
+      : disbursement?.status === 'pending_cashier'
         ? 'cashier'
         : 'department_head';
 
-  const attachments = disbursement.attachments || [];
+  const attachments = disbursement?.attachments || [];
+  const invoices = disbursement?.invoices || [];
 
   useEffect(() => {
     if (!canApprove) return;
@@ -68,6 +54,23 @@ function DisbursementDetailContent() {
     const dataUrl = await QRCode.toDataURL(url, { margin: 2, width: 220 });
     setQrUrl(dataUrl);
   };
+
+    if (isLoading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <span className="ml-2 text-muted-foreground">{t('common.loading', { defaultValue: 'Loading...' })}</span>
+      </div>
+    );
+  }
+
+  if (error || !disbursement) {
+    return (
+      <div className="rounded-lg border border-destructive bg-destructive/10 p-6 text-center">
+        <p className="text-destructive">{t('disbursements.loadFailed', { defaultValue: 'Failed to load disbursement.' })}</p>
+      </div>
+    );
+  }
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -204,6 +207,21 @@ function DisbursementDetailContent() {
                 {attachments.map((url: string, idx: number) => (
                   <a key={idx} href={url} className="block text-sm text-primary underline" target="_blank" rel="noreferrer">
                     {t('common.attachment', { defaultValue: 'Attachment' })} {idx + 1}
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-lg border border-border bg-card p-6">
+            <h3 className="font-semibold text-foreground mb-4">{t('disbursements.invoices', { defaultValue: 'Invoices' })}</h3>
+            {invoices.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{t('disbursements.noInvoices', { defaultValue: 'No invoices yet.' })}</p>
+            ) : (
+              <div className="space-y-2">
+                {invoices.map((url: string, idx: number) => (
+                  <a key={idx} href={url} className="block text-sm text-primary underline" target="_blank" rel="noreferrer">
+                    {t('disbursements.invoice', { defaultValue: 'Invoice' })} {idx + 1}
                   </a>
                 ))}
               </div>

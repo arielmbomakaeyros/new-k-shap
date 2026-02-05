@@ -96,6 +96,15 @@ export const queryKeys = {
     detail: (id: string) => [...queryKeys.disbursementTypes.details(), id] as const,
   },
 
+  // Payment Methods
+  paymentMethods: {
+    all: ['payment-methods'] as const,
+    lists: () => [...queryKeys.paymentMethods.all, 'list'] as const,
+    list: (filters?: QueryParams) => [...queryKeys.paymentMethods.lists(), filters] as const,
+    details: () => [...queryKeys.paymentMethods.all, 'detail'] as const,
+    detail: (id: string) => [...queryKeys.paymentMethods.details(), id] as const,
+  },
+
 
   // Disbursement Templates
   disbursementTemplates: {

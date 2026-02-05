@@ -4,11 +4,13 @@ import { Company, CompanySchema } from '../../database/schemas/company.schema';
 import { CompaniesService } from './companies.service';
 import { CompaniesController } from './companies.controller';
 import { RolesModule } from '../roles/roles.module';
+import { PaymentMethodsModule } from '../payment-methods/payment-methods.module';
 
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: Company.name, schema: CompanySchema }]),
     RolesModule,
+    PaymentMethodsModule,
   ],
   controllers: [CompaniesController],
   providers: [CompaniesService],

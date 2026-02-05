@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
+import * as ExcelJS from 'exceljs';
 import { Disbursement } from '../../database/schemas/disbursement.schema';
 import {
   DisbursementStatus,
@@ -19,7 +20,19 @@ interface FindAllOptions {
   search?: string;
   status?: string;
   department?: string;
+  office?: string;
   beneficiary?: string;
+  disbursementType?: string;
+  paymentMethod?: string;
+  priority?: string;
+  isUrgent?: string;
+  isRetroactive?: string;
+  isCompleted?: string;
+  minAmount?: number;
+  maxAmount?: number;
+  startDate?: string;
+  endDate?: string;
+  tags?: string;
 }
 
 @Injectable()
@@ -29,13 +42,39 @@ export class DisbursementsService {
     private disbursementModel: Model<Disbursement>,
   ) {}
 
+  private async generateReferenceNumber(): Promise<string> {
+    const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const randomPart = Math.random().toString(36).slice(2, 8).toUpperCase();
+      const referenceNumber = `DISB-${datePart}-${randomPart}`;
+      const exists = await this.disbursementModel.exists({ referenceNumber });
+      if (!exists) return referenceNumber;
+    }
+    throw new BadRequestException('Failed to generate disbursement reference number');
+  }
+
+  private parseObjectIdList(value: string | undefined, fieldName: string) {
+    if (!value) return [];
+    const items = value.split(',').map((item) => item.trim()).filter(Boolean);
+    const ids = items.map((item) => {
+      if (!Types.ObjectId.isValid(item)) {
+        throw new BadRequestException(`Invalid ${fieldName} id`);
+      }
+      return new Types.ObjectId(item);
+    });
+    return ids;
+  }
+
   async create(
     createDisbursementDto: any,
     userId?: string,
     companyId?: string,
   ) {
+    const referenceNumber =
+      createDisbursementDto.referenceNumber || (await this.generateReferenceNumber());
     const disbursementData = {
       ...createDisbursementDto,
+      referenceNumber,
       createdBy: userId,
       company: companyId ? new Types.ObjectId(companyId) : undefined,
       status: DisbursementStatus.DRAFT,
@@ -56,7 +95,19 @@ export class DisbursementsService {
       search,
       status,
       department,
+      office,
       beneficiary,
+      disbursementType,
+      paymentMethod,
+      priority,
+      isUrgent,
+      isRetroactive,
+      isCompleted,
+      minAmount,
+      maxAmount,
+      startDate,
+      endDate,
+      tags,
     } = options || {};
 
     const query: any = {};
@@ -73,15 +124,69 @@ export class DisbursementsService {
     }
 
     if (status) {
-      query.status = status;
+      const statuses = status.split(',').map((s) => s.trim()).filter(Boolean);
+      query.status = statuses.length > 1 ? { $in: statuses } : statuses[0];
     }
 
     if (department) {
-      query.department = new Types.ObjectId(department);
+      const ids = this.parseObjectIdList(department, 'department');
+      query.department = ids.length > 1 ? { $in: ids } : ids[0];
+    }
+
+    if (office) {
+      const ids = this.parseObjectIdList(office, 'office');
+      query.office = ids.length > 1 ? { $in: ids } : ids[0];
     }
 
     if (beneficiary) {
-      query.beneficiary = new Types.ObjectId(beneficiary);
+      const ids = this.parseObjectIdList(beneficiary, 'beneficiary');
+      query.beneficiary = ids.length > 1 ? { $in: ids } : ids[0];
+    }
+
+    if (disbursementType) {
+      const ids = this.parseObjectIdList(disbursementType, 'disbursementType');
+      query.disbursementType = ids.length > 1 ? { $in: ids } : ids[0];
+    }
+
+    if (paymentMethod) {
+      const methods = paymentMethod.split(',').map((m) => m.trim()).filter(Boolean);
+      query.paymentMethod = methods.length > 1 ? { $in: methods } : methods[0];
+    }
+
+    if (priority) {
+      const priorities = priority.split(',').map((p) => p.trim()).filter(Boolean);
+      query.priority = priorities.length > 1 ? { $in: priorities } : priorities[0];
+    }
+
+    if (isUrgent !== undefined) {
+      query.isUrgent = isUrgent === 'true';
+    }
+
+    if (isRetroactive !== undefined) {
+      query.isRetroactive = isRetroactive === 'true';
+    }
+
+    if (isCompleted !== undefined) {
+      query.isCompleted = isCompleted === 'true';
+    }
+
+    if (minAmount !== undefined || maxAmount !== undefined) {
+      query.amount = {};
+      if (minAmount !== undefined) query.amount.$gte = Number(minAmount);
+      if (maxAmount !== undefined) query.amount.$lte = Number(maxAmount);
+    }
+
+    if (startDate || endDate) {
+      query.createdAt = {};
+      if (startDate) query.createdAt.$gte = new Date(startDate);
+      if (endDate) query.createdAt.$lte = new Date(endDate);
+    }
+
+    if (tags) {
+      const tagList = tags.split(',').map((t) => t.trim()).filter(Boolean);
+      if (tagList.length) {
+        query.tags = { $in: tagList };
+      }
     }
 
     const skip = (page - 1) * limit;
@@ -110,6 +215,181 @@ export class DisbursementsService {
         totalPages: Math.ceil(total / limit),
       },
     };
+  }
+
+  async exportCsv(companyId?: string, options?: FindAllOptions) {
+    const {
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+      search,
+      status,
+      department,
+      office,
+      beneficiary,
+      disbursementType,
+      paymentMethod,
+      priority,
+      isUrgent,
+      isRetroactive,
+      isCompleted,
+      minAmount,
+      maxAmount,
+      startDate,
+      endDate,
+      tags,
+    } = options || {};
+
+    const { data } = await this.findAll(companyId, {
+      page: 1,
+      limit: 100000,
+      sortBy,
+      sortOrder,
+      search,
+      status,
+      department,
+      office,
+      beneficiary,
+      disbursementType,
+      paymentMethod,
+      priority,
+      isUrgent,
+      isRetroactive,
+      isCompleted,
+      minAmount,
+      maxAmount,
+      startDate,
+      endDate,
+      tags,
+    });
+
+    const headers = [
+      'Reference Number',
+      'Description',
+      'Amount',
+      'Currency',
+      'Status',
+      'Payment Method',
+      'Priority',
+      'Beneficiary',
+      'Disbursement Type',
+      'Department',
+      'Office',
+      'Created At',
+    ];
+
+    const rows = (data || []).map((item: any) => [
+      item.referenceNumber || item._id,
+      item.description || '',
+      item.amount ?? '',
+      item.currency || '',
+      item.status || '',
+      item.paymentMethod || '',
+      item.priority || '',
+      item.beneficiary?.name || item.beneficiary?.email || '',
+      item.disbursementType?.name || '',
+      item.department?.name || '',
+      item.office?.name || '',
+      item.createdAt ? new Date(item.createdAt).toISOString() : '',
+    ]);
+
+    const escape = (value: any) => {
+      const str = value === null || value === undefined ? '' : String(value);
+      if (str.includes('"') || str.includes(',') || str.includes('\n')) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+
+    const csvLines = [
+      headers.map(escape).join(','),
+      ...rows.map((row) => row.map(escape).join(',')),
+    ];
+
+    return csvLines.join('\n');
+  }
+
+  async exportXlsx(companyId?: string, options?: FindAllOptions) {
+    const {
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+      search,
+      status,
+      department,
+      office,
+      beneficiary,
+      disbursementType,
+      paymentMethod,
+      priority,
+      isUrgent,
+      isRetroactive,
+      isCompleted,
+      minAmount,
+      maxAmount,
+      startDate,
+      endDate,
+      tags,
+    } = options || {};
+
+    const { data } = await this.findAll(companyId, {
+      page: 1,
+      limit: 100000,
+      sortBy,
+      sortOrder,
+      search,
+      status,
+      department,
+      office,
+      beneficiary,
+      disbursementType,
+      paymentMethod,
+      priority,
+      isUrgent,
+      isRetroactive,
+      isCompleted,
+      minAmount,
+      maxAmount,
+      startDate,
+      endDate,
+      tags,
+    });
+
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('Disbursements');
+
+    sheet.columns = [
+      { header: 'Reference Number', key: 'referenceNumber', width: 20 },
+      { header: 'Description', key: 'description', width: 32 },
+      { header: 'Amount', key: 'amount', width: 14 },
+      { header: 'Currency', key: 'currency', width: 10 },
+      { header: 'Status', key: 'status', width: 16 },
+      { header: 'Payment Method', key: 'paymentMethod', width: 16 },
+      { header: 'Priority', key: 'priority', width: 12 },
+      { header: 'Beneficiary', key: 'beneficiary', width: 24 },
+      { header: 'Disbursement Type', key: 'disbursementType', width: 24 },
+      { header: 'Department', key: 'department', width: 20 },
+      { header: 'Office', key: 'office', width: 18 },
+      { header: 'Created At', key: 'createdAt', width: 20 },
+    ];
+
+    (data || []).forEach((item: any) => {
+      sheet.addRow({
+        referenceNumber: item.referenceNumber || item._id,
+        description: item.description || '',
+        amount: item.amount ?? '',
+        currency: item.currency || '',
+        status: item.status || '',
+        paymentMethod: item.paymentMethod || '',
+        priority: item.priority || '',
+        beneficiary: item.beneficiary?.name || item.beneficiary?.email || '',
+        disbursementType: item.disbursementType?.name || '',
+        department: item.department?.name || '',
+        office: item.office?.name || '',
+        createdAt: item.createdAt ? new Date(item.createdAt).toISOString() : '',
+      });
+    });
+
+    sheet.getRow(1).font = { bold: true };
+    return workbook.xlsx.writeBuffer();
   }
 
   async findOne(id: string, companyId?: string) {

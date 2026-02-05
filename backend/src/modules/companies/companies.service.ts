@@ -3,12 +3,14 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Company } from '../../database/schemas/company.schema';
 import { RolesService } from '../roles/roles.service';
+import { PaymentMethodsService } from '../payment-methods/payment-methods.service';
 
 @Injectable()
 export class CompaniesService {
   constructor(
     @InjectModel(Company.name) private companyModel: Model<Company>,
     private rolesService: RolesService,
+    private paymentMethodsService: PaymentMethodsService,
   ) {}
 
   private normalizePrefix(value: string) {
@@ -39,6 +41,7 @@ export class CompaniesService {
     });
     const saved = await createdCompany.save();
     await this.rolesService.createDefaultCompanyRoles(saved._id.toString());
+    await this.paymentMethodsService.createDefaultCompanyPaymentMethods(saved._id.toString());
     return saved;
   }
 

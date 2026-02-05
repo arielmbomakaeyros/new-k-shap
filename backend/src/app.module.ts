@@ -24,6 +24,7 @@ import { CollectionsModule } from './modules/collections/collections.module';
 import { DisbursementTypesModule } from './modules/disbursement-types/disbursement-types.module';
 import { DisbursementTemplatesModule } from './modules/disbursement-templates/disbursement-templates.module';
 import { BeneficiariesModule } from './modules/beneficiaries/beneficiaries.module';
+import { PaymentMethodsModule } from './modules/payment-methods/payment-methods.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { ChatModule } from './modules/chat/chat.module';
 import { AuditLogsModule } from './modules/audit-logs/audit-logs.module';
@@ -99,6 +100,7 @@ import { TenantContextInterceptor } from './common/interceptors/tenant-context.i
     DisbursementTypesModule,
     DisbursementTemplatesModule,
     BeneficiariesModule,
+    PaymentMethodsModule,
     NotificationsModule,
     ChatModule,
     AuditLogsModule,

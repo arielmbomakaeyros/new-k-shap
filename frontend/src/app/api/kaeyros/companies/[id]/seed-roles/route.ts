@@ -1,6 +1,6 @@
+import { handleApiError } from '@/src/app/api/_lib/error-handler';
+import { proxyRequest } from '@/src/app/api/_lib/proxy';
 import { NextRequest } from 'next/server';
-import { proxyRequest } from '../../../_lib/proxy';
-import { handleApiError } from '../../../_lib/error-handler';
 
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {

@@ -326,6 +326,21 @@ export interface CreateDisbursementTypeDto {
 
 export interface UpdateDisbursementTypeDto extends Partial<CreateDisbursementTypeDto> {}
 
+// Payment Method Types
+export interface PaymentMethod extends BaseEntity {
+  name: string;
+  code: string;
+  isActive?: boolean;
+}
+
+export interface CreatePaymentMethodDto {
+  name: string;
+  code: string;
+  isActive?: boolean;
+}
+
+export interface UpdatePaymentMethodDto extends Partial<CreatePaymentMethodDto> {}
+
 // Collection Types
 export type PaymentType = 'cash' | 'bank_transfer' | 'mobile_money' | 'check' | 'card';
 

@@ -19,6 +19,7 @@ import { UserRole } from '../../database/schemas/enums';
 import { PaginationParams, PaginatedResponse } from '../../common/interfaces';
 import { getEmailSubject } from '../../common/i18n/email';
 import { resolveLanguage } from '../../common/i18n/language';
+import * as ExcelJS from 'exceljs';
 
 @Injectable()
 export class UsersService {
@@ -408,6 +409,145 @@ export class UsersService {
     await user.save();
 
     return user;
+  }
+
+  private normalizeList(value?: string): string[] {
+    if (!value) return [];
+    return value
+      .split(/[;,]/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  private parseCsv(buffer: Buffer): Array<Record<string, string>> {
+    const content = buffer.toString('utf-8');
+    const lines = content.split(/\r?\n/).filter((line) => line.trim().length > 0);
+    if (lines.length === 0) return [];
+    const headers = this.parseCsvLine(lines[0]).map((header) => header.trim());
+    return lines.slice(1).map((line) => {
+      const values = this.parseCsvLine(line);
+      const row: Record<string, string> = {};
+      headers.forEach((header, idx) => {
+        row[header] = values[idx] ?? '';
+      });
+      return row;
+    });
+  }
+
+  private parseCsvLine(line: string): string[] {
+    const result: string[] = [];
+    let current = '';
+    let inQuotes = false;
+
+    for (let i = 0; i < line.length; i += 1) {
+      const char = line[i];
+      if (char === '"') {
+        if (inQuotes && line[i + 1] === '"') {
+          current += '"';
+          i += 1;
+        } else {
+          inQuotes = !inQuotes;
+        }
+      } else if (char === ',' && !inQuotes) {
+        result.push(current);
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    result.push(current);
+    return result;
+  }
+
+  private async parseXlsx(buffer: Buffer): Promise<Array<Record<string, string>>> {
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer as any);
+    const sheet = workbook.worksheets[0];
+    if (!sheet) return [];
+    const headerRow = sheet.getRow(1);
+    const headers = (Array.isArray(headerRow.values) ? headerRow.values : [])
+      .slice(1)
+      .map((value) => String(value || '').trim());
+    const rows: Array<Record<string, string>> = [];
+    sheet.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return;
+      const rowData: Record<string, string> = {};
+      headers.forEach((header, idx) => {
+        const cellValue = row.getCell(idx + 1).value;
+        rowData[header] = cellValue ? String(cellValue).trim() : '';
+      });
+      if (Object.values(rowData).some((value) => value !== '')) {
+        rows.push(rowData);
+      }
+    });
+    return rows;
+  }
+
+  async bulkImport(file: Express.Multer.File, creatorUser: any) {
+    if (!file) {
+      throw new BadRequestException('No file provided');
+    }
+
+    const isCsv = file.mimetype.includes('csv') || file.originalname.endsWith('.csv');
+    const isXlsx = file.mimetype.includes('sheet') || file.originalname.endsWith('.xlsx');
+
+    if (!isCsv && !isXlsx) {
+      throw new BadRequestException('Unsupported file type. Use CSV or XLSX.');
+    }
+
+    const rows = isCsv ? this.parseCsv(file.buffer) : await this.parseXlsx(file.buffer);
+    if (rows.length === 0) {
+      throw new BadRequestException('No rows found in file.');
+    }
+
+    const results = {
+      createdCount: 0,
+      failedCount: 0,
+      errors: [] as { row: number; email?: string; message: string }[],
+    };
+
+    for (let index = 0; index < rows.length; index += 1) {
+      const row = rows[index];
+      const email = row.email?.toLowerCase().trim();
+      const firstName = row.firstName?.trim();
+      const lastName = row.lastName?.trim();
+      const systemRoles = this.normalizeList(row.systemRoles || row.systemRole);
+
+      if (!email || !firstName || !lastName || systemRoles.length === 0) {
+        results.failedCount += 1;
+        results.errors.push({
+          row: index + 2,
+          email,
+          message: 'Missing required fields: email, firstName, lastName, systemRoles',
+        });
+        continue;
+      }
+
+      const dto: CreateUserDto = {
+        email,
+        firstName,
+        lastName,
+        phone: row.phone?.trim() || undefined,
+        systemRoles,
+        roles: this.normalizeList(row.roles),
+        departments: this.normalizeList(row.departments),
+        offices: this.normalizeList(row.offices),
+      };
+
+      try {
+        await this.create(dto, creatorUser);
+        results.createdCount += 1;
+      } catch (error) {
+        results.failedCount += 1;
+        results.errors.push({
+          row: index + 2,
+          email,
+          message: (error as any)?.message || 'Failed to import user',
+        });
+      }
+    }
+
+    return results;
   }
 
 }

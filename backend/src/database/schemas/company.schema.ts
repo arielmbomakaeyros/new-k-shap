@@ -108,7 +108,15 @@ export class Company extends BaseEntity {
   @Prop({
     type: [String],
     enum: PaymentType,
-    default: [PaymentType.CASH, PaymentType.BANK_TRANSFER, PaymentType.MOBILE_MONEY, PaymentType.CHECK, PaymentType.CARD],
+    default: [
+      PaymentType.CASH,
+      PaymentType.BANK_TRANSFER,
+      PaymentType.MOBILE_MONEY,
+      PaymentType.CHECK,
+      PaymentType.CARD,
+      PaymentType.ORANGE_MONEY,
+      PaymentType.MTN_MONEY,
+    ],
   })
   paymentMethods: PaymentType[];
 

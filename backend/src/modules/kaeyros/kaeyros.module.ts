@@ -8,8 +8,10 @@ import { Disbursement, DisbursementSchema } from '../../database/schemas/disburs
 import { Collection, CollectionSchema } from '../../database/schemas/collection.schema';
 import { AuditLog, AuditLogSchema } from '../../database/schemas/audit-log.schema';
 import { Role, RoleSchema } from '../../database/schemas/role.schema';
+import { PaymentMethod, PaymentMethodSchema } from '../../database/schemas/payment-method.schema';
 import { UsersModule } from '../users/users.module';
 import { RolesModule } from '../roles/roles.module';
+import { PaymentMethodsModule } from '../payment-methods/payment-methods.module';
 
 @Module({
   imports: [
@@ -20,9 +22,11 @@ import { RolesModule } from '../roles/roles.module';
       { name: Collection.name, schema: CollectionSchema },
       { name: AuditLog.name, schema: AuditLogSchema },
       { name: Role.name, schema: RoleSchema },
+      { name: PaymentMethod.name, schema: PaymentMethodSchema },
     ]),
     UsersModule,
     RolesModule,
+    PaymentMethodsModule,
   ],
   controllers: [KaeyrosController],
   providers: [KaeyrosService],

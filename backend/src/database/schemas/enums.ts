@@ -99,6 +99,8 @@ export enum PaymentType {
   MOBILE_MONEY = 'mobile_money',
   CHECK = 'check',
   CARD = 'card',
+  ORANGE_MONEY = 'orange_money',
+  MTN_MONEY = 'mtn_money',
 }
 
 export enum PermissionResource {

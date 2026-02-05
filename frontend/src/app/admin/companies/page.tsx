@@ -9,7 +9,7 @@ import { useTranslation } from '@/node_modules/react-i18next';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Sheet, SheetHeader, SheetTitle, SheetDescription, SheetBody } from '@/src/components/ui/sheet';
 import { ConfirmModal } from '@/src/components/ui/modal';
-import { Building2, Eye, Mail, Pencil, Trash2, UserX, Users, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { Building2, Eye, Mail, Pencil, Trash2, UserX, Users, CheckCircle2, ShieldCheck, CreditCard } from 'lucide-react';
 import {
   useKaeyrosCompanies,
   useCreateKaeyrosCompany,
@@ -38,6 +38,8 @@ function CompaniesManagerContent() {
   const [confirmResendActivation, setConfirmResendActivation] = useState<Company | null>(null);
   const [confirmSeedRoles, setConfirmSeedRoles] = useState<Company | null>(null);
   const [confirmSeedAll, setConfirmSeedAll] = useState(false);
+  const [confirmSeedPaymentMethods, setConfirmSeedPaymentMethods] = useState<Company | null>(null);
+  const [confirmSeedPaymentMethodsAll, setConfirmSeedPaymentMethodsAll] = useState(false);
   const [detailsCompany, setDetailsCompany] = useState<Company | null>(null);
   const [usersCompany, setUsersCompany] = useState<Company | null>(null);
   const [activationToasts, setActivationToasts] = useState<
@@ -471,6 +473,58 @@ function CompaniesManagerContent() {
     }
   };
 
+  const handleSeedPaymentMethods = async (company: Company) => {
+    const companyId = company.id || (company as any)._id;
+    if (!companyId) return;
+    try {
+      setSeedingCompanyId(`pm-${companyId}`);
+      await api.post(`/kaeyros/companies/${companyId}/seed-payment-methods`);
+      addActivationToast({
+        title: t('companies.paymentSeededTitle', { defaultValue: 'Payment Methods Generated' }),
+        description: t('companies.paymentSeededBody', {
+          defaultValue: 'Default payment methods were generated for {{name}}.',
+          name: company.name,
+        }),
+        variant: 'success',
+      });
+    } catch (error) {
+      addActivationToast({
+        title: t('companies.paymentSeededFailedTitle', { defaultValue: 'Payment Methods Failed' }),
+        description: t('companies.paymentSeededFailedBody', {
+          defaultValue: 'Failed to generate payment methods for {{name}}.',
+          name: company.name,
+        }),
+        variant: 'error',
+      });
+    } finally {
+      setSeedingCompanyId(null);
+    }
+  };
+
+  const handleSeedPaymentMethodsForAll = async () => {
+    try {
+      setSeedingCompanyId('pm-all');
+      await api.post('/kaeyros/companies/seed-payment-methods');
+      addActivationToast({
+        title: t('companies.paymentSeededAllTitle', { defaultValue: 'Payment Methods Generated' }),
+        description: t('companies.paymentSeededAllBody', {
+          defaultValue: 'Default payment methods were generated for all companies.',
+        }),
+        variant: 'success',
+      });
+    } catch (error) {
+      addActivationToast({
+        title: t('companies.paymentSeededAllFailedTitle', { defaultValue: 'Payment Methods Failed' }),
+        description: t('companies.paymentSeededAllFailedBody', {
+          defaultValue: 'Failed to generate payment methods for all companies.',
+        }),
+        variant: 'error',
+      });
+    } finally {
+      setSeedingCompanyId(null);
+    }
+  };
+
   const handleConfirmDelete = async () => {
     if (!confirmDelete) return;
     try {
@@ -557,6 +611,7 @@ function CompaniesManagerContent() {
     (company as any).status || (company as any).subscriptionStatus || 'trial';
 
   const showGenerateRolesAll = companies.some((company) => !(company as any).hasDefaultRoles);
+  const showGeneratePaymentMethodsAll = companies.some((company) => !(company as any).hasDefaultPaymentMethods);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -594,6 +649,17 @@ function CompaniesManagerContent() {
                 {seedingCompanyId === 'all'
                   ? t('companies.generatingRoles', { defaultValue: 'Generating...' })
                   : t('companies.generateRolesAll', { defaultValue: 'Generate Roles (All)' })}
+              </Button>
+            )}
+            {showGeneratePaymentMethodsAll && (
+              <Button
+                variant="outline"
+                onClick={() => setConfirmSeedPaymentMethodsAll(true)}
+                disabled={seedingCompanyId === 'pm-all'}
+              >
+                {seedingCompanyId === 'pm-all'
+                  ? t('companies.generatingPayments', { defaultValue: 'Generating...' })
+                  : t('companies.generatePaymentsAll', { defaultValue: 'Generate Payment Methods (All)' })}
               </Button>
             )}
             <Button onClick={() => setShowCreateModal(true)} className="btn-3d gradient-bg-primary text-white">
@@ -674,6 +740,7 @@ function CompaniesManagerContent() {
                   const companyId = company.id || (company as any)._id || index;
                   const status = getCompanyStatus(company);
                   const hasDefaultRoles = Boolean((company as any).hasDefaultRoles);
+                  const hasDefaultPaymentMethods = Boolean((company as any).hasDefaultPaymentMethods);
                   const isActive = status === 'active';
                   const isSuspended = status === 'suspended';
 
@@ -771,6 +838,25 @@ function CompaniesManagerContent() {
                                 </TooltipTrigger>
                                 <TooltipContent>
                                   {t('companies.generateRoles', { defaultValue: 'Generate Roles' })}
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
+
+                            {!hasDefaultPaymentMethods && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    size="icon-sm"
+                                    variant="ghost"
+                                    onClick={() => setConfirmSeedPaymentMethods(company)}
+                                    disabled={seedingCompanyId === `pm-${companyId}`}
+                                    aria-label="Generate payment methods"
+                                  >
+                                    <CreditCard className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  {t('companies.generatePayments', { defaultValue: 'Generate Payment Methods' })}
                                 </TooltipContent>
                               </Tooltip>
                             )}
@@ -880,6 +966,35 @@ function CompaniesManagerContent() {
         cancelLabel={t('common.cancel', { defaultValue: 'Cancel' })}
         variant="success"
         isLoading={seedingCompanyId === 'all'}
+      />
+
+      <ConfirmModal
+        isOpen={!!confirmSeedPaymentMethods}
+        onClose={() => setConfirmSeedPaymentMethods(null)}
+        onConfirm={() => confirmSeedPaymentMethods && handleSeedPaymentMethods(confirmSeedPaymentMethods)}
+        title={t('companies.generatePayments', { defaultValue: 'Generate Payment Methods' })}
+        message={t('companies.generatePaymentsConfirm', {
+          defaultValue: 'Generate default payment methods for {{name}}?',
+          name: confirmSeedPaymentMethods?.name || '',
+        })}
+        confirmLabel={t('companies.generatePayments', { defaultValue: 'Generate Payment Methods' })}
+        cancelLabel={t('common.cancel', { defaultValue: 'Cancel' })}
+        variant="success"
+        isLoading={seedingCompanyId === `pm-${confirmSeedPaymentMethods?.id || (confirmSeedPaymentMethods as any)?._id}`}
+      />
+
+      <ConfirmModal
+        isOpen={confirmSeedPaymentMethodsAll}
+        onClose={() => setConfirmSeedPaymentMethodsAll(false)}
+        onConfirm={handleSeedPaymentMethodsForAll}
+        title={t('companies.generatePaymentsAll', { defaultValue: 'Generate Payment Methods (All)' })}
+        message={t('companies.generatePaymentsAllConfirm', {
+          defaultValue: 'Generate default payment methods for all companies missing them?',
+        })}
+        confirmLabel={t('companies.generatePaymentsAll', { defaultValue: 'Generate Payment Methods (All)' })}
+        cancelLabel={t('common.cancel', { defaultValue: 'Cancel' })}
+        variant="success"
+        isLoading={seedingCompanyId === 'pm-all'}
       />
 
       <ConfirmModal

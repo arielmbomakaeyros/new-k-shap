@@ -8,7 +8,9 @@ import {
   Delete,
   Query,
   Req,
+  Res,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import {
   ApiTags,
   ApiOperation,
@@ -248,35 +250,97 @@ export class DisbursementsController {
       search,
       status,
       department,
+      office,
       beneficiary,
+      disbursementType,
+      paymentMethod,
+      priority,
+      isUrgent,
+      isRetroactive,
+      isCompleted,
+      minAmount,
+      maxAmount,
+      startDate,
+      endDate,
+      tags,
     });
   }
 
-  @Get(':id')
-  @ApiOperation({
-    summary: 'Get disbursement by ID with all populated references',
-  })
-  @ApiParam({
-    name: 'id',
-    description: 'Disbursement ID',
-    example: '507f1f77bcf86cd799439011',
-  })
-  @ApiResponse({
-    status: 200,
-    description:
-      'Disbursement retrieved successfully with populated beneficiary, department, office, and disbursement type.',
-    type: DisbursementResponseDto,
-  })
-  @ApiResponse({ status: 401, description: 'Unauthorized.' })
-  @ApiResponse({ status: 403, description: 'Forbidden.' })
-  @ApiResponse({ status: 404, description: 'Disbursement not found.' })
-  findOne(@Param('id') id: string, @Req() req: any) {
+  @Get('export')
+  @ApiOperation({ summary: 'Export disbursements as CSV/XLSX' })
+  @ApiQuery({ name: 'format', required: false, description: 'Export format', example: 'csv' })
+  async exportDisbursements(
+    @Req() req: any,
+    @Res() res: Response,
+    @Query('format') format?: string,
+    @Query('sortBy') sortBy?: string,
+    @Query('sortOrder') sortOrder?: 'asc' | 'desc',
+    @Query('search') search?: string,
+    @Query('status') status?: string,
+    @Query('department') department?: string,
+    @Query('office') office?: string,
+    @Query('beneficiary') beneficiary?: string,
+    @Query('disbursementType') disbursementType?: string,
+    @Query('paymentMethod') paymentMethod?: string,
+    @Query('priority') priority?: string,
+    @Query('isUrgent') isUrgent?: string,
+    @Query('isRetroactive') isRetroactive?: string,
+    @Query('isCompleted') isCompleted?: string,
+    @Query('minAmount') minAmount?: number,
+    @Query('maxAmount') maxAmount?: number,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('tags') tags?: string,
+  ) {
     const companyId = req.user?.isKaeyrosUser
       ? undefined
       : req.user?.company
         ? (req.user.company._id || req.user.company).toString()
         : undefined;
-    return this.disbursementsService.findOne(id, companyId);
+    const normalizedFormat = (format || 'csv').toLowerCase();
+    const exportOptions = {
+      sortBy,
+      sortOrder,
+      search,
+      status,
+      department,
+      office,
+      beneficiary,
+      disbursementType,
+      paymentMethod,
+      priority,
+      isUrgent,
+      isRetroactive,
+      isCompleted,
+      minAmount,
+      maxAmount,
+      startDate,
+      endDate,
+      tags,
+    };
+
+    const datePart = new Date().toISOString().slice(0, 10);
+
+    if (normalizedFormat === 'xlsx') {
+      const buffer = await this.disbursementsService.exportXlsx(companyId, exportOptions);
+      res.setHeader(
+        'Content-Type',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      );
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="disbursements-${datePart}.xlsx"`,
+      );
+      return res.send(Buffer.from(buffer as any));
+    }
+
+    const csv = await this.disbursementsService.exportCsv(companyId, exportOptions);
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="disbursements-${datePart}.csv"`,
+    );
+    return res.send(csv);
   }
 
   @Patch(':id')
@@ -471,5 +535,32 @@ export class DisbursementsController {
         ? (req.user.company._id || req.user.company).toString()
         : undefined;
     return this.disbursementsService.cancel(id, userId, reason, companyId);
+  }
+
+  @Get(':id')
+  @ApiOperation({
+    summary: 'Get disbursement by ID with all populated references',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Disbursement ID',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiResponse({
+    status: 200,
+    description:
+      'Disbursement retrieved successfully with populated beneficiary, department, office, and disbursement type.',
+    type: DisbursementResponseDto,
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  @ApiResponse({ status: 403, description: 'Forbidden.' })
+  @ApiResponse({ status: 404, description: 'Disbursement not found.' })
+  findOne(@Param('id') id: string, @Req() req: any) {
+    const companyId = req.user?.isKaeyrosUser
+      ? undefined
+      : req.user?.company
+        ? (req.user.company._id || req.user.company).toString()
+        : undefined;
+    return this.disbursementsService.findOne(id, companyId);
   }
 }

@@ -77,6 +77,14 @@ export {
   useForceCompleteDisbursement,
 } from './useDisbursements';
 
+// Payment Methods hooks
+export {
+  usePaymentMethods,
+  useCreatePaymentMethod,
+  useUpdatePaymentMethod,
+  useDeletePaymentMethod,
+} from './usePaymentMethods';
+
 // Collections hooks
 export {
   useCollections,

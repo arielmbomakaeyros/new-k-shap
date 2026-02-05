@@ -22,6 +22,14 @@ export enum FileEntityType {
 
 export class CreateFileUploadDto {
   @ApiProperty({
+    description: 'Files to upload (multipart field)',
+    required: false,
+    type: 'array',
+    items: { type: 'string', format: 'binary' },
+  })
+  @IsOptional()
+  files?: any;
+  @ApiProperty({
     description: 'File category',
     enum: FileCategory,
     example: FileCategory.INVOICE,

@@ -225,6 +225,34 @@ export class KaeyrosController {
     return this.kaeyrosService.seedRolesForAllCompanies(user?._id?.toString());
   }
 
+  @Post('companies/:id/seed-payment-methods')
+  @ApiOperation({ summary: 'Create default payment methods for a company' })
+  @ApiParam({ name: 'id', description: 'Company ID', example: '507f1f77bcf86cd799439011' })
+  @ApiResponse({
+    status: 200,
+    description: 'Payment methods created successfully.',
+    type: SuccessResponseDto,
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Platform Admin access required.' })
+  @ApiResponse({ status: 404, description: 'Company not found.' })
+  seedPaymentMethods(@Param('id') id: string) {
+    return this.kaeyrosService.seedCompanyPaymentMethods(id);
+  }
+
+  @Post('companies/seed-payment-methods')
+  @ApiOperation({ summary: 'Create default payment methods for all companies' })
+  @ApiResponse({
+    status: 200,
+    description: 'Payment methods created successfully.',
+    type: SuccessResponseDto,
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Platform Admin access required.' })
+  seedPaymentMethodsForAll() {
+    return this.kaeyrosService.seedPaymentMethodsForAllCompanies();
+  }
+
   @Get('audit-logs')
   @ApiOperation({ summary: 'Get platform-wide audit logs (Platform Admin only)' })
   @ApiQuery({ name: 'page', required: false, description: 'Page number', example: 1 })

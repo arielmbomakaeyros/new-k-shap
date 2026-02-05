@@ -9,6 +9,7 @@ import { Disbursement } from '../../database/schemas/disbursement.schema';
 import { Collection } from '../../database/schemas/collection.schema';
 import { AuditLog } from '../../database/schemas/audit-log.schema';
 import { Role } from '../../database/schemas/role.schema';
+import { PaymentMethod } from '../../database/schemas/payment-method.schema';
 import { EmailService } from '../../email/email.service';
 import { ConfigService } from '@nestjs/config';
 import { UserRole, CompanyStatus } from '../../database/schemas/enums';
@@ -16,6 +17,7 @@ import { UsersService } from '../users/users.service';
 import { getEmailSubject } from '../../common/i18n/email';
 import { resolveLanguage } from '../../common/i18n/language';
 import { RolesService } from '../roles/roles.service';
+import { PaymentMethodsService } from '../payment-methods/payment-methods.service';
 
 @Injectable()
 export class KaeyrosService {
@@ -26,10 +28,12 @@ export class KaeyrosService {
     @InjectModel(Collection.name) private collectionModel: Model<Collection>,
     @InjectModel(AuditLog.name) private auditLogModel: Model<AuditLog>,
     @InjectModel(Role.name) private roleModel: Model<Role>,
+    @InjectModel(PaymentMethod.name) private paymentMethodModel: Model<PaymentMethod>,
     private emailService: EmailService,
     private configService: ConfigService,
     private usersService: UsersService,
     private rolesService: RolesService,
+    private paymentMethodsService: PaymentMethodsService,
   ) {}
 
   private normalizePrefix(value: string) {
@@ -138,6 +142,9 @@ export class KaeyrosService {
     await this.rolesService.createDefaultCompanyRoles(
       company._id.toString(),
       user._id.toString(),
+    );
+    await this.paymentMethodsService.createDefaultCompanyPaymentMethods(
+      company._id.toString(),
     );
 
     const activationUrl = `${this.configService.get('FRONTEND_URL')}/activate?token=${activationToken}`;
@@ -390,12 +397,26 @@ export class KaeyrosService {
       'cashier',
       'agent',
     ];
+    const requiredPaymentMethods = [
+      'cash',
+      'bank_transfer',
+      'mobile_money',
+      'check',
+      'card',
+      'orange_money',
+      'mtn_money',
+    ];
 
     const rolesAgg = await this.roleModel.aggregate([
       { $match: { company: { $in: companyIds }, systemRoleType: { $in: requiredSystemRoles } } },
       { $group: { _id: '$company', types: { $addToSet: '$systemRoleType' } } },
     ]);
+    const paymentAgg = await this.paymentMethodModel.aggregate([
+      { $match: { company: { $in: companyIds }, code: { $in: requiredPaymentMethods }, isDeleted: { $ne: true } } },
+      { $group: { _id: '$company', codes: { $addToSet: '$code' } } },
+    ]);
     const rolesMap = new Map(rolesAgg.map((r: any) => [r._id.toString(), r.types || []]));
+    const paymentMap = new Map(paymentAgg.map((p: any) => [p._id.toString(), p.codes || []]));
 
     const disbAgg = await this.disbursementModel.aggregate([
       { $match: { company: { $in: companyIds }, isDeleted: false } },
@@ -415,6 +436,8 @@ export class KaeyrosService {
       const coll = collMap.get(company._id.toString()) || { totalAmount: 0, count: 0 };
       const roleTypes = rolesMap.get(company._id.toString()) || [];
       const hasDefaultRoles = requiredSystemRoles.every((role) => roleTypes.includes(role));
+      const paymentCodes = paymentMap.get(company._id.toString()) || [];
+      const hasDefaultPaymentMethods = requiredPaymentMethods.every((code) => paymentCodes.includes(code));
       return {
         ...company.toObject(),
         stats: {
@@ -422,6 +445,7 @@ export class KaeyrosService {
           collections: coll,
         },
         hasDefaultRoles,
+        hasDefaultPaymentMethods,
       };
     });
 
@@ -644,6 +668,14 @@ export class KaeyrosService {
     return { success: true, message: 'Roles created successfully' };
   }
 
+  async seedCompanyPaymentMethods(companyId: string) {
+    const company = await this.companyModel.findOne({ _id: new Types.ObjectId(companyId), isDeleted: false });
+    if (!company) {
+      throw new NotFoundException('Company not found');
+    }
+    return this.paymentMethodsService.createDefaultCompanyPaymentMethods(companyId);
+  }
+
   async seedRolesForAllCompanies(actorId?: string) {
     const companies = await this.companyModel.find({ isDeleted: false }).select('_id').lean();
     let seededCount = 0;
@@ -652,6 +684,16 @@ export class KaeyrosService {
       seededCount += 1;
     }
     return { success: true, message: 'Roles created successfully', seededCount };
+  }
+
+  async seedPaymentMethodsForAllCompanies() {
+    const companies = await this.companyModel.find({ isDeleted: false }).select('_id').lean();
+    let seededCount = 0;
+    for (const company of companies) {
+      await this.paymentMethodsService.createDefaultCompanyPaymentMethods(company._id.toString());
+      seededCount += 1;
+    }
+    return { success: true, message: 'Payment methods created successfully', seededCount };
   }
 
   async remove(id: string) {

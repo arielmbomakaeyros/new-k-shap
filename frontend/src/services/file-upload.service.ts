@@ -82,6 +82,9 @@ class FileUploadService {
       `${this.basePath}/upload`,
       formData,
       {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
         onUploadProgress: (progressEvent) => {
           if (options?.onProgress && progressEvent.total) {
             const progress = Math.round(
@@ -133,6 +136,9 @@ class FileUploadService {
       `${this.basePath}/upload-multiple`,
       formData,
       {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
         onUploadProgress: (progressEvent) => {
           if (options?.onProgress && progressEvent.total) {
             const progress = Math.round(

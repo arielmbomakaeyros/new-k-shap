@@ -8,14 +8,16 @@ import QRCode from 'qrcode';
 import { useTranslation } from '@/node_modules/react-i18next';
 import { Button } from '@/components/ui/button';
 import { fileUploadService, disbursementsService } from '@/src/services';
-import { useBeneficiaries, useDepartments, useDisbursementTemplates, useDisbursementTypes, useOffices, useCreateDisbursementTemplate, useCompanySettings } from '@/src/hooks/queries';
+import { useBeneficiaries, useDepartments, useDisbursementTemplates, useDisbursementTypes, useOffices, useCreateDisbursementTemplate, useCompanySettings, usePaymentMethods } from '@/src/hooks/queries';
 
-const paymentMethods = [
+const defaultPaymentMethods = [
   { value: 'cash', labelKey: 'disbursements.paymentMethods.cash', defaultLabel: 'Cash' },
   { value: 'bank_transfer', labelKey: 'disbursements.paymentMethods.bank_transfer', defaultLabel: 'Bank Transfer' },
   { value: 'mobile_money', labelKey: 'disbursements.paymentMethods.mobile_money', defaultLabel: 'Mobile Money' },
   { value: 'check', labelKey: 'disbursements.paymentMethods.check', defaultLabel: 'Check' },
   { value: 'card', labelKey: 'disbursements.paymentMethods.card', defaultLabel: 'Card' },
+  { value: 'orange_money', labelKey: 'disbursements.paymentMethods.orange_money', defaultLabel: 'Orange Money' },
+  { value: 'mtn_money', labelKey: 'disbursements.paymentMethods.mtn_money', defaultLabel: 'MTN Money' },
 ];
 
 const priorities = [
@@ -57,12 +59,15 @@ export function CreateDisbursementForm({ onSuccess, initialTemplateId }: CreateD
   const [templateName, setTemplateName] = useState('');
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(initialTemplateId || null);
   const [qrUrl, setQrUrl] = useState<string | null>(null);
+  const [step, setStep] = useState<'form' | 'review'>('form');
+  const [reviewData, setReviewData] = useState<DisbursementFormData | null>(null);
 
   const { data: departmentsData } = useDepartments();
   const { data: officesData } = useOffices();
   const { data: disbursementTypesData } = useDisbursementTypes();
   const { data: templatesData } = useDisbursementTemplates();
   const { data: companySettings } = useCompanySettings();
+  const { data: paymentMethodsData } = usePaymentMethods({ isActive: true });
   const createTemplateMutation = useCreateDisbursementTemplate();
 
   const {
@@ -91,13 +96,28 @@ export function CreateDisbursementForm({ onSuccess, initialTemplateId }: CreateD
   );
   const beneficiaries = selectedDisbursementType ? beneficiariesData?.data ?? [] : [];
   const templates = templatesData?.data ?? [];
-  const availablePaymentMethods = companySettings?.paymentMethods?.length
-    ? companySettings.paymentMethods
-    : paymentMethods.map((m) => m.value);
-
+  const paymentMethodsFromApi = paymentMethodsData?.data ?? [];
+  const availablePaymentMethods = paymentMethodsFromApi.length
+    ? paymentMethodsFromApi.map((m: any) => m.code)
+    : defaultPaymentMethods.map((m) => m.value);
+  const paymentMethodOptions = paymentMethodsFromApi.length
+    ? paymentMethodsFromApi.map((m: any) => ({ value: m.code, label: m.name }))
+    : defaultPaymentMethods.map((m) => ({
+        value: m.value,
+        label: t(m.labelKey, { defaultValue: m.defaultLabel }),
+      }));
 
   const selectedTemplate = useMemo(() => templates.find((t) => t.id === selectedTemplateId || t._id === selectedTemplateId), [templates, selectedTemplateId]);
   const selectedCurrency = watch('currency') || companySettings?.defaultCurrency || 'XAF';
+  const requiredHint = t('validation.required', { defaultValue: 'Required field' });
+
+  const selectedTypeLabel = disbursementTypes.find((type: any) => (type.id || type._id) === reviewData?.disbursementType)?.name;
+  const selectedBeneficiaryLabel = beneficiaries.find((b: any) => (b.id || b._id) === reviewData?.beneficiary)?.name
+    || beneficiaries.find((b: any) => (b.id || b._id) === reviewData?.beneficiary)?.email;
+  const selectedDepartmentLabel = departments.find((d: any) => (d.id || d._id) === reviewData?.department)?.name;
+  const selectedOfficeLabel = offices.find((o: any) => (o.id || o._id) === reviewData?.office)?.name;
+  const selectedPaymentMethodLabel =
+    paymentMethodOptions.find((option) => option.value === reviewData?.paymentMethod)?.label || reviewData?.paymentMethod;
 
   useEffect(() => {
     if (!selectedTemplate) return;
@@ -161,7 +181,7 @@ export function CreateDisbursementForm({ onSuccess, initialTemplateId }: CreateD
     setTemplateName('');
   };
 
-  const onSubmit = async (data: DisbursementFormData) => {
+  const submitDisbursement = async (data: DisbursementFormData) => {
     setIsSubmitting(true);
     try {
       const payload = {
@@ -200,14 +220,21 @@ export function CreateDisbursementForm({ onSuccess, initialTemplateId }: CreateD
 
       reset();
       setAttachments([]);
+      setStep('form');
+      setReviewData(null);
       onSuccess?.();
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const handleReview = handleSubmit((data) => {
+    setReviewData(data);
+    setStep('review');
+  });
+
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+    <form onSubmit={(event) => event.preventDefault()} className="space-y-8">
       {/* Templates */}
       <div className="rounded-lg border border-border bg-card p-4">
         <div className="flex flex-col gap-4 md:flex-row md:items-end">
@@ -254,10 +281,13 @@ export function CreateDisbursementForm({ onSuccess, initialTemplateId }: CreateD
         )}
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      {step === 'form' && (
+        <>
+          <div className="grid gap-4 md:grid-cols-2">
         <div>
           <label className="block text-sm font-medium text-foreground">
             {t('disbursements.amount')}
+            <span className="ml-1 text-red-500" title={requiredHint}>*</span>
           </label>
           <div className="flex gap-2 mt-1">
             <input
@@ -277,6 +307,7 @@ export function CreateDisbursementForm({ onSuccess, initialTemplateId }: CreateD
         <div>
           <label className="block text-sm font-medium text-foreground">
             {t('disbursements.type', { defaultValue: 'Disbursement Type' })}
+            <span className="ml-1 text-red-500" title={requiredHint}>*</span>
           </label>
           <select
             {...register('disbursementType')}
@@ -297,6 +328,7 @@ export function CreateDisbursementForm({ onSuccess, initialTemplateId }: CreateD
         <div>
           <label className="block text-sm font-medium text-foreground">
             {t('disbursements.beneficiary', { defaultValue: 'Beneficiary' })}
+            <span className="ml-1 text-red-500" title={requiredHint}>*</span>
           </label>
           <select
             {...register('beneficiary')}
@@ -325,14 +357,13 @@ export function CreateDisbursementForm({ onSuccess, initialTemplateId }: CreateD
             {...register('paymentMethod')}
             className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-foreground"
           >
-            {availablePaymentMethods.map((value) => {
-              const method = paymentMethods.find((m) => m.value === value);
-              return (
-                <option key={value} value={value}>
-                  {method ? t(method.labelKey, { defaultValue: method.defaultLabel }) : value}
+            {paymentMethodOptions
+              .filter((option) => availablePaymentMethods.includes(option.value))
+              .map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
                 </option>
-              );
-            })}
+              ))}
           </select>
         </div>
       </div>
@@ -340,6 +371,7 @@ export function CreateDisbursementForm({ onSuccess, initialTemplateId }: CreateD
       <div>
         <label className="block text-sm font-medium text-foreground">
           {t('common.description')}
+          <span className="ml-1 text-red-500" title={requiredHint}>*</span>
         </label>
         <textarea
           {...register('description')}
@@ -354,6 +386,7 @@ export function CreateDisbursementForm({ onSuccess, initialTemplateId }: CreateD
         <div>
           <label className="block text-sm font-medium text-foreground">
             {t('disbursements.department')}
+            <span className="ml-1 text-red-500" title={requiredHint}>*</span>
           </label>
           <select
             {...register('department')}
@@ -473,16 +506,116 @@ export function CreateDisbursementForm({ onSuccess, initialTemplateId }: CreateD
           onChange={(e) => setAttachments(Array.from(e.target.files || []))}
           className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-foreground"
         />
+        {attachments.length > 0 && (
+          <div className="mt-3 space-y-1 text-sm text-muted-foreground">
+            {attachments.map((file) => (
+              <div key={`${file.name}-${file.size}`} className="flex items-center justify-between rounded-md bg-muted/50 px-3 py-2">
+                <span className="truncate">{file.name}</span>
+                <span className="text-xs">{(file.size / 1024 / 1024).toFixed(2)} MB</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="flex flex-wrap gap-3">
-        <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? t('disbursements.buttons.submitting') : t('disbursements.buttons.submit')}
+        <Button type="button" onClick={handleReview}>
+          {t('disbursements.buttons.preview', { defaultValue: 'Preview' })}
         </Button>
         <Button type="button" variant="outline" onClick={() => reset()}>
           {t('disbursements.buttons.clear')}
         </Button>
       </div>
+        </>
+      )}
+
+      {step === 'review' && reviewData && (
+        <div className="space-y-6">
+          <div className="rounded-lg border border-border bg-card p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">{t('disbursements.review.title', { defaultValue: 'Review Disbursement' })}</p>
+                <h2 className="mt-1 text-xl font-semibold text-foreground">
+                  {reviewData.description}
+                </h2>
+              </div>
+              <div className="text-right">
+                <p className="text-sm text-muted-foreground">{t('disbursements.totalAmount')}</p>
+                <p className="mt-1 text-2xl font-bold text-foreground">
+                  {reviewData.currency || selectedCurrency} {reviewData.amount?.toLocaleString()}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="rounded-lg border border-border bg-card p-4">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('disbursements.type', { defaultValue: 'Type' })}</p>
+              <p className="mt-2 font-medium text-foreground">{selectedTypeLabel || '—'}</p>
+            </div>
+            <div className="rounded-lg border border-border bg-card p-4">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('disbursements.beneficiary')}</p>
+              <p className="mt-2 font-medium text-foreground">{selectedBeneficiaryLabel || '—'}</p>
+            </div>
+            <div className="rounded-lg border border-border bg-card p-4">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('disbursements.department')}</p>
+              <p className="mt-2 font-medium text-foreground">{selectedDepartmentLabel || '—'}</p>
+            </div>
+            <div className="rounded-lg border border-border bg-card p-4">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('disbursements.office')}</p>
+              <p className="mt-2 font-medium text-foreground">{selectedOfficeLabel || '—'}</p>
+            </div>
+            <div className="rounded-lg border border-border bg-card p-4">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('disbursements.paymentMethod')}</p>
+              <p className="mt-2 font-medium text-foreground">{selectedPaymentMethodLabel || '—'}</p>
+            </div>
+            <div className="rounded-lg border border-border bg-card p-4">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('disbursements.priorityLabel', { defaultValue: 'Priority' })}</p>
+              <p className="mt-2 font-medium text-foreground">{reviewData.priority || '—'}</p>
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-border bg-card p-4">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('disbursements.purpose')}</p>
+            <p className="mt-2 text-foreground">{reviewData.purpose || '—'}</p>
+          </div>
+
+          <div className="rounded-lg border border-border bg-card p-4">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('disbursements.expectedPaymentDate')}</p>
+            <p className="mt-2 text-foreground">{reviewData.expectedPaymentDate || '—'}</p>
+          </div>
+
+          <div className="rounded-lg border border-border bg-card p-4">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('disbursements.internalNotes')}</p>
+            <p className="mt-2 text-foreground">{reviewData.internalNotes || '—'}</p>
+          </div>
+
+          <div className="rounded-lg border border-border bg-card p-4">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('disbursements.attachments')}</p>
+            {attachments.length === 0 ? (
+              <p className="mt-2 text-muted-foreground">{t('disbursements.noAttachments')}</p>
+            ) : (
+              <div className="mt-2 space-y-2 text-sm text-foreground">
+                {attachments.map((file) => (
+                  <div key={`${file.name}-${file.size}`} className="flex items-center justify-between rounded-md bg-muted/50 px-3 py-2">
+                    <span className="truncate">{file.name}</span>
+                    <span className="text-xs text-muted-foreground">{(file.size / 1024 / 1024).toFixed(2)} MB</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            <Button type="button" variant="outline" onClick={() => setStep('form')}>
+              {t('disbursements.buttons.edit', { defaultValue: 'Modify' })}
+            </Button>
+            <Button type="button" onClick={() => submitDisbursement(reviewData)} disabled={isSubmitting}>
+              {isSubmitting ? t('disbursements.buttons.submitting') : t('disbursements.buttons.confirmSubmit', { defaultValue: 'Confirm & Submit' })}
+            </Button>
+          </div>
+        </div>
+      )}
     </form>
   );
 }

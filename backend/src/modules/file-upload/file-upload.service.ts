@@ -240,8 +240,12 @@ export class FileUploadService {
         createdAt: new Date(),
       };
     } catch (error) {
-      this.logger.error(`Error uploading file to S3: ${error.message}`);
-      throw new BadRequestException(`Failed to upload file: ${error.message}`);
+      const message =
+        (error as any)?.message ||
+        (error as any)?.name ||
+        'Unknown upload error';
+      this.logger.error(`Error uploading file to S3: ${message}`, (error as any)?.stack);
+      throw new BadRequestException(`Failed to upload file: ${message}`);
     }
   }
 
