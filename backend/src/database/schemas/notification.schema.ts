@@ -51,10 +51,20 @@ export class Notification extends Document {
 
   @Prop({ type: Date, default: null })
   expiresAt: Date;
+
+  @Prop({ type: Boolean, default: false })
+  isDeleted: boolean;
+
+  @Prop({ type: Date, default: null })
+  deletedAt: Date;
+
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'User', default: null })
+  deletedBy: MongooseSchema.Types.ObjectId;
 }
 
 export const NotificationSchema = SchemaFactory.createForClass(Notification);
 
 NotificationSchema.index({ company: 1, user: 1, isRead: 1, createdAt: -1 });
 NotificationSchema.index({ company: 1, user: 1, type: 1 });
+NotificationSchema.index({ company: 1, user: 1, isDeleted: 1, createdAt: -1 });
 NotificationSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });

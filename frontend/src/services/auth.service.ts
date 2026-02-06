@@ -70,7 +70,6 @@ class AuthService {
    * Login with email and password
    */
   async login(credentials: LoginCredentials): Promise<ApiResponse<LoginResponse>> {
-    console.log(credentials, "in the service", `${this.basePath}`)
     return api.post<ApiResponse<LoginResponse>>(`${this.basePath}/login`, credentials);
   }
 

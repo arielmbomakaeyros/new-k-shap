@@ -4,6 +4,7 @@ import { queryKeys } from './keys';
 // import type { CreateUserDto, UpdateUserDto, User } from '@/services/types';
 import { UserFilters, usersService } from '@/src/services/users.service';
 import { CreateUserDto, UpdateUserDto, User } from '@/src/services';
+import { handleMutationError } from '@/src/lib/mutationError';
 
 /**
  * Hook for fetching users list with pagination and filters
@@ -45,6 +46,7 @@ export function useCreateUser() {
       // Invalidate and refetch users list
       queryClient.invalidateQueries({ queryKey: queryKeys.users.lists() });
     },
+    onError: (error) => handleMutationError(error, 'Failed to create user'),
   });
 }
 
@@ -77,6 +79,7 @@ export function useUpdateUser() {
       return { previousUser };
     },
     onError: (_err, { id }, context) => {
+      handleMutationError(_err, 'Failed to update user');
       // Rollback to previous value on error
       if (context?.previousUser) {
         queryClient.setQueryData(queryKeys.users.detail(id), context.previousUser);
@@ -101,6 +104,7 @@ export function useDeleteUser() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users.lists() });
     },
+    onError: (error) => handleMutationError(error, 'Failed to delete user'),
   });
 }
 
@@ -115,6 +119,7 @@ export function useRestoreUser() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users.lists() });
     },
+    onError: (error) => handleMutationError(error, 'Failed to restore user'),
   });
 }
 
@@ -124,6 +129,7 @@ export function useRestoreUser() {
 export function useResendActivation() {
   return useMutation({
     mutationFn: (id: string) => usersService.resendActivation(id),
+    onError: (error) => handleMutationError(error, 'Failed to resend activation'),
   });
 }
 
@@ -139,6 +145,7 @@ export function useUpdateUserPermissions() {
     onSuccess: (_data, { id }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users.detail(id) });
     },
+    onError: (error) => handleMutationError(error, 'Failed to update permissions'),
   });
 }
 
@@ -154,6 +161,7 @@ export function useUpdateUserAvatar() {
       queryClient.invalidateQueries({ queryKey: queryKeys.users.detail(id) });
       queryClient.invalidateQueries({ queryKey: queryKeys.users.lists() });
     },
+    onError: (error) => handleMutationError(error, 'Failed to update avatar'),
   });
 }
 
@@ -170,5 +178,6 @@ export function useToggleUserActive() {
       queryClient.invalidateQueries({ queryKey: queryKeys.users.detail(id) });
       queryClient.invalidateQueries({ queryKey: queryKeys.users.lists() });
     },
+    onError: (error) => handleMutationError(error, 'Failed to update user status'),
   });
 }

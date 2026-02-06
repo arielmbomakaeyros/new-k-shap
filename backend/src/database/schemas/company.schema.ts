@@ -188,6 +188,9 @@ export class Company extends BaseEntity {
 
   @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'User' })
   kaeyrosAccountManager: MongooseSchema.Types.ObjectId;
+
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'WorkflowTemplate', default: null })
+  activeWorkflowTemplate: MongooseSchema.Types.ObjectId;
 }
 
 export const CompanySchema = SchemaFactory.createForClass(Company);

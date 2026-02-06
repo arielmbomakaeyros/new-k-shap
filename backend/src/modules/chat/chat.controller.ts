@@ -108,6 +108,21 @@ export class ChatController {
     return this.chatService.findAll(companyId);
   }
 
+  @Get('participants')
+  @ApiOperation({ summary: 'List chat participants (same company)' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of users available for chat',
+  })
+  async participants(@CurrentUser() user: any) {
+    const companyId = user?.isKaeyrosUser
+      ? null
+      : user?.company
+        ? (user.company._id || user.company).toString()
+        : null;
+    return this.chatService.listParticipants(companyId);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get chat by ID' })
   @ApiParam({ name: 'id', description: 'Chat ID' })
@@ -130,6 +145,9 @@ export class ChatController {
     }
   })
   findOne(@Param('id') id: string, @CurrentUser() user: any) {
+    if (!id || id.length < 24) {
+      return null;
+    }
     const companyId = user?.isKaeyrosUser
       ? null
       : user?.company

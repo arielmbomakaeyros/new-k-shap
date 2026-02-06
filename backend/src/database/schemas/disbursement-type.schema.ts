@@ -42,3 +42,4 @@ export const DisbursementTypeSchema =
   SchemaFactory.createForClass(DisbursementType);
 
 DisbursementTypeSchema.index({ company: 1, isDeleted: 1 });
+DisbursementTypeSchema.index({ company: 1, createdAt: -1, isDeleted: 1 });

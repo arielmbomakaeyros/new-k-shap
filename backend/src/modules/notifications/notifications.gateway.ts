@@ -7,7 +7,8 @@ import { SOCKET_EVENTS } from '../../common/constants';
 
 @WebSocketGateway({
   cors: {
-    origin: '*',
+    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    credentials: true,
   },
 })
 export class NotificationsGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
@@ -28,8 +29,7 @@ export class NotificationsGateway implements OnGatewayInit, OnGatewayConnection,
   handleConnection(client: Socket) {
     const token =
       (client.handshake.auth as any)?.token ||
-      client.handshake.headers?.authorization?.toString().replace('Bearer ', '') ||
-      (client.handshake.query?.token as string | undefined);
+      client.handshake.headers?.authorization?.toString().replace('Bearer ', '');
 
     if (!token) {
       this.logger.warn(`Socket ${client.id} missing token`);

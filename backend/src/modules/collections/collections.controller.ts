@@ -34,7 +34,8 @@ export class CollectionsController {
   @ApiResponse({ status: 403, description: 'Forbidden.' })
   create(@Body() createCollectionDto: CreateCollectionDto, @CurrentUser() user: any) {
     const companyId = user?.company ? (user.company._id || user.company).toString() : null;
-    return this.collectionsService.create(createCollectionDto, companyId);
+    const userId = user?.sub || user?._id;
+    return this.collectionsService.create(createCollectionDto, companyId, userId);
   }
 
   @Get()

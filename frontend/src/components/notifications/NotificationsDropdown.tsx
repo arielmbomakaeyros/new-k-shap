@@ -39,11 +39,11 @@ export const NotificationsDropdown = () => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative px-5">
+        <Button variant="ghost" size="icon" className="relative h-9 w-9 rounded-full">
           <Bell className="h-5 w-5" />
           {unreadCount && unreadCount > 0 && (
-            <span className="absolute -top-1 rounded-full bg-destructive py-0.5 text-[10px] font-semibold text-white">
-              {unreadCount}
+            <span className="absolute -right-1 -top-1 flex min-w-[18px] items-center justify-center rounded-full bg-destructive px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white shadow">
+              {unreadCount > 99 ? '99+' : unreadCount}
             </span>
           )}
         </Button>

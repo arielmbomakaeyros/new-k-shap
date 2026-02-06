@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { kaeyrosService } from '@/src/services/kaeyros.service';
+import { handleMutationError } from '@/src/lib/mutationError';
 
 export function useKaeyrosStats() {
   return useQuery({
@@ -39,6 +40,7 @@ export function useCreateKaeyrosCompany() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['kaeyros', 'companies'] });
     },
+    onError: (error) => handleMutationError(error, 'Failed to create company'),
   });
 }
 
@@ -50,6 +52,7 @@ export function useUpdateKaeyrosCompany() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['kaeyros', 'companies'] });
     },
+    onError: (error) => handleMutationError(error, 'Failed to update company'),
   });
 }
 
@@ -61,12 +64,14 @@ export function useUpdateKaeyrosCompanyStatus() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['kaeyros', 'companies'] });
     },
+    onError: (error) => handleMutationError(error, 'Failed to update status'),
   });
 }
 
 export function useResendKaeyrosCompanyActivation() {
   return useMutation({
     mutationFn: (id: string) => kaeyrosService.resendCompanyActivation(id),
+    onError: (error) => handleMutationError(error, 'Failed to resend activation'),
   });
 }
 
@@ -77,5 +82,6 @@ export function useDeleteKaeyrosCompany() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['kaeyros', 'companies'] });
     },
+    onError: (error) => handleMutationError(error, 'Failed to delete company'),
   });
 }

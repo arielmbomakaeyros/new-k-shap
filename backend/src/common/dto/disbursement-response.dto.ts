@@ -100,6 +100,20 @@ class OfficePopulatedDto {
   code?: string;
 }
 
+class UserPopulatedDto {
+  @ApiProperty({ description: 'User ID', example: '507f1f77bcf86cd799439011' })
+  _id: string;
+
+  @ApiProperty({ description: 'First name', example: 'Jane' })
+  firstName: string;
+
+  @ApiProperty({ description: 'Last name', example: 'Doe' })
+  lastName: string;
+
+  @ApiProperty({ description: 'Email', example: 'jane@example.com' })
+  email: string;
+}
+
 export class DisbursementResponseDto {
   @ApiProperty({
     description: 'Disbursement ID',
@@ -154,6 +168,13 @@ export class DisbursementResponseDto {
     type: BeneficiaryPopulatedDto,
   })
   beneficiary: BeneficiaryPopulatedDto;
+
+  @ApiProperty({
+    description: 'User who initiated the disbursement (populated)',
+    type: UserPopulatedDto,
+    required: false,
+  })
+  createdBy?: UserPopulatedDto;
 
   @ApiProperty({
     description: 'Description of the disbursement',

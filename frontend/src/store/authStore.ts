@@ -40,6 +40,7 @@ interface AuthState {
   token: string | null;
   isLoading: boolean;
   error: string | null;
+  hasHydrated: boolean;
 
   // Computed
   isAuthenticated: boolean;
@@ -53,6 +54,7 @@ interface AuthState {
   setIsLoading: (isLoading: boolean) => void;
   setError: (error: string | null) => void;
   clearError: () => void;
+  setHasHydrated: (v: boolean) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -63,20 +65,17 @@ export const useAuthStore = create<AuthState>()(
       token: null,
       isLoading: false,
       error: null,
+      hasHydrated: false,
 
       // Computed getter for isAuthenticated
       get isAuthenticated() {
         return !!get().token && !!get().user;
       },
 
-      // Login action - sets user, token, and optionally refresh token
-      login: (user: User, token: string, refreshToken?: string) => {
+      // Login action - sets user and access token (refresh token is in httpOnly cookie)
+      login: (user: User, token: string, _refreshToken?: string) => {
         set({ user, token, error: null, isLoading: false });
-        // Store refresh token separately (not in Zustand persistence)
         if (typeof window !== 'undefined') {
-          if (refreshToken) {
-            localStorage.setItem('refreshToken', refreshToken);
-          }
           // Set a cookie flag so Next.js middleware can detect auth state
           document.cookie = `is_authenticated=true; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
           // Store isKaeyrosUser flag for middleware redirect logic
@@ -84,11 +83,10 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      // Logout action - clears all auth state
+      // Logout action - clears all auth state (refresh token cookie cleared by backend)
       logout: () => {
         set({ user: null, token: null, error: null, isLoading: false });
         if (typeof window !== 'undefined') {
-          localStorage.removeItem('refreshToken');
           // Clear auth cookies
           document.cookie = 'is_authenticated=; path=/; max-age=0';
           document.cookie = 'is_kaeyros_user=; path=/; max-age=0';
@@ -117,6 +115,9 @@ export const useAuthStore = create<AuthState>()(
 
       // Clear error
       clearError: () => set({ error: null }),
+
+      // Hydration flag
+      setHasHydrated: (v: boolean) => set({ hasHydrated: v }),
     }),
     {
       name: 'auth-storage',
@@ -125,6 +126,9 @@ export const useAuthStore = create<AuthState>()(
         user: state.user,
         token: state.token,
       }),
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      },
     }
   )
 );

@@ -17,6 +17,7 @@ async function bootstrap() {
   const disbursementTypeModel = app.get('DisbursementTypeModel') as Model<any>;
   const beneficiaryModel = app.get('BeneficiaryModel') as Model<any>;
   const notificationModel = app.get('NotificationModel') as Model<any>;
+  const workflowTemplateModel = app.get('WorkflowTemplateModel') as Model<any>;
 
   console.log('🌱 Starting database seeding...\n');
 
@@ -134,6 +135,89 @@ async function bootstrap() {
   });
 
   console.log('✅ Sample company created\n');
+
+  // ==================== 2.1 CREATE DEFAULT WORKFLOW TEMPLATES ====================
+  const existingWorkflowTemplates = await workflowTemplateModel.countDocuments({ isSystem: true });
+  if (!existingWorkflowTemplates) {
+    console.log('🔁 Creating default workflow templates...');
+    await workflowTemplateModel.insertMany([
+      {
+        name: 'Simple',
+        description: 'Agent → Cashier',
+        isDefault: false,
+        isSystem: true,
+        steps: [
+          {
+            order: 1,
+            name: 'Cashier Execution',
+            roleRequired: 'cashier',
+            description: 'Cashier executes payment',
+            statusOnPending: 'pending_cashier',
+            statusOnComplete: 'completed',
+          },
+        ],
+      },
+      {
+        name: 'Standard',
+        description: 'Agent → Department Head → Cashier',
+        isDefault: false,
+        isSystem: true,
+        steps: [
+          {
+            order: 1,
+            name: 'Department Head Validation',
+            roleRequired: 'department_head',
+            description: 'Department head validates disbursement',
+            statusOnPending: 'pending_dept_head',
+            statusOnComplete: 'pending_cashier',
+          },
+          {
+            order: 2,
+            name: 'Cashier Execution',
+            roleRequired: 'cashier',
+            description: 'Cashier executes payment',
+            statusOnPending: 'pending_cashier',
+            statusOnComplete: 'completed',
+          },
+        ],
+      },
+      {
+        name: 'Full',
+        description: 'Agent → Department Head → Validator → Cashier',
+        isDefault: true,
+        isSystem: true,
+        steps: [
+          {
+            order: 1,
+            name: 'Department Head Validation',
+            roleRequired: 'department_head',
+            description: 'Department head validates disbursement',
+            statusOnPending: 'pending_dept_head',
+            statusOnComplete: 'pending_validator',
+          },
+          {
+            order: 2,
+            name: 'Validator Approval',
+            roleRequired: 'validator',
+            description: 'Validator approves disbursement',
+            statusOnPending: 'pending_validator',
+            statusOnComplete: 'pending_cashier',
+          },
+          {
+            order: 3,
+            name: 'Cashier Execution',
+            roleRequired: 'cashier',
+            description: 'Cashier executes payment',
+            statusOnPending: 'pending_cashier',
+            statusOnComplete: 'completed',
+          },
+        ],
+      },
+    ]);
+    console.log('✅ Default workflow templates created\n');
+  } else {
+    console.log('✅ Default workflow templates already exist\n');
+  }
 
   // ==================== 3. CREATE SYSTEM-LEVEL PERMISSIONS ====================
   console.log('🔒 Creating system-level permissions...');

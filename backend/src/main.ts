@@ -3,8 +3,8 @@ import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import compression from 'compression';
 import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
-import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { LoggerService } from './logger/logger.service';
 import { getConnectionToken } from '@nestjs/mongoose';
@@ -22,6 +22,7 @@ async function bootstrap() {
   // Security
   app.use(helmet());
   app.use(compression());
+  app.use(cookieParser());
 
   // CORS
   app.enableCors({
@@ -43,9 +44,6 @@ async function bootstrap() {
       },
     }),
   );
-
-  // Global exception filter
-  app.useGlobalFilters(new AllExceptionsFilter());
 
   // Global response transformer
   app.useGlobalInterceptors(new TransformInterceptor());

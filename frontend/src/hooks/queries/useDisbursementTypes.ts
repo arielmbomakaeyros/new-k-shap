@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from './keys';
 import { disbursementTypesService, DisbursementTypeFilters } from '@/src/services/disbursement-types.service';
 import { DisbursementType, CreateDisbursementTypeDto, UpdateDisbursementTypeDto } from '@/src/services';
+import { handleMutationError } from '@/src/lib/mutationError';
 
 export function useDisbursementTypes(filters?: DisbursementTypeFilters) {
   return useQuery({
@@ -33,6 +34,7 @@ export function useCreateDisbursementType() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.disbursementTypes.lists() });
     },
+    onError: (error) => handleMutationError(error, 'Failed to create disbursement type'),
   });
 }
 
@@ -42,6 +44,7 @@ export function useUpdateDisbursementType() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateDisbursementTypeDto }) =>
       disbursementTypesService.update(id, data),
+    onError: (error) => handleMutationError(error, 'Failed to update disbursement type'),
     onSettled: (_data, _error, { id }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.disbursementTypes.detail(id) });
       queryClient.invalidateQueries({ queryKey: queryKeys.disbursementTypes.lists() });
@@ -57,5 +60,6 @@ export function useDeleteDisbursementType() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.disbursementTypes.lists() });
     },
+    onError: (error) => handleMutationError(error, 'Failed to delete disbursement type'),
   });
 }

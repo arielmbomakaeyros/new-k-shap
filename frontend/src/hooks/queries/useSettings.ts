@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { settingsService } from '@/src/services';
 import { queryKeys } from './keys';
 import type { CompanyInfo, WorkflowSettings, EmailNotificationSettings } from '@/src/services/types';
+import { handleMutationError } from '@/src/lib/mutationError';
 
 /**
  * Hook to fetch company settings
@@ -24,6 +25,7 @@ export function useUpdateCompanyInfo() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.settings.company() });
     },
+    onError: (error) => handleMutationError(error, 'Failed to update company info'),
   });
 }
 
@@ -38,6 +40,7 @@ export function useUpdateWorkflowSettings() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.settings.company() });
     },
+    onError: (error) => handleMutationError(error, 'Failed to update workflow settings'),
   });
 }
 
@@ -53,6 +56,7 @@ export function useUpdateEmailNotificationSettings() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.settings.company() });
     },
+    onError: (error) => handleMutationError(error, 'Failed to update email settings'),
   });
 }
 
@@ -67,5 +71,53 @@ export function useUpdateCompanyPreferences() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.settings.company() });
     },
+    onError: (error) => handleMutationError(error, 'Failed to update preferences'),
+  });
+}
+
+export function useWorkflowTemplates() {
+  return useQuery({
+    queryKey: queryKeys.settings.key('workflow-templates'),
+    queryFn: async () => {
+      const response = await settingsService.getWorkflowTemplates();
+      return response.data || response;
+    },
+    staleTime: 2 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  });
+}
+
+export function useActivateWorkflowTemplate() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => settingsService.activateWorkflowTemplate(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.settings.key('workflow-templates') });
+      queryClient.invalidateQueries({ queryKey: queryKeys.settings.company() });
+    },
+    onError: (error) => handleMutationError(error, 'Failed to activate workflow template'),
+  });
+}
+
+export function useCreateWorkflowTemplate() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { name: string; description?: string; steps: any[] }) =>
+      settingsService.createWorkflowTemplate(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.settings.key('workflow-templates') });
+    },
+    onError: (error) => handleMutationError(error, 'Failed to create workflow template'),
+  });
+}
+
+export function useDeleteWorkflowTemplate() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => settingsService.deleteWorkflowTemplate(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.settings.key('workflow-templates') });
+    },
+    onError: (error) => handleMutationError(error, 'Failed to delete workflow template'),
   });
 }

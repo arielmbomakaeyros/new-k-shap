@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from './keys';
 import { paymentMethodsService, PaymentMethod, CreatePaymentMethodDto, UpdatePaymentMethodDto } from '@/src/services';
+import { handleMutationError } from '@/src/lib/mutationError';
 
 export function usePaymentMethods(filters?: { companyId?: string; isActive?: boolean }) {
   return useQuery({
@@ -18,6 +19,7 @@ export function useCreatePaymentMethod() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.paymentMethods.lists() });
     },
+    onError: (error) => handleMutationError(error, 'Failed to create payment method'),
   });
 }
 
@@ -29,6 +31,7 @@ export function useUpdatePaymentMethod() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.paymentMethods.lists() });
     },
+    onError: (error) => handleMutationError(error, 'Failed to update payment method'),
   });
 }
 
@@ -39,5 +42,6 @@ export function useDeletePaymentMethod() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.paymentMethods.lists() });
     },
+    onError: (error) => handleMutationError(error, 'Failed to delete payment method'),
   });
 }

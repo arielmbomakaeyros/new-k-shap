@@ -51,3 +51,4 @@ export class DisbursementTemplate extends BaseEntity {
 export const DisbursementTemplateSchema = SchemaFactory.createForClass(DisbursementTemplate);
 
 DisbursementTemplateSchema.index({ company: 1, name: 1 });
+DisbursementTemplateSchema.index({ company: 1, createdAt: -1, isDeleted: 1 });

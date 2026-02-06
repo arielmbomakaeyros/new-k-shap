@@ -9,6 +9,7 @@ import { useTranslation } from '@/node_modules/react-i18next';
 import { Button } from '@/components/ui/button';
 import { fileUploadService, disbursementsService } from '@/src/services';
 import { useBeneficiaries, useDepartments, useDisbursementTemplates, useDisbursementTypes, useOffices, useCreateDisbursementTemplate, useCompanySettings, usePaymentMethods } from '@/src/hooks/queries';
+import { useAuthStore } from '@/src/store/authStore';
 
 const defaultPaymentMethods = [
   { value: 'cash', labelKey: 'disbursements.paymentMethods.cash', defaultLabel: 'Cash' },
@@ -54,6 +55,7 @@ interface CreateDisbursementFormProps {
 
 export function CreateDisbursementForm({ onSuccess, initialTemplateId }: CreateDisbursementFormProps) {
   const { t } = useTranslation();
+  const { user } = useAuthStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [attachments, setAttachments] = useState<File[]>([]);
   const [templateName, setTemplateName] = useState('');
@@ -61,6 +63,8 @@ export function CreateDisbursementForm({ onSuccess, initialTemplateId }: CreateD
   const [qrUrl, setQrUrl] = useState<string | null>(null);
   const [step, setStep] = useState<'form' | 'review'>('form');
   const [reviewData, setReviewData] = useState<DisbursementFormData | null>(null);
+  const [useMyDepartment, setUseMyDepartment] = useState(false);
+  const [useMyOffice, setUseMyOffice] = useState(false);
 
   const { data: departmentsData } = useDepartments();
   const { data: officesData } = useOffices();
@@ -118,6 +122,24 @@ export function CreateDisbursementForm({ onSuccess, initialTemplateId }: CreateD
   const selectedOfficeLabel = offices.find((o: any) => (o.id || o._id) === reviewData?.office)?.name;
   const selectedPaymentMethodLabel =
     paymentMethodOptions.find((option) => option.value === reviewData?.paymentMethod)?.label || reviewData?.paymentMethod;
+
+  useEffect(() => {
+    if (useMyDepartment) {
+      const departmentId = user?.departments?.[0] as any;
+      if (departmentId) {
+        setValue('department', departmentId._id || departmentId);
+      }
+    }
+  }, [useMyDepartment, setValue, user?.departments]);
+
+  useEffect(() => {
+    if (useMyOffice) {
+      const officeId = user?.offices?.[0] as any;
+      if (officeId) {
+        setValue('office', officeId._id || officeId);
+      }
+    }
+  }, [useMyOffice, setValue, user?.offices]);
 
   useEffect(() => {
     if (!selectedTemplate) return;
@@ -384,12 +406,30 @@ export function CreateDisbursementForm({ onSuccess, initialTemplateId }: CreateD
 
       <div className="grid gap-4 md:grid-cols-3">
         <div>
-          <label className="block text-sm font-medium text-foreground">
-            {t('disbursements.department')}
-            <span className="ml-1 text-red-500" title={requiredHint}>*</span>
-          </label>
+          <div className="flex items-center justify-between">
+            <label className="block text-sm font-medium text-foreground">
+              {t('disbursements.department')}
+              <span className="ml-1 text-red-500" title={requiredHint}>*</span>
+            </label>
+            <label className="flex items-center gap-2 text-xs text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={useMyDepartment}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setUseMyDepartment(checked);
+                  if (!checked) {
+                    setValue('department', '');
+                  }
+                }}
+                disabled={!user?.departments?.length}
+              />
+              {t('disbursements.useMyDepartment', { defaultValue: 'Use my department' })}
+            </label>
+          </div>
           <select
             {...register('department')}
+            disabled={useMyDepartment}
             className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-foreground"
           >
             <option value="">{t('disbursements.departments.select')}</option>
@@ -403,11 +443,29 @@ export function CreateDisbursementForm({ onSuccess, initialTemplateId }: CreateD
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-foreground">
-            {t('disbursements.office')}
-          </label>
+          <div className="flex items-center justify-between">
+            <label className="block text-sm font-medium text-foreground">
+              {t('disbursements.office')}
+            </label>
+            <label className="flex items-center gap-2 text-xs text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={useMyOffice}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setUseMyOffice(checked);
+                  if (!checked) {
+                    setValue('office', '');
+                  }
+                }}
+                disabled={!user?.offices?.length}
+              />
+              {t('disbursements.useMyOffice', { defaultValue: 'Use my office' })}
+            </label>
+          </div>
           <select
             {...register('office')}
+            disabled={useMyOffice}
             className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-foreground"
           >
             <option value="">{t('disbursements.offices.select')}</option>

@@ -6,6 +6,7 @@ import { queryKeys } from './keys';
 import { useAuthStore, User } from '@/src/store/authStore';
 import { authService } from '@/src/services';
 import { LoginCredentials, LoginResponse, UpdateProfileDto } from '@/src/services/auth.service';
+import { handleMutationError } from '@/src/lib/mutationError';
 // import type { User } from '@/services/types';
 
 /**
@@ -41,8 +42,8 @@ export function useLogin() {
       setError(null);
     },
     onSuccess: (response) => {
-      const data = (response as any).data ?? response;
-      const { user: rawUser, accessToken, refreshToken } = data as LoginResponse;
+      const data = (response as any).data;
+      const { user: rawUser, accessToken } = data as LoginResponse;
 
       // Map backend _id to frontend id
       const user: User = {
@@ -50,7 +51,7 @@ export function useLogin() {
         id: rawUser._id || rawUser.id,
       };
 
-      login(user, accessToken, refreshToken);
+      login(user, accessToken);
 
       // Invalidate profile query to refetch with new token
       queryClient.invalidateQueries({ queryKey: queryKeys.auth.profile() });
@@ -64,6 +65,7 @@ export function useLogin() {
     },
     onError: (error: { message: string }) => {
       setError(error.message || 'Login failed');
+      handleMutationError(error, 'Login failed');
     },
     onSettled: () => {
       setIsLoading(false);
@@ -103,6 +105,7 @@ export function useChangePassword() {
   return useMutation({
     mutationFn: (data: { currentPassword: string; newPassword: string }) =>
       authService.changePassword(data),
+    onError: (error) => handleMutationError(error, 'Failed to change password'),
   });
 }
 
@@ -118,6 +121,7 @@ export function useSetPassword() {
     onSuccess: () => {
       router.push('/auth/login');
     },
+    onError: (error) => handleMutationError(error, 'Failed to set password'),
   });
 }
 
@@ -127,6 +131,7 @@ export function useSetPassword() {
 export function useForgotPassword() {
   return useMutation({
     mutationFn: (data: { email: string }) => authService.forgotPassword(data),
+    onError: (error) => handleMutationError(error, 'Failed to send reset email'),
   });
 }
 
@@ -142,6 +147,7 @@ export function useResetPassword() {
     onSuccess: () => {
       router.push('/auth/login');
     },
+    onError: (error) => handleMutationError(error, 'Failed to reset password'),
   });
 }
 
@@ -155,12 +161,13 @@ export function useUpdateProfile() {
   return useMutation({
     mutationFn: (data: UpdateProfileDto) => authService.updateProfile(data),
     onSuccess: (response) => {
-      const updated = (response as any).data ?? response;
+      const updated = (response as any).data;
       if (updated) {
         updateUser(updated);
       }
       queryClient.invalidateQueries({ queryKey: queryKeys.auth.profile() });
     },
+    onError: (error) => handleMutationError(error, 'Failed to update profile'),
   });
 }
 
@@ -174,11 +181,12 @@ export function useUpdateProfileAvatar() {
   return useMutation({
     mutationFn: (file: File) => authService.updateProfileAvatar(file),
     onSuccess: (response) => {
-      const updated = (response as any).data ?? response;
+      const updated = (response as any).data;
       if (updated) {
         updateUser(updated);
       }
       queryClient.invalidateQueries({ queryKey: queryKeys.auth.profile() });
     },
+    onError: (error) => handleMutationError(error, 'Failed to update avatar'),
   });
 }

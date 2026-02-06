@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useTranslation } from '@/node_modules/react-i18next';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { ProtectedRoute } from '@/src/components/ProtectedRoute';
 import { ProtectedLayout } from '@/src/components/layout/ProtectedLayout';
@@ -12,10 +12,25 @@ import type { PaymentType } from '@/src/services';
 function CollectionsContent() {
   const { t } = useTranslation();
   const router = useRouter();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterPaymentType, setFilterPaymentType] = useState<PaymentType | 'all'>('all');
-  const [page, setPage] = useState(1);
+  const searchParams = useSearchParams();
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
+  const [filterPaymentType, setFilterPaymentType] = useState<PaymentType | 'all'>((searchParams.get('paymentType') as PaymentType) || 'all');
+  const [page, setPage] = useState(Number(searchParams.get('page')) || 1);
   const limit = 10;
+
+  // Persist filters to URL
+  const updateUrlParams = useCallback(() => {
+    const params = new URLSearchParams();
+    if (searchTerm) params.set('search', searchTerm);
+    if (filterPaymentType !== 'all') params.set('paymentType', filterPaymentType);
+    if (page > 1) params.set('page', String(page));
+    const qs = params.toString();
+    router.replace(`/collections${qs ? `?${qs}` : ''}`, { scroll: false });
+  }, [searchTerm, filterPaymentType, page, router]);
+
+  useEffect(() => {
+    updateUrlParams();
+  }, [updateUrlParams]);
 
   // Build filters for API
   const filters = useMemo(() => ({
@@ -211,7 +226,7 @@ function CollectionsContent() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => router.push(`/collections/${collection.id}`)}
+                        onClick={() => router.push(`/collections/${collection._id}`)}
                       >
                         {t('common.view')}
                       </Button>

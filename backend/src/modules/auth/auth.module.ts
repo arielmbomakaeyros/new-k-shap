@@ -10,6 +10,8 @@ import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
 import { User, UserSchema } from '../../database/schemas/user.schema';
 import { Company, CompanySchema } from '../../database/schemas/company.schema';
 import { UsersModule } from '../users/users.module';
+import { Department, DepartmentSchema } from '../../database/schemas/department.schema';
+import { Role, RoleSchema } from '../../database/schemas/role.schema';
 
 @Module({
   imports: [
@@ -27,6 +29,8 @@ import { UsersModule } from '../users/users.module';
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },
       { name: Company.name, schema: CompanySchema },
+      { name: Department.name, schema: DepartmentSchema },
+      { name: Role.name, schema: RoleSchema },
     ]),
     UsersModule,
   ],

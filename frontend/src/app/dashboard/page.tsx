@@ -122,7 +122,7 @@ export default function DashboardPage() {
             </button>
 
             {/* Company Settings - Only for company users */}
-            {!isKaeyrosAdmin && (
+            {isCompanyAdmin && (
               <button
                 onClick={() => router.push('/company/settings')}
                 className="glass-card rounded-xl p-6 cursor-pointer text-left group"

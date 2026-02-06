@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
@@ -10,7 +11,16 @@ import { Disbursement } from '../../database/schemas/disbursement.schema';
 import {
   DisbursementStatus,
   DisbursementActionType,
+  UserRole,
 } from '../../database/schemas/enums';
+import { Company } from '../../database/schemas/company.schema';
+import { WorkflowTemplate } from '../../database/schemas/workflow-template.schema';
+import { User } from '../../database/schemas/user.schema';
+import { NotificationsService } from '../notifications/notifications.service';
+import {
+  NotificationChannel,
+  NotificationType,
+} from '../notifications/dto/create-notification.dto';
 
 interface FindAllOptions {
   page?: number;
@@ -23,6 +33,7 @@ interface FindAllOptions {
   office?: string;
   beneficiary?: string;
   disbursementType?: string;
+  createdBy?: string;
   paymentMethod?: string;
   priority?: string;
   isUrgent?: string;
@@ -40,22 +51,27 @@ export class DisbursementsService {
   constructor(
     @InjectModel(Disbursement.name)
     private disbursementModel: Model<Disbursement>,
+    @InjectModel(Company.name)
+    private companyModel: Model<Company>,
+    @InjectModel(WorkflowTemplate.name)
+    private workflowTemplateModel: Model<WorkflowTemplate>,
+    @InjectModel(User.name)
+    private userModel: Model<User>,
+    private notificationsService: NotificationsService,
   ) {}
 
-  private async generateReferenceNumber(): Promise<string> {
+  private generateReferenceNumber(): string {
     const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    for (let attempt = 0; attempt < 5; attempt += 1) {
-      const randomPart = Math.random().toString(36).slice(2, 8).toUpperCase();
-      const referenceNumber = `DISB-${datePart}-${randomPart}`;
-      const exists = await this.disbursementModel.exists({ referenceNumber });
-      if (!exists) return referenceNumber;
-    }
-    throw new BadRequestException('Failed to generate disbursement reference number');
+    const randomPart = Math.random().toString(36).slice(2, 8).toUpperCase();
+    return `DISB-${datePart}-${randomPart}`;
   }
 
   private parseObjectIdList(value: string | undefined, fieldName: string) {
     if (!value) return [];
-    const items = value.split(',').map((item) => item.trim()).filter(Boolean);
+    const items = value
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
     const ids = items.map((item) => {
       if (!Types.ObjectId.isValid(item)) {
         throw new BadRequestException(`Invalid ${fieldName} id`);
@@ -65,25 +81,321 @@ export class DisbursementsService {
     return ids;
   }
 
+  private getSystemRoles(user?: any): string[] {
+    return user?.systemRoles || [];
+  }
+
+  private hasRole(user: any, role: UserRole) {
+    return this.getSystemRoles(user).includes(role);
+  }
+
+  private isElevatedUser(user?: any) {
+    if (!user) return false;
+    if (user.isKaeyrosUser) return true;
+    return (
+      this.hasRole(user, UserRole.COMPANY_SUPER_ADMIN) ||
+      this.hasRole(user, UserRole.VALIDATOR) ||
+      this.hasRole(user, UserRole.CASHIER)
+    );
+  }
+
+  private getUserId(user?: any): string | null {
+    const id = user?._id || user?.id;
+    return id ? id.toString() : null;
+  }
+
+  private getDepartmentIds(user?: any): string[] {
+    return (user?.departments || [])
+      .map((d: any) => (d?._id || d)?.toString())
+      .filter(Boolean);
+  }
+
+  private buildAccessFilter(user?: any) {
+    if (!user || this.isElevatedUser(user)) return {};
+
+    if (this.hasRole(user, UserRole.DEPARTMENT_HEAD)) {
+      const deptIds = this.getDepartmentIds(user);
+      return {
+        department: deptIds.length
+          ? { $in: deptIds.map((id) => new Types.ObjectId(id)) }
+          : new Types.ObjectId('000000000000000000000000'),
+      };
+    }
+
+    const userId = this.getUserId(user);
+    return userId ? { createdBy: new Types.ObjectId(userId) } : {};
+  }
+
+  private ensureUserCanAccessDisbursement(
+    user: any,
+    disbursement: Disbursement,
+  ) {
+    if (!user || this.isElevatedUser(user)) return;
+
+    if (this.hasRole(user, UserRole.DEPARTMENT_HEAD)) {
+      const deptIds = this.getDepartmentIds(user);
+      const deptId = disbursement.department?.toString();
+      if (!deptId || !deptIds.includes(deptId)) {
+        throw new ForbiddenException(
+          'You do not have access to this disbursement',
+        );
+      }
+      return;
+    }
+
+    const userId = this.getUserId(user);
+    const createdBy = disbursement.createdBy?.toString();
+    if (!userId || !createdBy || userId !== createdBy) {
+      throw new ForbiddenException(
+        'You do not have access to this disbursement',
+      );
+    }
+  }
+
+  private roleToStatus(role: string): DisbursementStatus | null {
+    switch (role) {
+      case UserRole.DEPARTMENT_HEAD:
+        return DisbursementStatus.PENDING_DEPT_HEAD;
+      case UserRole.VALIDATOR:
+        return DisbursementStatus.PENDING_VALIDATOR;
+      case UserRole.CASHIER:
+        return DisbursementStatus.PENDING_CASHIER;
+      default:
+        return null;
+    }
+  }
+
+  private statusToRole(status: DisbursementStatus): UserRole | null {
+    switch (status) {
+      case DisbursementStatus.PENDING_DEPT_HEAD:
+        return UserRole.DEPARTMENT_HEAD;
+      case DisbursementStatus.PENDING_VALIDATOR:
+        return UserRole.VALIDATOR;
+      case DisbursementStatus.PENDING_CASHIER:
+        return UserRole.CASHIER;
+      default:
+        return null;
+    }
+  }
+
+  private getStepKey(
+    role: UserRole,
+  ): 'deptHeadValidation' | 'validatorApproval' | 'cashierExecution' | null {
+    switch (role) {
+      case UserRole.DEPARTMENT_HEAD:
+        return 'deptHeadValidation';
+      case UserRole.VALIDATOR:
+        return 'validatorApproval';
+      case UserRole.CASHIER:
+        return 'cashierExecution';
+      default:
+        return null;
+    }
+  }
+
+  private setStatusTimeline(
+    disbursement: Disbursement,
+    status: DisbursementStatus,
+    at: Date,
+  ) {
+    const timeline = disbursement.statusTimeline || {};
+    switch (status) {
+      case DisbursementStatus.PENDING_DEPT_HEAD:
+        timeline.pendingDeptHead = at;
+        break;
+      case DisbursementStatus.PENDING_VALIDATOR:
+        timeline.pendingValidator = at;
+        break;
+      case DisbursementStatus.PENDING_CASHIER:
+        timeline.pendingCashier = at;
+        break;
+      case DisbursementStatus.COMPLETED:
+        timeline.completed = at;
+        break;
+      case DisbursementStatus.REJECTED:
+        timeline.rejected = at;
+        break;
+      case DisbursementStatus.CANCELLED:
+        timeline.cancelled = at;
+        break;
+      default:
+        break;
+    }
+    disbursement.statusTimeline = timeline;
+  }
+
+  private markStepApproved(
+    disbursement: Disbursement,
+    role: UserRole,
+    userId: string,
+    notes?: string,
+  ) {
+    const key = this.getStepKey(role);
+    if (!key) return;
+    const now = new Date();
+    (disbursement as any)[key] = {
+      ...(disbursement as any)[key],
+      status: 'approved',
+      isCompleted: true,
+      completedAt: now,
+      completedBy: userId as any,
+      notes: notes || '',
+    };
+  }
+
+  private markStepSkipped(
+    disbursement: Disbursement,
+    role: UserRole,
+    userId?: string | null,
+  ) {
+    const key = this.getStepKey(role);
+    if (!key) return;
+    const existing = (disbursement as any)[key];
+    if (existing?.isCompleted && existing?.status === 'approved') {
+      return;
+    }
+    const now = new Date();
+    (disbursement as any)[key] = {
+      ...existing,
+      status: 'skipped',
+      isCompleted: true,
+      wasSkipped: true,
+      skippedAt: now,
+      skippedBy: userId ? (userId as any) : null,
+    };
+  }
+
+  private async resolveWorkflow(companyId: string, amount?: number) {
+    const company = await this.companyModel.findById(companyId).lean();
+    if (!company) {
+      throw new NotFoundException('Company not found');
+    }
+
+    let steps: string[] = [];
+
+    if (company.activeWorkflowTemplate) {
+      const template = await this.workflowTemplateModel
+        .findById(company.activeWorkflowTemplate)
+        .lean();
+      if (template?.steps?.length) {
+        steps = [...template.steps]
+          .sort((a: any, b: any) => (a.order || 0) - (b.order || 0))
+          .map((step: any) => step.roleRequired)
+          .filter(Boolean);
+      }
+    }
+
+    if (!steps.length) {
+      const workflowSettings: any = company.workflowSettings || {};
+      if (workflowSettings.requireDeptHeadApproval) {
+        steps.push(UserRole.DEPARTMENT_HEAD);
+      }
+      if (workflowSettings.requireValidatorApproval) {
+        steps.push(UserRole.VALIDATOR);
+      }
+      if (workflowSettings.requireCashierExecution) {
+        steps.push(UserRole.CASHIER);
+      }
+    }
+
+    if (
+      typeof amount === 'number' &&
+      company.workflowSettings?.maxAmountNoApproval !== undefined &&
+      amount <= company.workflowSettings.maxAmountNoApproval
+    ) {
+      steps = steps.filter((role) => role === UserRole.CASHIER);
+    }
+
+    return { company, steps };
+  }
+
+  private async notifyRoleUsers(
+    companyId: string,
+    role: UserRole,
+    disbursement: Disbursement,
+  ) {
+    const userFilter: any = {
+      company: new Types.ObjectId(companyId),
+      isDeleted: false,
+      isActive: true,
+      systemRoles: role,
+    };
+
+    if (role === UserRole.DEPARTMENT_HEAD) {
+      userFilter.departments = new Types.ObjectId(
+        disbursement.department as any,
+      );
+    }
+
+    const recipients = await this.userModel
+      .find(userFilter)
+      .select('_id firstName lastName email')
+      .lean();
+
+    if (!recipients.length) return;
+
+    const title = 'Disbursement approval required';
+    const content = `Disbursement ${disbursement.referenceNumber} requires your approval.`;
+
+    await Promise.all(
+      recipients.map((recipient: any) =>
+        this.notificationsService.create(
+          {
+            title,
+            content,
+            type: NotificationType.INFO,
+            channel: NotificationChannel.IN_APP,
+            recipientId: recipient._id.toString(),
+            metadata: {
+              disbursementId: disbursement._id?.toString(),
+              referenceNumber: disbursement.referenceNumber,
+              status: disbursement.status,
+            },
+          },
+          companyId,
+        ),
+      ),
+    );
+  }
+
   async create(
     createDisbursementDto: any,
     userId?: string,
     companyId?: string,
   ) {
-    const referenceNumber =
-      createDisbursementDto.referenceNumber || (await this.generateReferenceNumber());
-    const disbursementData = {
-      ...createDisbursementDto,
-      referenceNumber,
-      createdBy: userId,
-      company: companyId ? new Types.ObjectId(companyId) : undefined,
-      status: DisbursementStatus.DRAFT,
-      statusTimeline: {
-        draft: new Date(),
-      },
-    };
-    const createdDisbursement = new this.disbursementModel(disbursementData);
-    return createdDisbursement.save();
+    const maxRetries = 5;
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      const referenceNumber =
+        createDisbursementDto.referenceNumber || this.generateReferenceNumber();
+      const disbursementData = {
+        ...createDisbursementDto,
+        referenceNumber,
+        createdBy: userId,
+        company: companyId ? new Types.ObjectId(companyId) : undefined,
+        status: DisbursementStatus.DRAFT,
+        statusTimeline: {
+          draft: new Date(),
+        },
+      };
+      try {
+        const createdDisbursement = new this.disbursementModel(
+          disbursementData,
+        );
+        return await createdDisbursement.save();
+      } catch (err: any) {
+        // Retry only on duplicate key error for auto-generated reference numbers
+        const isDuplicateRef =
+          err?.code === 11000 &&
+          err?.keyPattern?.referenceNumber &&
+          !createDisbursementDto.referenceNumber;
+        if (!isDuplicateRef || attempt === maxRetries - 1) {
+          throw err;
+        }
+      }
+    }
+    throw new BadRequestException(
+      'Failed to generate unique disbursement reference number',
+    );
   }
 
   async findAll(companyId?: string, options?: FindAllOptions) {
@@ -98,6 +410,7 @@ export class DisbursementsService {
       office,
       beneficiary,
       disbursementType,
+      createdBy,
       paymentMethod,
       priority,
       isUrgent,
@@ -110,7 +423,7 @@ export class DisbursementsService {
       tags,
     } = options || {};
 
-    const query: any = {};
+    const query: any = { isDeleted: false };
 
     if (companyId) {
       query.company = new Types.ObjectId(companyId);
@@ -124,7 +437,10 @@ export class DisbursementsService {
     }
 
     if (status) {
-      const statuses = status.split(',').map((s) => s.trim()).filter(Boolean);
+      const statuses = status
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
       query.status = statuses.length > 1 ? { $in: statuses } : statuses[0];
     }
 
@@ -148,14 +464,26 @@ export class DisbursementsService {
       query.disbursementType = ids.length > 1 ? { $in: ids } : ids[0];
     }
 
+    if (createdBy) {
+      const ids = this.parseObjectIdList(createdBy, 'createdBy');
+      query.createdBy = ids.length > 1 ? { $in: ids } : ids[0];
+    }
+
     if (paymentMethod) {
-      const methods = paymentMethod.split(',').map((m) => m.trim()).filter(Boolean);
+      const methods = paymentMethod
+        .split(',')
+        .map((m) => m.trim())
+        .filter(Boolean);
       query.paymentMethod = methods.length > 1 ? { $in: methods } : methods[0];
     }
 
     if (priority) {
-      const priorities = priority.split(',').map((p) => p.trim()).filter(Boolean);
-      query.priority = priorities.length > 1 ? { $in: priorities } : priorities[0];
+      const priorities = priority
+        .split(',')
+        .map((p) => p.trim())
+        .filter(Boolean);
+      query.priority =
+        priorities.length > 1 ? { $in: priorities } : priorities[0];
     }
 
     if (isUrgent !== undefined) {
@@ -183,7 +511,10 @@ export class DisbursementsService {
     }
 
     if (tags) {
-      const tagList = tags.split(',').map((t) => t.trim()).filter(Boolean);
+      const tagList = tags
+        .split(',')
+        .map((t) => t.trim())
+        .filter(Boolean);
       if (tagList.length) {
         query.tags = { $in: tagList };
       }
@@ -202,6 +533,7 @@ export class DisbursementsService {
         .populate('department')
         .populate('office')
         .populate('disbursementType')
+        .populate('createdBy', 'firstName lastName email')
         .exec(),
       this.disbursementModel.countDocuments(query as any),
     ]);
@@ -392,16 +724,20 @@ export class DisbursementsService {
     return workbook.xlsx.writeBuffer();
   }
 
-  async findOne(id: string, companyId?: string) {
+  async findOne(id: string, companyId?: string, user?: any) {
+    const accessFilter = this.buildAccessFilter(user);
     const disbursement = await this.disbursementModel
       .findOne({
         _id: new Types.ObjectId(id),
         ...(companyId ? { company: new Types.ObjectId(companyId) } : {}),
+        ...accessFilter,
+        isDeleted: false,
       } as any)
       .populate('beneficiary')
       .populate('department')
       .populate('office')
       .populate('disbursementType')
+      .populate('createdBy', 'firstName lastName email')
       .exec();
 
     if (!disbursement) {
@@ -411,7 +747,25 @@ export class DisbursementsService {
     return disbursement;
   }
 
-  async update(id: string, updateDisbursementDto: any, userId?: string, companyId?: string) {
+  async update(
+    id: string,
+    updateDisbursementDto: any,
+    userId?: string,
+    companyId?: string,
+    user?: any,
+  ) {
+    const existing = await this.disbursementModel.findOne({
+      _id: new Types.ObjectId(id),
+      ...(companyId ? { company: new Types.ObjectId(companyId) } : {}),
+      isDeleted: false,
+    } as any);
+
+    if (!existing) {
+      throw new NotFoundException(`Disbursement with ID ${id} not found`);
+    }
+
+    this.ensureUserCanAccessDisbursement(user, existing);
+
     const updateData = {
       ...updateDisbursementDto,
       updatedBy: userId,
@@ -421,6 +775,7 @@ export class DisbursementsService {
       {
         _id: new Types.ObjectId(id),
         ...(companyId ? { company: new Types.ObjectId(companyId) } : {}),
+        isDeleted: false,
       } as any,
       updateData,
       { new: true },
@@ -434,27 +789,53 @@ export class DisbursementsService {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async remove(id: string, userId?: string, companyId?: string) {
-    const disbursement = await this.disbursementModel.findOneAndDelete({
+  async remove(id: string, userId?: string, companyId?: string, user?: any) {
+    const disbursement = await this.disbursementModel.findOne({
       _id: new Types.ObjectId(id),
       ...(companyId ? { company: new Types.ObjectId(companyId) } : {}),
+      isDeleted: false,
     } as any);
 
     if (!disbursement) {
       throw new NotFoundException(`Disbursement with ID ${id} not found`);
     }
 
+    this.ensureUserCanAccessDisbursement(user, disbursement);
+
+    if (!this.isElevatedUser(user)) {
+      const createdBy = disbursement.createdBy?.toString();
+      if (!createdBy || createdBy !== userId) {
+        throw new ForbiddenException('You cannot delete this disbursement');
+      }
+    }
+
+    await this.disbursementModel.findOneAndDelete({
+      _id: new Types.ObjectId(id),
+      ...(companyId ? { company: new Types.ObjectId(companyId) } : {}),
+      isDeleted: false,
+    } as any);
+
     return { success: true, message: 'Disbursement deleted successfully' };
   }
 
-  async submit(id: string, userId?: string, companyId?: string) {
+  async submit(id: string, userId?: string, companyId?: string, user?: any) {
     const disbursement = await this.disbursementModel.findOne({
       _id: new Types.ObjectId(id),
       ...(companyId ? { company: new Types.ObjectId(companyId) } : {}),
+      isDeleted: false,
     } as any);
 
     if (!disbursement) {
       throw new NotFoundException(`Disbursement with ID ${id} not found`);
+    }
+
+    this.ensureUserCanAccessDisbursement(user, disbursement);
+
+    if (!this.isElevatedUser(user)) {
+      const createdBy = disbursement.createdBy?.toString();
+      if (!createdBy || createdBy !== userId) {
+        throw new ForbiddenException('You cannot submit this disbursement');
+      }
     }
 
     if (disbursement.status !== DisbursementStatus.DRAFT) {
@@ -464,11 +845,38 @@ export class DisbursementsService {
     }
 
     const now = new Date();
-    disbursement.status = DisbursementStatus.PENDING_DEPT_HEAD;
-    disbursement.statusTimeline = {
-      ...disbursement.statusTimeline,
-      pendingDeptHead: now,
-    };
+    const effectiveCompanyId = companyId || disbursement.company?.toString();
+    const { steps } = effectiveCompanyId
+      ? await this.resolveWorkflow(effectiveCompanyId, disbursement.amount)
+      : { steps: [] };
+    const approvalSteps = (steps || [])
+      .map((role) => role as UserRole)
+      .filter((role) => this.roleToStatus(role));
+
+    const firstRole = approvalSteps[0];
+    const firstStatus = firstRole ? this.roleToStatus(firstRole) : null;
+
+    if (firstStatus) {
+      disbursement.status = firstStatus;
+      this.setStatusTimeline(disbursement, firstStatus, now);
+    } else {
+      disbursement.status = DisbursementStatus.COMPLETED;
+      disbursement.isCompleted = true;
+      disbursement.completedAt = now;
+      this.setStatusTimeline(disbursement, DisbursementStatus.COMPLETED, now);
+    }
+
+    const allRoles: UserRole[] = [
+      UserRole.DEPARTMENT_HEAD,
+      UserRole.VALIDATOR,
+      UserRole.CASHIER,
+    ];
+    allRoles.forEach((role) => {
+      if (!approvalSteps.includes(role)) {
+        this.markStepSkipped(disbursement, role, userId || null);
+      }
+    });
+
     disbursement.agentSubmission = {
       ...disbursement.agentSubmission,
       status: 'approved',
@@ -483,17 +891,30 @@ export class DisbursementsService {
       performedAt: now,
       metadata: {
         previousStatus: DisbursementStatus.DRAFT,
-        newStatus: DisbursementStatus.PENDING_DEPT_HEAD,
+        newStatus: disbursement.status,
       },
     } as any);
 
-    return disbursement.save();
+    const saved = await disbursement.save();
+
+    if (effectiveCompanyId && firstRole) {
+      await this.notifyRoleUsers(effectiveCompanyId, firstRole, saved);
+    }
+
+    return saved;
   }
 
-  async approve(id: string, userId?: string, notes?: string, companyId?: string) {
+  async approve(
+    id: string,
+    userId?: string,
+    notes?: string,
+    companyId?: string,
+    user?: any,
+  ) {
     const disbursement = await this.disbursementModel.findOne({
       _id: new Types.ObjectId(id),
       ...(companyId ? { company: new Types.ObjectId(companyId) } : {}),
+      isDeleted: false,
     } as any);
 
     if (!disbursement) {
@@ -502,70 +923,96 @@ export class DisbursementsService {
 
     const now = new Date();
     const previousStatus = disbursement.status;
-    let newStatus: DisbursementStatus;
-    let actionType: DisbursementActionType;
+    const currentRole = this.statusToRole(disbursement.status);
 
-    switch (disbursement.status) {
-      case DisbursementStatus.PENDING_DEPT_HEAD:
-        newStatus = DisbursementStatus.PENDING_VALIDATOR;
-        actionType = DisbursementActionType.DEPT_HEAD_VALIDATED;
-        disbursement.deptHeadValidation = {
-          ...disbursement.deptHeadValidation,
-          status: 'approved',
-          isCompleted: true,
-          completedAt: now,
-          completedBy: userId as any,
-          notes: notes || '',
-        };
-        disbursement.statusTimeline = {
-          ...disbursement.statusTimeline,
-          pendingValidator: now,
-        };
-        break;
-
-      case DisbursementStatus.PENDING_VALIDATOR:
-        newStatus = DisbursementStatus.PENDING_CASHIER;
-        actionType = DisbursementActionType.VALIDATOR_APPROVED;
-        disbursement.validatorApproval = {
-          ...disbursement.validatorApproval,
-          status: 'approved',
-          isCompleted: true,
-          completedAt: now,
-          completedBy: userId as any,
-          notes: notes || '',
-        };
-        disbursement.statusTimeline = {
-          ...disbursement.statusTimeline,
-          pendingCashier: now,
-        };
-        break;
-
-      case DisbursementStatus.PENDING_CASHIER:
-        newStatus = DisbursementStatus.COMPLETED;
-        actionType = DisbursementActionType.CASHIER_EXECUTED;
-        disbursement.cashierExecution = {
-          ...disbursement.cashierExecution,
-          status: 'approved',
-          isCompleted: true,
-          completedAt: now,
-          completedBy: userId as any,
-          notes: notes || '',
-        };
-        disbursement.isCompleted = true;
-        disbursement.completedAt = now;
-        disbursement.statusTimeline = {
-          ...disbursement.statusTimeline,
-          completed: now,
-        };
-        break;
-
-      default:
-        throw new BadRequestException(
-          'Disbursement cannot be approved in current status',
-        );
+    if (!currentRole) {
+      throw new BadRequestException(
+        'Disbursement cannot be approved in current status',
+      );
     }
 
+    if (!this.isElevatedUser(user)) {
+      if (currentRole === UserRole.DEPARTMENT_HEAD) {
+        if (!this.hasRole(user, UserRole.DEPARTMENT_HEAD)) {
+          throw new ForbiddenException(
+            'Only a department head can approve this disbursement',
+          );
+        }
+        const deptIds = this.getDepartmentIds(user);
+        const deptId = disbursement.department?.toString();
+        if (!deptId || !deptIds.includes(deptId)) {
+          throw new ForbiddenException(
+            'You cannot approve disbursements from other departments',
+          );
+        }
+      } else if (currentRole === UserRole.VALIDATOR) {
+        if (!this.hasRole(user, UserRole.VALIDATOR)) {
+          throw new ForbiddenException(
+            'Only a validator can approve this disbursement',
+          );
+        }
+      } else if (currentRole === UserRole.CASHIER) {
+        if (!this.hasRole(user, UserRole.CASHIER)) {
+          throw new ForbiddenException(
+            'Only a cashier can execute this disbursement',
+          );
+        }
+      }
+    }
+
+    let newStatus: DisbursementStatus = DisbursementStatus.COMPLETED;
+    let nextRole: UserRole | null = null;
+    const effectiveCompanyId = companyId || disbursement.company?.toString();
+
+    if (effectiveCompanyId) {
+      const { steps } = await this.resolveWorkflow(
+        effectiveCompanyId,
+        disbursement.amount,
+      );
+      const approvalSteps = (steps || [])
+        .map((role) => role as UserRole)
+        .filter((role) => this.roleToStatus(role));
+      const currentIndex = approvalSteps.indexOf(currentRole);
+      if (currentIndex >= 0) {
+        nextRole = approvalSteps[currentIndex + 1] || null;
+        const nextStatus = nextRole ? this.roleToStatus(nextRole) : null;
+        newStatus = nextStatus || DisbursementStatus.COMPLETED;
+      } else {
+        switch (disbursement.status) {
+          case DisbursementStatus.PENDING_DEPT_HEAD:
+            newStatus = DisbursementStatus.PENDING_VALIDATOR;
+            break;
+          case DisbursementStatus.PENDING_VALIDATOR:
+            newStatus = DisbursementStatus.PENDING_CASHIER;
+            break;
+          case DisbursementStatus.PENDING_CASHIER:
+          default:
+            newStatus = DisbursementStatus.COMPLETED;
+            break;
+        }
+      }
+    }
+
+    this.markStepApproved(disbursement, currentRole, userId as string, notes);
+
+    if (newStatus === DisbursementStatus.COMPLETED) {
+      disbursement.isCompleted = true;
+      disbursement.completedAt = now;
+    }
+
+    this.setStatusTimeline(disbursement, newStatus, now);
+
     disbursement.status = newStatus;
+
+    let actionType: DisbursementActionType = DisbursementActionType.APPROVE;
+    if (currentRole === UserRole.DEPARTMENT_HEAD) {
+      actionType = DisbursementActionType.DEPT_HEAD_VALIDATED;
+    } else if (currentRole === UserRole.VALIDATOR) {
+      actionType = DisbursementActionType.VALIDATOR_APPROVED;
+    } else if (currentRole === UserRole.CASHIER) {
+      actionType = DisbursementActionType.CASHIER_EXECUTED;
+    }
+
     disbursement.actionHistory.push({
       action: actionType,
       performedBy: userId as any,
@@ -577,17 +1024,145 @@ export class DisbursementsService {
       },
     } as any);
 
-    return disbursement.save();
+    const saved = await disbursement.save();
+
+    if (
+      effectiveCompanyId &&
+      nextRole &&
+      newStatus !== DisbursementStatus.COMPLETED
+    ) {
+      await this.notifyRoleUsers(effectiveCompanyId, nextRole, saved);
+    }
+
+    return saved;
   }
 
-  async reject(id: string, userId?: string, reason?: string, companyId?: string) {
+  async forceComplete(
+    id: string,
+    userId?: string,
+    reason?: string,
+    companyId?: string,
+    user?: any,
+  ) {
     const disbursement = await this.disbursementModel.findOne({
       _id: new Types.ObjectId(id),
       ...(companyId ? { company: new Types.ObjectId(companyId) } : {}),
+      isDeleted: false,
     } as any);
 
     if (!disbursement) {
       throw new NotFoundException(`Disbursement with ID ${id} not found`);
+    }
+
+    if (!this.isElevatedUser(user) && !this.hasRole(user, UserRole.VALIDATOR)) {
+      throw new ForbiddenException(
+        'You do not have permission to force complete disbursements',
+      );
+    }
+
+    if (disbursement.status === DisbursementStatus.COMPLETED) {
+      throw new BadRequestException('Disbursement is already completed');
+    }
+
+    if (disbursement.status === DisbursementStatus.DRAFT) {
+      throw new BadRequestException(
+        'Draft disbursements cannot be force completed',
+      );
+    }
+
+    const now = new Date();
+    const previousStatus = disbursement.status;
+
+    // Skip any unfinished steps and mark cashier execution as completed
+    this.markStepSkipped(
+      disbursement,
+      UserRole.DEPARTMENT_HEAD,
+      userId || null,
+    );
+    this.markStepSkipped(disbursement, UserRole.VALIDATOR, userId || null);
+    this.markStepApproved(
+      disbursement,
+      UserRole.CASHIER,
+      userId as string,
+      reason,
+    );
+
+    disbursement.status = DisbursementStatus.COMPLETED;
+    disbursement.isCompleted = true;
+    disbursement.completedAt = now;
+    disbursement.forceCompleted = true;
+    disbursement.forceCompletedBy = userId as any;
+    disbursement.forceCompletedAt = now;
+    disbursement.forceCompletionReason = reason || '';
+    disbursement.forceCompletionUndone = false;
+
+    this.setStatusTimeline(disbursement, DisbursementStatus.COMPLETED, now);
+
+    disbursement.actionHistory.push({
+      action: DisbursementActionType.FORCE_COMPLETED,
+      performedBy: userId as any,
+      performedAt: now,
+      reason,
+      metadata: {
+        previousStatus,
+        newStatus: DisbursementStatus.COMPLETED,
+      },
+    } as any);
+
+    return disbursement.save();
+  }
+
+  async reject(
+    id: string,
+    userId?: string,
+    reason?: string,
+    companyId?: string,
+    user?: any,
+  ) {
+    const disbursement = await this.disbursementModel.findOne({
+      _id: new Types.ObjectId(id),
+      ...(companyId ? { company: new Types.ObjectId(companyId) } : {}),
+      isDeleted: false,
+    } as any);
+
+    if (!disbursement) {
+      throw new NotFoundException(`Disbursement with ID ${id} not found`);
+    }
+
+    const currentRole = this.statusToRole(disbursement.status);
+    if (!currentRole) {
+      throw new BadRequestException(
+        'Disbursement cannot be rejected in current status',
+      );
+    }
+
+    if (!this.isElevatedUser(user)) {
+      if (currentRole === UserRole.DEPARTMENT_HEAD) {
+        if (!this.hasRole(user, UserRole.DEPARTMENT_HEAD)) {
+          throw new ForbiddenException(
+            'Only a department head can reject this disbursement',
+          );
+        }
+        const deptIds = this.getDepartmentIds(user);
+        const deptId = disbursement.department?.toString();
+        if (!deptId || !deptIds.includes(deptId)) {
+          throw new ForbiddenException(
+            'You cannot reject disbursements from other departments',
+          );
+        }
+      } else if (currentRole === UserRole.VALIDATOR) {
+        if (!this.hasRole(user, UserRole.VALIDATOR)) {
+          throw new ForbiddenException(
+            'Only a validator can reject this disbursement',
+          );
+        }
+      } else if (currentRole === UserRole.CASHIER) {
+        if (!this.hasRole(user, UserRole.CASHIER)) {
+          throw new ForbiddenException(
+            'Only a cashier can reject this disbursement',
+          );
+        }
+      }
     }
 
     const now = new Date();
@@ -625,14 +1200,30 @@ export class DisbursementsService {
     return disbursement.save();
   }
 
-  async cancel(id: string, userId?: string, reason?: string, companyId?: string) {
+  async cancel(
+    id: string,
+    userId?: string,
+    reason?: string,
+    companyId?: string,
+    user?: any,
+  ) {
     const disbursement = await this.disbursementModel.findOne({
       _id: new Types.ObjectId(id),
       ...(companyId ? { company: new Types.ObjectId(companyId) } : {}),
+      isDeleted: false,
     } as any);
 
     if (!disbursement) {
       throw new NotFoundException(`Disbursement with ID ${id} not found`);
+    }
+
+    this.ensureUserCanAccessDisbursement(user, disbursement);
+
+    if (!this.isElevatedUser(user)) {
+      const createdBy = disbursement.createdBy?.toString();
+      if (!createdBy || createdBy !== userId) {
+        throw new ForbiddenException('You cannot cancel this disbursement');
+      }
     }
 
     if (disbursement.status === DisbursementStatus.COMPLETED) {

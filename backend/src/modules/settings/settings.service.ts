@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Company } from '../../database/schemas/company.schema';
+import { WorkflowTemplate } from '../../database/schemas/workflow-template.schema';
 
 export interface CompanySettingsResponse {
   companyInfo: {
@@ -103,6 +104,7 @@ export interface UpdateCompanyPreferencesDto {
 export class SettingsService {
   constructor(
     @InjectModel(Company.name) private companyModel: Model<Company>,
+    @InjectModel(WorkflowTemplate.name) private workflowTemplateModel: Model<WorkflowTemplate>,
   ) {}
 
   async getCompanySettings(companyId: string): Promise<CompanySettingsResponse> {
@@ -343,24 +345,83 @@ export class SettingsService {
     return this.getCompanySettings(companyId);
   }
 
-  // Legacy methods for backward compatibility
-  async create(createSettingDto: any) {
-    return createSettingDto;
+  // Workflow Template methods
+  async getWorkflowTemplates(companyId: string) {
+    // Return system templates + company-specific templates
+    const filter: any = {
+      $or: [
+        { isSystem: true },
+        { company: new Types.ObjectId(companyId) },
+      ],
+    };
+    return this.workflowTemplateModel
+      .find(filter)
+      .sort({ isSystem: -1, createdAt: 1 })
+      .lean();
   }
 
-  async findAll() {
-    return [];
+  async setActiveWorkflowTemplate(companyId: string, templateId: string) {
+    const template = await this.workflowTemplateModel.findById(templateId);
+    if (!template) {
+      throw new NotFoundException('Workflow template not found');
+    }
+
+    // Ensure template belongs to this company or is a system template
+    if (!template.isSystem && template.company?.toString() !== companyId) {
+      throw new BadRequestException('Template does not belong to this company');
+    }
+
+    const company = await this.companyModel.findByIdAndUpdate(
+      companyId,
+      { $set: { activeWorkflowTemplate: new Types.ObjectId(templateId) } },
+      { new: true },
+    );
+
+    if (!company) {
+      throw new NotFoundException('Company not found');
+    }
+
+    return this.getCompanySettings(companyId);
   }
 
-  async findOne(id: string) {
-    return {};
+  async createCustomWorkflowTemplate(
+    companyId: string,
+    userId: string,
+    dto: { name: string; description?: string; steps: any[] },
+  ) {
+    const template = new this.workflowTemplateModel({
+      name: dto.name,
+      description: dto.description || '',
+      isDefault: false,
+      isSystem: false,
+      steps: dto.steps,
+      company: new Types.ObjectId(companyId),
+      createdBy: new Types.ObjectId(userId),
+    });
+
+    return template.save();
   }
 
-  async update(id: string, updateSettingDto: any) {
-    return updateSettingDto;
-  }
+  async deleteWorkflowTemplate(companyId: string, templateId: string) {
+    const template = await this.workflowTemplateModel.findById(templateId);
+    if (!template) {
+      throw new NotFoundException('Workflow template not found');
+    }
 
-  async remove(id: string) {
-    return {};
+    if (template.isSystem) {
+      throw new BadRequestException('System templates cannot be deleted');
+    }
+
+    if (template.company?.toString() !== companyId) {
+      throw new BadRequestException('Template does not belong to this company');
+    }
+
+    const activeCompany = await this.companyModel.findById(companyId).select('activeWorkflowTemplate');
+    if (activeCompany?.activeWorkflowTemplate?.toString() === templateId) {
+      throw new BadRequestException('Cannot delete the active workflow template. Activate another first.');
+    }
+
+    await this.workflowTemplateModel.findByIdAndDelete(templateId);
+    return { success: true, message: 'Workflow template deleted' };
   }
 }

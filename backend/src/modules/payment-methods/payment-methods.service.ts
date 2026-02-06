@@ -51,6 +51,7 @@ export class PaymentMethodsService {
     const existing = await this.paymentMethodModel
       .find({
         company: new Types.ObjectId(companyId),
+        isDeleted: false,
         code: { $in: DEFAULT_PAYMENT_METHODS.map((m) => m.code) },
       } as any)
       .select('code')

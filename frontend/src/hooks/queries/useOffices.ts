@@ -4,6 +4,7 @@ import { queryKeys } from './keys';
 // import type { CreateOfficeDto, UpdateOfficeDto, Office } from '@/services/types';
 import { OfficeFilters, officesService } from '@/src/services/offices.service';
 import { CreateOfficeDto, Office, UpdateOfficeDto } from '@/src/services';
+import { handleMutationError } from '@/src/lib/mutationError';
 
 /**
  * Hook for fetching offices list
@@ -44,6 +45,7 @@ export function useCreateOffice() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.offices.lists() });
     },
+    onError: (error) => handleMutationError(error, 'Failed to create office'),
   });
 }
 
@@ -70,6 +72,7 @@ export function useUpdateOffice() {
       return { previousOffice };
     },
     onError: (_err, { id }, context) => {
+      handleMutationError(_err, 'Failed to update office');
       if (context?.previousOffice) {
         queryClient.setQueryData(queryKeys.offices.detail(id), context.previousOffice);
       }
@@ -92,5 +95,6 @@ export function useDeleteOffice() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.offices.lists() });
     },
+    onError: (error) => handleMutationError(error, 'Failed to delete office'),
   });
 }

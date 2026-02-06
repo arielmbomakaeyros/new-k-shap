@@ -32,3 +32,4 @@ export class Role extends BaseEntity {
 export const RoleSchema = SchemaFactory.createForClass(Role);
 
 RoleSchema.index({ company: 1, name: 1 });
+RoleSchema.index({ company: 1, createdAt: -1, isDeleted: 1 });

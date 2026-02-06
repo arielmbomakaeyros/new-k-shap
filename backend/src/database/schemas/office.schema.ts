@@ -35,3 +35,4 @@ export class Office extends BaseEntity {
 export const OfficeSchema = SchemaFactory.createForClass(Office);
 
 OfficeSchema.index({ company: 1, isDeleted: 1 });
+OfficeSchema.index({ company: 1, createdAt: -1, isDeleted: 1 });

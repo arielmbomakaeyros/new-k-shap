@@ -4,6 +4,7 @@ import { queryKeys } from './keys';
 // import type { CreateRoleDto, UpdateRoleDto, Role } from '@/services/types';
 import { RoleFilters, rolesService } from '@/src/services/roles.service';
 import { CreateRoleDto, Role, UpdateRoleDto } from '@/src/services';
+import { handleMutationError } from '@/src/lib/mutationError';
 
 /**
  * Hook for fetching roles list
@@ -44,6 +45,7 @@ export function useCreateRole() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.roles.lists() });
     },
+    onError: (error) => handleMutationError(error, 'Failed to create role'),
   });
 }
 
@@ -68,6 +70,7 @@ export function useUpdateRole() {
       return { previousRole };
     },
     onError: (_err, { id }, context) => {
+      handleMutationError(_err, 'Failed to update role');
       if (context?.previousRole) {
         queryClient.setQueryData(queryKeys.roles.detail(id), context.previousRole);
       }
@@ -90,5 +93,6 @@ export function useDeleteRole() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.roles.lists() });
     },
+    onError: (error) => handleMutationError(error, 'Failed to delete role'),
   });
 }

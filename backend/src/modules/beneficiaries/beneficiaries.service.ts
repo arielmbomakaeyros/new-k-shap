@@ -16,9 +16,10 @@ export class BeneficiariesService {
   }
 
   async findAll(companyId?: string | null, disbursementType?: string) {
-    const filter: Record<string, any> = companyId
-      ? { company: new Types.ObjectId(companyId) }
-      : {};
+    const filter: Record<string, any> = {
+      isDeleted: false,
+      ...(companyId ? { company: new Types.ObjectId(companyId) } : {}),
+    };
     if (disbursementType) {
       filter.disbursementType = new Types.ObjectId(disbursementType);
     }
@@ -26,23 +27,29 @@ export class BeneficiariesService {
   }
 
   async findOne(id: string, companyId?: string | null) {
-    const filter = companyId
-      ? { _id: new Types.ObjectId(id), company: new Types.ObjectId(companyId) }
-      : { _id: new Types.ObjectId(id) };
+    const filter = {
+      _id: new Types.ObjectId(id),
+      isDeleted: false,
+      ...(companyId ? { company: new Types.ObjectId(companyId) } : {}),
+    };
     return this.beneficiaryModel.findOne(filter as any);
   }
 
   async update(id: string, updateBeneficiaryDto: any, companyId?: string | null) {
-    const filter = companyId
-      ? { _id: new Types.ObjectId(id), company: new Types.ObjectId(companyId) }
-      : { _id: new Types.ObjectId(id) };
+    const filter = {
+      _id: new Types.ObjectId(id),
+      isDeleted: false,
+      ...(companyId ? { company: new Types.ObjectId(companyId) } : {}),
+    };
     return this.beneficiaryModel.findOneAndUpdate(filter as any, updateBeneficiaryDto, { new: true });
   }
 
   async remove(id: string, companyId?: string | null) {
-    const filter = companyId
-      ? { _id: new Types.ObjectId(id), company: new Types.ObjectId(companyId) }
-      : { _id: new Types.ObjectId(id) };
+    const filter = {
+      _id: new Types.ObjectId(id),
+      isDeleted: false,
+      ...(companyId ? { company: new Types.ObjectId(companyId) } : {}),
+    };
     return this.beneficiaryModel.findOneAndDelete(filter as any);
   }
 }

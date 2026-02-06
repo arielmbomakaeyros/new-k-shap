@@ -1,23 +1,28 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from '@/node_modules/react-i18next';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/src/components/disbursement/StatusBadge';
+import { ApprovalDialog } from '@/src/components/disbursement/ApprovalDialog';
 import { ProtectedRoute } from '@/src/components/ProtectedRoute';
 import { ProtectedLayout } from '@/src/components/layout/ProtectedLayout';
-import { useBeneficiaries, useDepartments, useDisbursementTypes, useDisbursements, useOffices, usePaymentMethods } from '@/src/hooks/queries';
+import { useBeneficiaries, useDepartments, useDisbursementTypes, useDisbursements, useOffices, usePaymentMethods, useRoles, useSubmitDisbursement } from '@/src/hooks/queries';
+import { useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '@/src/hooks/queries/keys';
 import type { DisbursementStatus } from '@/src/services';
 import { formatPrice } from '@/src/lib/format';
 import { Sheet, SheetBody, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/src/components/ui';
 import { Modal, ModalBody, ModalFooter, ModalHeader, ModalTitle } from '@/src/components/ui/modal';
 import axiosClient from '@/src/lib/axios';
+import { useAuthStore } from '@/src/store/authStore';
 
 function DisbursementsContent() {
   const { t } = useTranslation();
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<DisbursementStatus | 'all'>('all');
   const [filterPaymentMethod, setFilterPaymentMethod] = useState<string>('all');
   const [minAmount, setMinAmount] = useState('');
@@ -31,6 +36,7 @@ function DisbursementsContent() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [exportFormat, setExportFormat] = useState<'csv' | 'xlsx'>('xlsx');
+  const [approvalTarget, setApprovalTarget] = useState<any | null>(null);
   const [exportFilters, setExportFilters] = useState({
     search: '',
     status: [] as string[],
@@ -53,12 +59,28 @@ function DisbursementsContent() {
   });
   const [tagInput, setTagInput] = useState('');
   const limit = 10;
+  const queryClient = useQueryClient();
+  const { user } = useAuthStore();
+  const { data: rolesData } = useRoles();
+  const resolvedSystemRoles = useMemo(() => {
+    if (user?.systemRoles?.length) return user.systemRoles;
+    const rolesList = rolesData?.data || [];
+    const roleIds = (user?.roles || []).map((r: any) => r?._id || r?.id || r);
+    return roleIds
+      .map((id: string) => rolesList.find((role: any) => (role._id || role.id) === id)?.systemRoleType)
+      .filter(Boolean);
+  }, [user, rolesData]);
+  const roles = resolvedSystemRoles || [];
+  const isDeptHead = roles.includes('department_head');
+  const isValidator = roles.includes('validator');
+  const isCashier = roles.includes('cashier');
+  const isCompanyAdmin = roles.includes('company_super_admin');
 
   // Build filters for API
   const filters = useMemo(() => ({
     page,
     limit,
-    search: searchTerm || undefined,
+    search: debouncedSearchTerm || undefined,
     status: filterStatus !== 'all' ? filterStatus : undefined,
     paymentMethod: filterPaymentMethod !== 'all' ? filterPaymentMethod : undefined,
     minAmount: minAmount ? Number(minAmount) : undefined,
@@ -67,15 +89,16 @@ function DisbursementsContent() {
     endDate: endDate || undefined,
     sortBy,
     sortOrder,
-  }), [page, limit, searchTerm, filterStatus, filterPaymentMethod, minAmount, maxAmount, startDate, endDate, sortBy, sortOrder]);
+  }), [page, limit, debouncedSearchTerm, filterStatus, filterPaymentMethod, minAmount, maxAmount, startDate, endDate, sortBy, sortOrder]);
 
   // Fetch disbursements from API
-  const { data: disbursementsData, isLoading, error } = useDisbursements(filters);
+  const { data: disbursementsData, isLoading, isFetching, error } = useDisbursements(filters);
   const { data: paymentMethodsData } = usePaymentMethods({ isActive: true });
   const { data: departmentsData } = useDepartments();
   const { data: officesData } = useOffices();
   const { data: disbursementTypesData } = useDisbursementTypes();
   const { data: beneficiariesData } = useBeneficiaries();
+  const submitDisbursement = useSubmitDisbursement();
   const paymentMethods = paymentMethodsData?.data ?? [];
   const departments = departmentsData?.data ?? [];
   const offices = officesData?.data ?? [];
@@ -110,6 +133,38 @@ function DisbursementsContent() {
   const openDetails = (disbursement: any) => {
     setSelectedDisbursement(disbursement);
     setIsSheetOpen(true);
+  };
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  const canInlineApprove = (status?: string) => {
+    console.log('Checking inline approval for status:', status, { isDeptHead, isValidator, isCashier, isCompanyAdmin });
+    if (!status) return false;
+    if (status === 'pending_dept_head') return isDeptHead || isCompanyAdmin;
+    if (status === 'pending_validator') return isValidator || isCompanyAdmin;
+    if (status === 'pending_cashier') return isCashier || isCompanyAdmin;
+    return false;
+  };
+
+  const canSubmitDraft = (disbursement: any) => {
+    if (!disbursement || disbursement.status !== 'draft') return false;
+    const creatorId =
+      typeof disbursement.createdBy === 'object'
+        ? disbursement.createdBy?._id || disbursement.createdBy?.id
+        : disbursement.createdBy;
+    const userId = user?._id || user?.id;
+    return !!userId && !!creatorId && creatorId.toString() === userId.toString();
+  };
+
+  const stageFromStatus = (status?: string) => {
+    if (status === 'pending_validator') return 'validator';
+    if (status === 'pending_cashier') return 'cashier';
+    return 'department_head';
   };
 
   const handleExport = async (format: 'csv' | 'xlsx') => {
@@ -299,6 +354,11 @@ function DisbursementsContent() {
             ))}
           </select>
         </div>
+        {isFetching && (
+          <div className="text-xs text-muted-foreground">
+            {t('common.searching', { defaultValue: 'Searching...' })}
+          </div>
+        )}
         <div className="grid gap-3 md:grid-cols-4">
           <input
             type="number"
@@ -371,6 +431,9 @@ function DisbursementsContent() {
                   <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">{t('common.description')}</th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">{t('disbursements.beneficiary')}</th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
+                    {t('disbursements.initiatedBy', { defaultValue: 'Initiated By' })}
+                  </th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
                     <button type="button" onClick={() => toggleSort('amount')} className="inline-flex items-center gap-1">
                       {t('common.amount')}
                       <span className="text-xs text-muted-foreground">{sortBy === 'amount' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}</span>
@@ -393,7 +456,9 @@ function DisbursementsContent() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {disbursements.map((disbursement) => (
+                {disbursements.map((disbursement) => {
+                  console.log('Rendering disbursement row:', disbursement);
+                  return (
                   <tr key={disbursement.id} className="hover:bg-muted/50">
                     <td className="px-6 py-4 text-sm text-foreground">
                       <button
@@ -409,6 +474,11 @@ function DisbursementsContent() {
                     </td>
                     <td className="px-6 py-4 text-sm text-foreground">
                       {disbursement.beneficiary?.name || disbursement.beneficiary?.email || 'N/A'}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-foreground">
+                      {typeof disbursement.createdBy === 'object'
+                        ? `${disbursement.createdBy?.firstName || ''} ${disbursement.createdBy?.lastName || ''}`.trim() || disbursement.createdBy?.email || '—'
+                        : disbursement.createdBy || '—'}
                     </td>
                     <td className="px-6 py-4 text-sm font-semibold text-foreground">
                       {formatPrice(disbursement.amount || 0, disbursement.currency)}
@@ -429,6 +499,26 @@ function DisbursementsContent() {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
+                        {canSubmitDraft(disbursement) && (
+                          <Button
+                          className='gradient-bg-primary text-white'
+                            size="sm"
+                            variant="outline"
+                            onClick={() => submitDisbursement.mutate(disbursement._id || disbursement.id)}
+                            disabled={submitDisbursement.isPending}
+                          >
+                            {t('common.submit', { defaultValue: 'Submit' })}
+                          </Button>
+                        )}
+                        {canInlineApprove(disbursement.status) && (
+                          <Button
+                          className='gradient-bg-primary text-white'
+                            size="sm"
+                            onClick={() => setApprovalTarget(disbursement)}
+                          >
+                            {t('disbursements.reviewApprove')}
+                          </Button>
+                        )}
                         {(disbursement.attachments?.length || disbursement.invoices?.length) ? (
                           <Button
                             variant="outline"
@@ -448,7 +538,7 @@ function DisbursementsContent() {
                       </div>
                     </td>
                   </tr>
-                ))}
+                )})}
               </tbody>
             </table>
           </div>
@@ -480,6 +570,19 @@ function DisbursementsContent() {
             </div>
           )}
         </>
+      )}
+
+      {approvalTarget && (
+        <ApprovalDialog
+          disbursementId={approvalTarget._id || approvalTarget.id}
+          stage={stageFromStatus(approvalTarget.status)}
+          onClose={() => setApprovalTarget(null)}
+          onSuccess={() => {
+            setApprovalTarget(null);
+            queryClient.invalidateQueries({ queryKey: queryKeys.disbursements.lists() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.disbursements.pending() });
+          }}
+        />
       )}
 
       <Sheet
@@ -515,6 +618,16 @@ function DisbursementsContent() {
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('disbursements.beneficiary')}</p>
                   <p className="mt-2 font-medium text-foreground">
                     {selectedDisbursement.beneficiary?.name || selectedDisbursement.beneficiary?.email || '—'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                    {t('disbursements.initiatedBy', { defaultValue: 'Initiated By' })}
+                  </p>
+                  <p className="mt-2 font-medium text-foreground">
+                    {typeof selectedDisbursement.createdBy === 'object'
+                      ? `${selectedDisbursement.createdBy?.firstName || ''} ${selectedDisbursement.createdBy?.lastName || ''}`.trim() || selectedDisbursement.createdBy?.email || '—'
+                      : selectedDisbursement.createdBy || '—'}
                   </p>
                 </div>
                 <div>

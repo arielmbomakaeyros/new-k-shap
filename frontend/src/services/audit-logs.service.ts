@@ -27,7 +27,7 @@ class AuditLogsService {
    * Get audit logs for a specific entity
    */
   async getByEntity(entityType: string, entityId: string, params?: AuditLogFilters) {
-    return this.findAll({ ...params, entityType, entityId });
+    return this.findAll({ ...params, resourceType: entityType, resourceId: entityId });
   }
 
   /**

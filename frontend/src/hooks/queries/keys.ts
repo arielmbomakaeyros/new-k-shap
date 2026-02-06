@@ -168,6 +168,12 @@ export const queryKeys = {
       [...queryKeys.reports.all, 'collections-summary', filters] as const,
   },
 
+  // Chat
+  chat: {
+    all: () => ['chat'] as const,
+    participants: () => ['chat', 'participants'] as const,
+  },
+
   // File Uploads
   fileUploads: {
     all: ['file-uploads'] as const,

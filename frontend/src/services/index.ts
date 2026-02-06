@@ -19,6 +19,7 @@ export { platformSettingsService } from './platform-settings.service';
 export { kaeyrosService } from './kaeyros.service';
 export { exportsService } from './exports.service';
 export { reportsService } from './reports.service';
+export { chatService } from './chat.service';
 export { fileUploadService } from './file-upload.service';
 
 // Export types

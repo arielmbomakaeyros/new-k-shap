@@ -7,21 +7,27 @@ import { z } from 'zod';
 import { useTranslation } from '@/node_modules/react-i18next';
 import { Button } from '@/components/ui/button';
 import { fileUploadService, collectionsService } from '@/src/services';
-import { useDepartments, useOffices, useCompanySettings } from '@/src/hooks/queries';
+import { useDepartments, useOffices, useCompanySettings, usePaymentMethods } from '@/src/hooks/queries';
 
-const paymentMethods = [
+const defaultPaymentMethods = [
   { value: 'cash', labelKey: 'collections.paymentMethods.cash', defaultLabel: 'Cash' },
   { value: 'bank_transfer', labelKey: 'collections.paymentMethods.bank_transfer', defaultLabel: 'Bank Transfer' },
   { value: 'mobile_money', labelKey: 'collections.paymentMethods.mobile_money', defaultLabel: 'Mobile Money' },
   { value: 'check', labelKey: 'collections.paymentMethods.check', defaultLabel: 'Check' },
   { value: 'card', labelKey: 'collections.paymentMethods.card', defaultLabel: 'Card' },
+  { value: 'orange_money', labelKey: 'collections.paymentMethods.orange_money', defaultLabel: 'Orange Money' },
+  { value: 'mtn_money', labelKey: 'collections.paymentMethods.mtn_money', defaultLabel: 'MTN Money' },
 ];
 
 const collectionSchema = (t: (key: string, options?: { [key: string]: string | number }) => string) =>
   z.object({
     buyerName: z.string().min(2, t('validation.collections.buyerRequired', { min: 2 })),
     buyerCompanyName: z.string().optional(),
-    buyerEmail: z.string().email().optional(),
+    buyerEmail: z
+      .string()
+      .email()
+      .optional()
+      .or(z.literal('')),
     buyerPhone: z.string().optional(),
     sellerName: z.string().optional(),
     amount: z.coerce.number().positive(t('validation.collections.amountPositive')),
@@ -52,12 +58,20 @@ export function CreateCollectionForm({ onSuccess }: CreateCollectionFormProps) {
   const { data: departmentsData } = useDepartments();
   const { data: officesData } = useOffices();
   const { data: companySettings } = useCompanySettings();
+  const { data: paymentMethodsData } = usePaymentMethods({ isActive: true });
 
   const departments = departmentsData?.data ?? [];
   const offices = officesData?.data ?? [];
-  const availablePaymentMethods = companySettings?.paymentMethods?.length
-    ? companySettings.paymentMethods
-    : paymentMethods.map((m) => m.value);
+  const paymentMethodsFromApi = paymentMethodsData?.data ?? [];
+  const availablePaymentMethods = paymentMethodsFromApi.length
+    ? paymentMethodsFromApi.map((m: any) => m.code)
+    : (companySettings?.paymentMethods?.length ? companySettings.paymentMethods : defaultPaymentMethods.map((m) => m.value));
+  const paymentMethodOptions = paymentMethodsFromApi.length
+    ? paymentMethodsFromApi.map((m: any) => ({ value: m.code, label: m.name }))
+    : defaultPaymentMethods.map((m) => ({
+        value: m.value,
+        label: t(m.labelKey, { defaultValue: m.defaultLabel }),
+      }));
 
   const {
     register,
@@ -133,11 +147,13 @@ export function CreateCollectionForm({ onSuccess }: CreateCollectionFormProps) {
       <div className="grid gap-4 md:grid-cols-2">
         <div>
           <label className="block text-sm font-medium text-foreground">
-            {t('collections.buyerName', { defaultValue: 'Buyer Name' })}
+            {t('collections.buyerName', { defaultValue: 'Buyer Name' })}{' '}
+            <span className="text-destructive">*</span>
           </label>
           <input
             {...register('buyerName')}
             type="text"
+            required
             placeholder={t('collections.placeholders.buyerName', { defaultValue: 'Customer name' })}
             className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-foreground placeholder-muted-foreground"
           />
@@ -200,11 +216,13 @@ export function CreateCollectionForm({ onSuccess }: CreateCollectionFormProps) {
 
         <div>
           <label className="block text-sm font-medium text-foreground">
-            {t('collections.collectionDate', { defaultValue: 'Collection Date' })}
+            {t('collections.collectionDate', { defaultValue: 'Collection Date' })}{' '}
+            <span className="text-destructive">*</span>
           </label>
           <input
             {...register('collectionDate')}
             type="date"
+            required
             className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-foreground"
           />
           {errors.collectionDate && (
@@ -216,13 +234,15 @@ export function CreateCollectionForm({ onSuccess }: CreateCollectionFormProps) {
       <div className="grid gap-4 md:grid-cols-2">
         <div>
           <label className="block text-sm font-medium text-foreground">
-            {t('collections.amount', { defaultValue: 'Amount' })}
+            {t('collections.amount', { defaultValue: 'Amount' })}{' '}
+            <span className="text-destructive">*</span>
           </label>
           <div className="flex gap-2 mt-1">
             <input
               {...register('amount')}
               type="number"
               step="1"
+              required
               placeholder="0"
               className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-foreground placeholder-muted-foreground"
             />
@@ -235,20 +255,21 @@ export function CreateCollectionForm({ onSuccess }: CreateCollectionFormProps) {
 
         <div>
           <label className="block text-sm font-medium text-foreground">
-            {t('collections.paymentMethod', { defaultValue: 'Payment Method' })}
+            {t('collections.paymentMethod', { defaultValue: 'Payment Method' })}{' '}
+            <span className="text-destructive">*</span>
           </label>
           <select
             {...register('paymentType')}
+            required
             className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-foreground"
           >
-            {availablePaymentMethods.map((value) => {
-              const method = paymentMethods.find((m) => m.value === value);
-              return (
-                <option key={value} value={value}>
-                  {method ? t(method.labelKey, { defaultValue: method.defaultLabel }) : value}
+            {paymentMethodOptions
+              .filter((option) => availablePaymentMethods.includes(option.value))
+              .map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
                 </option>
-              );
-            })}
+              ))}
           </select>
           {errors.paymentType && (
             <p className="mt-1 text-xs text-red-500">{errors.paymentType.message}</p>
@@ -355,7 +376,7 @@ export function CreateCollectionForm({ onSuccess }: CreateCollectionFormProps) {
       </div>
 
       <div className="flex flex-wrap gap-3">
-        <Button type="submit" disabled={isSubmitting}>
+        <Button className='gradient-bg-primary text-white' type="submit" disabled={isSubmitting}>
           {isSubmitting ? t('collections.buttons.submitting', { defaultValue: 'Saving...' }) : t('collections.buttons.submit', { defaultValue: 'Record Collection' })}
         </Button>
         <Button type="button" variant="outline" onClick={() => reset()}>

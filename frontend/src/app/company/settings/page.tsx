@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from '@/node_modules/react-i18next';
 import { Button } from '@/components/ui/button';
+// import { Modal, ModalBody, ModalFooter, ModalHeader, ModalTitle } from '@/components/ui/modal';
 import { ProtectedLayout } from '@/src/components/layout/ProtectedLayout';
 import { ProtectedRoute } from '@/src/components/ProtectedRoute';
 import {
@@ -10,6 +11,10 @@ import {
   useUpdateCompanyInfo,
   useUpdateWorkflowSettings,
   useUpdateEmailNotificationSettings,
+  useWorkflowTemplates,
+  useActivateWorkflowTemplate,
+  useCreateWorkflowTemplate,
+  useDeleteWorkflowTemplate,
   // useUpdateCompanyPreferences,
   useRoles,
   useOffices,
@@ -18,6 +23,7 @@ import {
 import { formatPrice } from '@/src/lib/format';
 import { useUpdateCompanyPreferences } from '@/src/hooks/queries/useSettings';
 import { fileUploadService } from '@/src/services';
+import { Sheet, SheetBody, SheetFooter, SheetHeader, SheetTitle } from '@/src/components/ui';
 
 type PayoutScheduleState = {
   frequency: 'weekly' | 'biweekly' | 'monthly';
@@ -56,6 +62,10 @@ export default function CompanySettingsPage() {
   const updateWorkflowSettings = useUpdateWorkflowSettings();
   const updateEmailNotificationSettings = useUpdateEmailNotificationSettings();
   const updateCompanyPreferences = useUpdateCompanyPreferences();
+  const { data: workflowTemplates } = useWorkflowTemplates();
+  const activateWorkflowTemplate = useActivateWorkflowTemplate();
+  const createWorkflowTemplate = useCreateWorkflowTemplate();
+  const deleteWorkflowTemplate = useDeleteWorkflowTemplate();
   const { data: rolesData } = useRoles();
   const { data: officesData } = useOffices();
   const { data: beneficiariesData } = useBeneficiaries();
@@ -117,6 +127,17 @@ export default function CompanySettingsPage() {
   const [logoUploading, setLogoUploading] = useState(false);
   const [logoError, setLogoError] = useState<string | null>(null);
   const logoInputRef = useRef<HTMLInputElement | null>(null);
+
+  const [newWorkflow, setNewWorkflow] = useState({
+    name: '',
+    description: '',
+    steps: {
+      department_head: true,
+      validator: true,
+      cashier: true,
+    },
+  });
+  const [workflowToDelete, setWorkflowToDelete] = useState<any | null>(null);
 
   const sanitizePrefix = (value: string) =>
     value
@@ -968,6 +989,210 @@ export default function CompanySettingsPage() {
                 </div>
               </div>
             </div>
+
+            {/* Workflow Templates */}
+            <div className="rounded-lg border border-border bg-card p-6">
+              <h2 className="text-lg font-semibold text-foreground">{t('settings.workflowTemplate', { defaultValue: 'Workflow Templates' })}</h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {t('settings.workflowTemplateDesc', { defaultValue: 'Select a default workflow for disbursement validation or create a custom one.' })}
+              </p>
+
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                {(workflowTemplates || []).map((template: any) => {
+                  const isActive = (settings as any)?.activeWorkflowTemplate?.toString?.() === (template._id || template.id);
+                  return (
+                    <div key={template._id || template.id} className="rounded-lg border border-border p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-semibold text-foreground">{template.name}</p>
+                          <p className="text-xs text-muted-foreground">{template.description || '—'}</p>
+                        </div>
+                        {isActive ? (
+                          <span className="text-xs px-2 py-1 rounded bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
+                            {t('common.active', { defaultValue: 'Active' })}
+                          </span>
+                        ) : null}
+                      </div>
+                      <div className="mt-3 text-sm text-muted-foreground">
+                        {(template.steps || []).map((step: any) => (
+                          <span key={`${template._id}-${step.order}`} className="inline-flex items-center gap-2 mr-2">
+                            <span className="text-foreground">•</span>
+                            {step.name || step.roleRequired}
+                          </span>
+                        ))}
+                      </div>
+                      <div className="mt-4 flex gap-2">
+                        <Button
+                        className='gradient-bg-primary text-white'
+                          size="sm"
+                          onClick={() => activateWorkflowTemplate.mutate(template._id || template.id)}
+                          disabled={isActive || activateWorkflowTemplate.isPending}
+                        >
+                          {t('common.use', { defaultValue: 'Use' })}
+                        </Button>
+                        {!template.isSystem && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setWorkflowToDelete(template)}
+                            disabled={deleteWorkflowTemplate.isPending}
+                          >
+                            {t('common.delete', { defaultValue: 'Delete' })}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="mt-6 border-t border-border/50 pt-4">
+                <h3 className="text-sm font-semibold text-foreground">{t('settings.createWorkflow', { defaultValue: 'Create Custom Workflow' })}</h3>
+                <div className="mt-3 grid gap-3 md:grid-cols-2">
+                  <input
+                    value={newWorkflow.name}
+                    onChange={(e) => setNewWorkflow({ ...newWorkflow, name: e.target.value })}
+                    placeholder={t('common.name', { defaultValue: 'Name' })}
+                    className="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground"
+                  />
+                  <input
+                    value={newWorkflow.description}
+                    onChange={(e) => setNewWorkflow({ ...newWorkflow, description: e.target.value })}
+                    placeholder={t('common.description', { defaultValue: 'Description' })}
+                    className="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground"
+                  />
+                </div>
+                <div className="mt-3 flex flex-wrap gap-4 text-sm">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={newWorkflow.steps.department_head}
+                      onChange={(e) =>
+                        setNewWorkflow({
+                          ...newWorkflow,
+                          steps: { ...newWorkflow.steps, department_head: e.target.checked },
+                        })
+                      }
+                    />
+                    {t('roles.departmentHead', { defaultValue: 'Department Head' })}
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={newWorkflow.steps.validator}
+                      onChange={(e) =>
+                        setNewWorkflow({
+                          ...newWorkflow,
+                          steps: { ...newWorkflow.steps, validator: e.target.checked },
+                        })
+                      }
+                    />
+                    {t('roles.validator', { defaultValue: 'Validator' })}
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={newWorkflow.steps.cashier}
+                      onChange={(e) =>
+                        setNewWorkflow({
+                          ...newWorkflow,
+                          steps: { ...newWorkflow.steps, cashier: e.target.checked },
+                        })
+                      }
+                    />
+                    {t('roles.cashier', { defaultValue: 'Cashier' })}
+                  </label>
+                </div>
+                <div className="mt-3 flex justify-end">
+                  <Button
+                  className='gradient-bg-primary text-white'
+                    onClick={() => {
+                      const steps: any[] = [];
+                      let order = 1;
+                      if (newWorkflow.steps.department_head) {
+                        steps.push({
+                          order: order++,
+                          name: 'Department Head Validation',
+                          roleRequired: 'department_head',
+                          description: 'Department head validates disbursement',
+                          statusOnPending: 'pending_dept_head',
+                          statusOnComplete: newWorkflow.steps.validator ? 'pending_validator' : 'pending_cashier',
+                        });
+                      }
+                      if (newWorkflow.steps.validator) {
+                        steps.push({
+                          order: order++,
+                          name: 'Validator Approval',
+                          roleRequired: 'validator',
+                          description: 'Validator approves disbursement',
+                          statusOnPending: 'pending_validator',
+                          statusOnComplete: 'pending_cashier',
+                        });
+                      }
+                      if (newWorkflow.steps.cashier) {
+                        steps.push({
+                          order: order++,
+                          name: 'Cashier Execution',
+                          roleRequired: 'cashier',
+                          description: 'Cashier executes payment',
+                          statusOnPending: 'pending_cashier',
+                          statusOnComplete: 'completed',
+                        });
+                      }
+                      createWorkflowTemplate.mutate({
+                        name: newWorkflow.name || 'Custom Workflow',
+                        description: newWorkflow.description,
+                        steps,
+                      });
+                    }}
+                    disabled={createWorkflowTemplate.isPending}
+                  >
+                    {t('common.create', { defaultValue: 'Create' })}
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            {workflowToDelete && (
+              <Sheet isOpen onClose={() => setWorkflowToDelete(null)} position="right" size="sm">
+                <SheetHeader>
+                  <SheetTitle>{t('settings.deleteWorkflow', { defaultValue: 'Delete Workflow' })}</SheetTitle>
+                </SheetHeader>
+                <SheetBody>
+                  <p className="text-sm text-foreground">
+                    {t('settings.deleteWorkflowConfirm', {
+                      defaultValue: 'Are you sure you want to delete this workflow template?',
+                    })}
+                  </p>
+                  {((settings as any)?.activeWorkflowTemplate?.toString?.() === (workflowToDelete._id || workflowToDelete.id)) && (
+                    <p className="mt-3 text-sm text-destructive">
+                      {t('settings.deleteWorkflowActiveWarning', {
+                        defaultValue: 'This workflow is currently active. Please activate another workflow (or the default) before deleting.',
+                      })}
+                    </p>
+                  )}
+                </SheetBody>
+                <SheetFooter>
+                  <Button variant="outline" onClick={() => setWorkflowToDelete(null)}>
+                    {t('common.cancel', { defaultValue: 'Cancel' })}
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={() => {
+                      deleteWorkflowTemplate.mutate(workflowToDelete._id || workflowToDelete.id, {
+                        onSuccess: () => setWorkflowToDelete(null),
+                      });
+                    }}
+                    disabled={
+                      deleteWorkflowTemplate.isPending ||
+                      (settings as any)?.activeWorkflowTemplate?.toString?.() === (workflowToDelete._id || workflowToDelete.id)
+                    }
+                  >
+                    {t('common.delete', { defaultValue: 'Delete' })}
+                  </Button>
+                </SheetFooter>
+              </Sheet>
+            )}
 
             {/* Danger Zone */}
             <div className="rounded-lg border border-destructive/50 bg-destructive/5 p-6">

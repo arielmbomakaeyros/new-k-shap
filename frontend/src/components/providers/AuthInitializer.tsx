@@ -2,30 +2,39 @@
 
 import { useAuthStore } from '@/src/store/authStore';
 import { useEffect } from 'react';
+import axiosClient from '@/src/lib/axios';
 
 /**
- * Initialize authentication on client side
- * - Restore auth state from localStorage
+ * Attempt a silent token refresh on page reload.
+ *
+ * Because `token` is persisted to localStorage alongside `user`,
+ * this branch only fires when the token was explicitly cleared
+ * (e.g. by a failed interceptor refresh).  In the normal case
+ * the axios 401 interceptor handles token renewal transparently.
  */
 export function AuthInitializer() {
   useEffect(() => {
-    // Restore auth from localStorage
-    const { token } = useAuthStore.getState();
+    const { user, token, setToken, setIsLoading, logout } =
+      useAuthStore.getState();
 
-    // If no token in store, check localStorage
-    if (!token) {
-      const storedAuth = localStorage.getItem('auth-storage');
-      if (storedAuth) {
-        try {
-          const { state } = JSON.parse(storedAuth);
-          if (state?.token) {
-            useAuthStore.getState().setToken(state.token);
-            useAuthStore.getState().setUser(state.user);
+    if (user && !token) {
+      setIsLoading(true);
+      axiosClient
+        .post('/auth/refresh', {})
+        .then((response) => {
+          const { accessToken } = response.data?.data || response.data;
+          if (accessToken) {
+            setToken(accessToken);
+          } else {
+            logout();
           }
-        } catch (error) {
-          console.error('Failed to restore auth state:', error);
-        }
-      }
+        })
+        .catch(() => {
+          logout();
+        })
+        .finally(() => {
+          setIsLoading(false);
+        });
     }
   }, []);
 

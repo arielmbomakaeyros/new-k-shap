@@ -10,7 +10,7 @@ import type {
 } from './types';
 
 export interface ApproveDto {
-  comment?: string;
+  notes?: string;
 }
 
 export interface RejectDto {
@@ -87,6 +87,13 @@ class DisbursementsService extends BaseService<
     return api.post<ApiResponse<Disbursement>>(`${this.basePath}/${id}/force-complete`, {
       reason,
     });
+  }
+
+  /**
+   * Submit a draft disbursement for approval
+   */
+  async submit(id: string): Promise<ApiResponse<Disbursement>> {
+    return api.post<ApiResponse<Disbursement>>(`${this.basePath}/${id}/submit`);
   }
 
   /**

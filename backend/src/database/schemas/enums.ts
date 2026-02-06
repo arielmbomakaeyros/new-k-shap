@@ -144,6 +144,7 @@ export enum DisbursementActionType {
   UPDATED = 'updated',
   DELETE = 'delete',
   SUBMIT = 'submit',
+  APPROVE = 'approve',
   APPROVE_DEPT_HEAD = 'approve_dept_head',
   APPROVE_VALIDATOR = 'approve_validator',
   EXECUTE = 'execute',

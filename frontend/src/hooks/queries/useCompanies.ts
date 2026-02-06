@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from './keys';
 import { companiesService, CompanyFilters } from '@/src/services/companies.service';
 import { Company, CreateCompanyDto, UpdateCompanyDto } from '@/src/services';
+import { handleMutationError } from '@/src/lib/mutationError';
 // import type { CreateCompanyDto, UpdateCompanyDto, Company } from '@/services/types';
 
 /**
@@ -44,6 +45,7 @@ export function useCreateCompany() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.companies.lists() });
     },
+    onError: (error) => handleMutationError(error, 'Failed to create company'),
   });
 }
 
@@ -70,6 +72,7 @@ export function useUpdateCompany() {
       return { previousCompany };
     },
     onError: (_err, { id }, context) => {
+      handleMutationError(_err, 'Failed to update company');
       if (context?.previousCompany) {
         queryClient.setQueryData(queryKeys.companies.detail(id), context.previousCompany);
       }
@@ -92,5 +95,6 @@ export function useDeleteCompany() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.companies.lists() });
     },
+    onError: (error) => handleMutationError(error, 'Failed to delete company'),
   });
 }

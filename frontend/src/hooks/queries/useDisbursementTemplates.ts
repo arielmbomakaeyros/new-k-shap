@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from './keys';
 import { disbursementTemplatesService } from '@/src/services/disbursement-templates.service';
 import { CreateDisbursementTemplateDto, DisbursementTemplate, UpdateDisbursementTemplateDto } from '@/src/services';
+import { handleMutationError } from '@/src/lib/mutationError';
 
 export function useDisbursementTemplates() {
   return useQuery({
@@ -33,6 +34,7 @@ export function useCreateDisbursementTemplate() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.disbursementTemplates.lists() });
     },
+    onError: (error) => handleMutationError(error, 'Failed to create template'),
   });
 }
 
@@ -42,6 +44,7 @@ export function useUpdateDisbursementTemplate() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateDisbursementTemplateDto }) =>
       disbursementTemplatesService.update(id, data),
+    onError: (error) => handleMutationError(error, 'Failed to update template'),
     onSettled: (_data, _error, { id }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.disbursementTemplates.detail(id) });
       queryClient.invalidateQueries({ queryKey: queryKeys.disbursementTemplates.lists() });
@@ -57,5 +60,6 @@ export function useDeleteDisbursementTemplate() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.disbursementTemplates.lists() });
     },
+    onError: (error) => handleMutationError(error, 'Failed to delete template'),
   });
 }

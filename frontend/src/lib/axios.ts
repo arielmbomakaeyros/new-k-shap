@@ -40,6 +40,7 @@ const processQueue = (error: Error | null, token: string | null = null) => {
 const axiosClient: AxiosInstance = axios.create({
   baseURL: API_URL,
   timeout: 30000,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -72,9 +73,9 @@ axiosClient.interceptors.response.use(
     // Handle 401 Unauthorized - token refresh
     if (error.response?.status === 401 && !originalRequest._retry) {
       const requestUrl = originalRequest.url || '';
-      const isLoginRequest = requestUrl.includes('/auth/login');
 
-      if (isLoginRequest) {
+      // Never retry auth endpoints – just propagate the error
+      if (requestUrl.includes('/auth/login') || requestUrl.includes('/auth/refresh')) {
         const apiError: ApiError = {
           message:
             error.response?.data?.message ||
@@ -105,26 +106,18 @@ axiosClient.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        // Get refresh token from localStorage
-        const refreshToken = localStorage.getItem('refreshToken');
-
-        if (!refreshToken) {
-          throw new Error('No refresh token available');
-        }
-
-        // Call refresh endpoint - use Next.js API route for refresh
-        const response = await axiosClient.post(`/auth/refresh`, {
-          refreshToken,
+        // Call refresh endpoint directly (bypasses request interceptor so
+        // the expired access token is NOT attached as Authorization header).
+        // withCredentials ensures the httpOnly refresh_token cookie is sent.
+        const response = await axios.post(`${API_URL}/auth/refresh`, {}, {
+          withCredentials: true,
+          headers: { 'Content-Type': 'application/json' },
         });
 
-        const { accessToken, refreshToken: newRefreshToken } = response.data.data || response.data;
+        const { accessToken } = response.data?.data || response.data;
 
-        // Update tokens
+        // Update access token in store
         useAuthStore.getState().setToken(accessToken);
-
-        if (newRefreshToken) {
-          localStorage.setItem('refreshToken', newRefreshToken);
-        }
 
         // Process queued requests
         processQueue(null, accessToken);
@@ -139,9 +132,7 @@ axiosClient.interceptors.response.use(
         processQueue(refreshError as Error, null);
 
         // Clear auth state and redirect to login
-        // const { useAuthStore } = await import('@/store/authStore');
         useAuthStore.getState().logout();
-        localStorage.removeItem('refreshToken');
 
         // Only redirect if in browser
         if (typeof window !== 'undefined') {
@@ -152,6 +143,15 @@ axiosClient.interceptors.response.use(
       } finally {
         isRefreshing = false;
       }
+    }
+
+    // Handle 429 Too Many Requests
+    if (error.response?.status === 429) {
+      const apiError: ApiError = {
+        message: 'Too many requests. Please wait a moment and try again.',
+        statusCode: 429,
+      };
+      return Promise.reject(apiError);
     }
 
     // Transform error for consistent handling
@@ -171,28 +171,35 @@ axiosClient.interceptors.response.use(
 // Helper methods
 export const api = {
   get: <T>(url: string, config?: Parameters<typeof axiosClient.get>[1]) =>
-    axiosClient.get<T>(url, config).then((res) => res.data),
+    axiosClient.get<T>(url, config).then((res) => normalizeResponse(res.data)),
 
   post: <T>(
     url: string,
     data?: unknown,
     config?: Parameters<typeof axiosClient.post>[2]
-  ) => axiosClient.post<T>(url, data, config).then((res) => res.data),
+  ) => axiosClient.post<T>(url, data, config).then((res) => normalizeResponse(res.data)),
 
   put: <T>(
     url: string,
     data?: unknown,
     config?: Parameters<typeof axiosClient.put>[2]
-  ) => axiosClient.put<T>(url, data, config).then((res) => res.data),
+  ) => axiosClient.put<T>(url, data, config).then((res) => normalizeResponse(res.data)),
 
   patch: <T>(
     url: string,
     data?: unknown,
     config?: Parameters<typeof axiosClient.patch>[2]
-  ) => axiosClient.patch<T>(url, data, config).then((res) => res.data),
+  ) => axiosClient.patch<T>(url, data, config).then((res) => normalizeResponse(res.data)),
 
   delete: <T>(url: string, config?: Parameters<typeof axiosClient.delete>[1]) =>
-    axiosClient.delete<T>(url, config).then((res) => res.data),
+    axiosClient.delete<T>(url, config).then((res) => normalizeResponse(res.data)),
 };
 
 export default axiosClient;
+
+function normalizeResponse<T>(payload: T): T | { success: true; data: T } {
+  if (payload && typeof payload === 'object' && 'success' in (payload as any)) {
+    return payload;
+  }
+  return { success: true, data: payload } as any;
+}

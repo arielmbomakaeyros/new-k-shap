@@ -1,8 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 // import { disbursementsService, ApproveDto, RejectDto } from '@/services/disbursements.service';
 import { queryKeys } from './keys';
 import { CreateDisbursementDto, Disbursement, DisbursementFilters, disbursementsService, UpdateDisbursementDto } from '@/src/services';
 import { ApproveDto, RejectDto } from '@/src/services/disbursements.service';
+import { handleMutationError } from '@/src/lib/mutationError';
 // import type {
 //   CreateDisbursementDto,
 //   UpdateDisbursementDto,
@@ -17,6 +18,7 @@ export function useDisbursements(filters?: DisbursementFilters) {
   return useQuery({
     queryKey: queryKeys.disbursements.list(filters),
     queryFn: () => disbursementsService.findAll(filters),
+    placeholderData: keepPreviousData,
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
   });
@@ -63,6 +65,7 @@ export function useCreateDisbursement() {
       queryClient.invalidateQueries({ queryKey: queryKeys.disbursements.pending() });
       queryClient.invalidateQueries({ queryKey: queryKeys.reports.dashboard() });
     },
+    onError: (error) => handleMutationError(error, 'Failed to create disbursement'),
   });
 }
 
@@ -94,6 +97,7 @@ export function useUpdateDisbursement() {
       return { previousDisbursement };
     },
     onError: (_err, { id }, context) => {
+      handleMutationError(_err, 'Failed to update disbursement');
       if (context?.previousDisbursement) {
         queryClient.setQueryData(
           queryKeys.disbursements.detail(id),
@@ -123,6 +127,7 @@ export function useDeleteDisbursement() {
       queryClient.invalidateQueries({ queryKey: queryKeys.disbursements.pending() });
       queryClient.invalidateQueries({ queryKey: queryKeys.reports.dashboard() });
     },
+    onError: (error) => handleMutationError(error, 'Failed to delete disbursement'),
   });
 }
 
@@ -144,6 +149,7 @@ export function useApproveDisbursement() {
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.reports.dashboard() });
     },
+    onError: (error) => handleMutationError(error, 'Failed to approve disbursement'),
   });
 }
 
@@ -164,6 +170,7 @@ export function useRejectDisbursement() {
       queryClient.invalidateQueries({ queryKey: queryKeys.disbursements.pending() });
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all });
     },
+    onError: (error) => handleMutationError(error, 'Failed to reject disbursement'),
   });
 }
 
@@ -183,6 +190,7 @@ export function useCancelDisbursement() {
       queryClient.invalidateQueries({ queryKey: queryKeys.disbursements.lists() });
       queryClient.invalidateQueries({ queryKey: queryKeys.disbursements.pending() });
     },
+    onError: (error) => handleMutationError(error, 'Failed to cancel disbursement'),
   });
 }
 
@@ -203,5 +211,27 @@ export function useForceCompleteDisbursement() {
       queryClient.invalidateQueries({ queryKey: queryKeys.disbursements.pending() });
       queryClient.invalidateQueries({ queryKey: queryKeys.reports.dashboard() });
     },
+    onError: (error) => handleMutationError(error, 'Failed to complete disbursement'),
+  });
+}
+
+/**
+ * Hook for submitting a draft disbursement
+ */
+export function useSubmitDisbursement() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => disbursementsService.submit(id),
+    onSuccess: (_data, id) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.disbursements.detail(id),
+      });
+      queryClient.invalidateQueries({ queryKey: queryKeys.disbursements.lists() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.disbursements.pending() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.reports.dashboard() });
+    },
+    onError: (error) => handleMutationError(error, 'Failed to submit disbursement'),
   });
 }

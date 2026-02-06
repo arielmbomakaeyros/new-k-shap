@@ -78,6 +78,24 @@ export interface User extends BaseEntity {
   _id?: string;
 }
 
+export interface ChatMessage extends BaseEntity {
+  _id?: string;
+  company?: string;
+  disbursement?: string | any;
+  chatType?: 'disbursement' | 'general' | 'department' | 'office';
+  sender: string | User;
+  recipient?: string | User | null;
+  participants?: Array<string | User>;
+  message: string;
+  attachments?: string[];
+  replyTo?: string | ChatMessage | null;
+  readBy?: Array<string | User>;
+  readAt?: Record<string, string>;
+  isEdited?: boolean;
+  editedAt?: string | null;
+  isPinned?: boolean;
+}
+
 export interface CreateUserDto {
   email: string;
   firstName: string;
@@ -256,6 +274,7 @@ export interface Disbursement extends BaseEntity {
   status: DisbursementStatus;
   disbursementType: string | DisbursementType;
   beneficiary: string | Beneficiary;
+  createdBy?: string | { _id?: string; firstName?: string; lastName?: string; email?: string };
   description: string;
   purpose?: string;
   department: string | Department;
@@ -431,13 +450,24 @@ export interface Notification extends BaseEntity {
 
 // Audit Log Types
 export interface AuditLog extends BaseEntity {
-  userId: string;
+  userId?: string;
   user?: User;
-  companyId: string;
+  companyId?: string;
   action: string;
-  entityType: string;
-  entityId: string;
-  changes?: Record<string, { old: unknown; new: unknown }>;
+  actionDescription?: string;
+  resourceType?: string;
+  resourceId?: string;
+  resourceName?: string;
+  userEmail?: string;
+  userName?: string;
+  userRole?: string;
+  status?: string;
+  severity?: string;
+  endpoint?: string;
+  method?: string;
+  timestamp?: string;
+  previousValues?: Record<string, unknown>;
+  newValues?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
   ipAddress?: string;
   userAgent?: string;
@@ -446,8 +476,9 @@ export interface AuditLog extends BaseEntity {
 export interface AuditLogFilters extends QueryParams, DateRange {
   userId?: string;
   action?: string;
-  entityType?: string;
-  entityId?: string;
+  resourceType?: string;
+  resourceId?: string;
+  search?: string;
 }
 
 // Settings Types

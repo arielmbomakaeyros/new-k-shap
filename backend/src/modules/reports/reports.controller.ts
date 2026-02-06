@@ -1,10 +1,6 @@
 import {
   Controller,
   Get,
-  Post,
-  Body,
-  Param,
-  Delete,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -13,29 +9,13 @@ import {
   ApiOperation,
   ApiResponse,
   ApiBearerAuth,
-  ApiParam,
-  ApiBody,
   ApiQuery,
-  ApiProperty,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { ReportsService } from './reports.service';
-import { CreateReportDto, ReportType, ReportPeriod } from './dto';
-import { ReportResponseDto } from '../../common/dto/report-response.dto';
-import { SuccessResponseDto } from '../../common/dto/success-response.dto';
-import {
-  PaginatedResponseDto,
-  PaginationMetaDto,
-} from '../../common/dto/paginated-response.dto';
+import { ReportPeriod } from './dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-
-class PaginatedReportsResponseDto extends PaginatedResponseDto<ReportResponseDto> {
-  @ApiProperty({ type: [ReportResponseDto] })
-  declare data: ReportResponseDto[];
-
-  @ApiProperty({ type: PaginationMetaDto })
-  declare pagination: PaginationMetaDto;
-}
+import { ReportResponseDto } from '../../common/dto/report-response.dto';
 
 @ApiTags('Reports')
 @Controller('reports')
@@ -43,107 +23,6 @@ class PaginatedReportsResponseDto extends PaginatedResponseDto<ReportResponseDto
 @ApiBearerAuth()
 export class ReportsController {
   constructor(private readonly reportsService: ReportsService) {}
-
-  @Post()
-  @ApiOperation({ summary: 'Generate a new report' })
-  @ApiBody({ type: CreateReportDto })
-  @ApiResponse({
-    status: 201,
-    description: 'Report generated successfully.',
-    type: ReportResponseDto,
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Bad Request - Invalid report configuration.',
-  })
-  @ApiResponse({ status: 401, description: 'Unauthorized.' })
-  @ApiResponse({ status: 403, description: 'Forbidden.' })
-  create(@Body() createReportDto: CreateReportDto, @CurrentUser() user: any) {
-    const companyId = user?.isKaeyrosUser
-      ? null
-      : user?.company
-        ? (user.company._id || user.company).toString()
-        : null;
-    return this.reportsService.create(createReportDto, companyId);
-  }
-
-  @Get()
-  @ApiOperation({ summary: 'Get all saved reports' })
-  @ApiQuery({
-    name: 'page',
-    required: false,
-    description: 'Page number',
-    example: 1,
-  })
-  @ApiQuery({
-    name: 'limit',
-    required: false,
-    description: 'Number of items per page',
-    example: 10,
-  })
-  @ApiQuery({
-    name: 'sortBy',
-    required: false,
-    description: 'Field to sort by',
-    example: 'createdAt',
-  })
-  @ApiQuery({
-    name: 'sortOrder',
-    required: false,
-    description: 'Sort order (asc/desc)',
-    example: 'desc',
-  })
-  @ApiQuery({
-    name: 'type',
-    required: false,
-    description: 'Filter by report type',
-    enum: ReportType,
-    example: 'disbursement_summary',
-  })
-  @ApiQuery({
-    name: 'period',
-    required: false,
-    description: 'Filter by period',
-    enum: ReportPeriod,
-    example: 'this_month',
-  })
-  @ApiQuery({
-    name: 'startDate',
-    required: false,
-    description: 'Filter by creation date (from)',
-    example: '2024-01-01',
-  })
-  @ApiQuery({
-    name: 'endDate',
-    required: false,
-    description: 'Filter by creation date (to)',
-    example: '2024-12-31',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'List of reports retrieved successfully.',
-    type: PaginatedReportsResponseDto,
-  })
-  @ApiResponse({ status: 401, description: 'Unauthorized.' })
-  @ApiResponse({ status: 403, description: 'Forbidden.' })
-  findAll(
-    @CurrentUser() user: any,
-    @Query('page') page?: number,
-    @Query('limit') limit?: number,
-    @Query('sortBy') sortBy?: string,
-    @Query('sortOrder') sortOrder?: 'asc' | 'desc',
-    @Query('type') type?: string,
-    @Query('period') period?: string,
-    @Query('startDate') startDate?: string,
-    @Query('endDate') endDate?: string,
-  ) {
-    const companyId = user?.isKaeyrosUser
-      ? null
-      : user?.company
-        ? (user.company._id || user.company).toString()
-        : null;
-    return this.reportsService.findAll(companyId);
-  }
 
   @Get('dashboard')
   @ApiOperation({ summary: 'Get dashboard summary data' })
@@ -235,7 +114,7 @@ export class ReportsController {
       : user?.company
         ? (user.company._id || user.company).toString()
         : null;
-    return this.reportsService.findAll(companyId);
+    return this.reportsService.getDisbursementsSummary(companyId, period, { department, status });
   }
 
   @Get('collections/summary')
@@ -284,54 +163,101 @@ export class ReportsController {
       : user?.company
         ? (user.company._id || user.company).toString()
         : null;
-    return this.reportsService.findAll(companyId);
+    return this.reportsService.getCollectionsSummary(companyId, period, { department, paymentType });
   }
 
-  @Get(':id')
-  @ApiOperation({ summary: 'Get report by ID' })
-  @ApiParam({
-    name: 'id',
-    description: 'Report ID',
-    example: '507f1f77bcf86cd799439011',
+  @Get('financial-overview')
+  @ApiOperation({ summary: 'Get financial overview (net cash flow)' })
+  @ApiQuery({
+    name: 'period',
+    required: false,
+    description: 'Time period',
+    enum: ReportPeriod,
+    example: 'this_month',
   })
   @ApiResponse({
     status: 200,
-    description: 'Report retrieved successfully.',
-    type: ReportResponseDto,
+    description: 'Financial overview retrieved successfully.',
   })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
-  @ApiResponse({ status: 403, description: 'Forbidden.' })
-  @ApiResponse({ status: 404, description: 'Report not found.' })
-  findOne(@Param('id') id: string, @CurrentUser() user: any) {
+  getFinancialOverview(
+    @Query('period') period?: string,
+    @CurrentUser() user?: any,
+  ) {
     const companyId = user?.isKaeyrosUser
       ? null
       : user?.company
         ? (user.company._id || user.company).toString()
         : null;
-    return this.reportsService.findOne(id, companyId);
+    return this.reportsService.getFinancialOverview(companyId, period);
   }
 
-  @Delete(':id')
-  @ApiOperation({ summary: 'Delete report by ID' })
-  @ApiParam({
-    name: 'id',
-    description: 'Report ID',
-    example: '507f1f77bcf86cd799439011',
+  @Get('department-performance')
+  @ApiOperation({ summary: 'Get department performance metrics' })
+  @ApiQuery({
+    name: 'period',
+    required: false,
+    description: 'Time period',
+    enum: ReportPeriod,
+    example: 'this_month',
   })
   @ApiResponse({
     status: 200,
-    description: 'Report deleted successfully.',
-    type: SuccessResponseDto,
+    description: 'Department performance retrieved successfully.',
   })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
-  @ApiResponse({ status: 403, description: 'Forbidden.' })
-  @ApiResponse({ status: 404, description: 'Report not found.' })
-  remove(@Param('id') id: string, @CurrentUser() user: any) {
+  getDepartmentPerformance(
+    @Query('period') period?: string,
+    @CurrentUser() user?: any,
+  ) {
     const companyId = user?.isKaeyrosUser
       ? null
       : user?.company
         ? (user.company._id || user.company).toString()
         : null;
-    return this.reportsService.remove(id, companyId);
+    return this.reportsService.getDepartmentPerformance(companyId, period);
   }
+
+  @Get('pending-approvals')
+  @ApiOperation({ summary: 'Get pending approvals summary' })
+  @ApiResponse({
+    status: 200,
+    description: 'Pending approvals retrieved successfully.',
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  getPendingApprovals(@CurrentUser() user?: any) {
+    const companyId = user?.isKaeyrosUser
+      ? null
+      : user?.company
+        ? (user.company._id || user.company).toString()
+        : null;
+    return this.reportsService.getPendingApprovals(companyId);
+  }
+
+  @Get('monthly-trends')
+  @ApiOperation({ summary: 'Get monthly trends' })
+  @ApiQuery({
+    name: 'period',
+    required: false,
+    description: 'Time period',
+    enum: ReportPeriod,
+    example: 'this_year',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Monthly trends retrieved successfully.',
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  getMonthlyTrends(
+    @Query('period') period?: string,
+    @CurrentUser() user?: any,
+  ) {
+    const companyId = user?.isKaeyrosUser
+      ? null
+      : user?.company
+        ? (user.company._id || user.company).toString()
+        : null;
+    return this.reportsService.getMonthlyTrends(companyId, period);
+  }
+
 }

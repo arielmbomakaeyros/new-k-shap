@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 // import { notificationsService, NotificationFilters } from '@/services/notifications.service';
 import { queryKeys } from './keys';
 import { NotificationFilters, notificationsService } from '@/src/services/notifications.service';
+import { handleMutationError } from '@/src/lib/mutationError';
 
 /**
  * Hook for fetching notifications list
@@ -57,6 +58,7 @@ export function useMarkNotificationRead() {
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unread() });
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unreadCount() });
     },
+    onError: (error) => handleMutationError(error, 'Failed to mark notification'),
   });
 }
 
@@ -71,6 +73,7 @@ export function useMarkAllNotificationsRead() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all });
     },
+    onError: (error) => handleMutationError(error, 'Failed to mark notifications'),
   });
 }
 
@@ -87,5 +90,6 @@ export function useDeleteNotification() {
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unread() });
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unreadCount() });
     },
+    onError: (error) => handleMutationError(error, 'Failed to delete notification'),
   });
 }

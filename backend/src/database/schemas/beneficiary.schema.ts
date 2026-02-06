@@ -52,3 +52,4 @@ export class Beneficiary extends BaseEntity {
 export const BeneficiarySchema = SchemaFactory.createForClass(Beneficiary);
 
 BeneficiarySchema.index({ company: 1, isDeleted: 1 });
+BeneficiarySchema.index({ company: 1, createdAt: -1, isDeleted: 1 });

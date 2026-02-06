@@ -5,14 +5,16 @@ import {
   Body,
   UseGuards,
   Req,
+  Res,
   HttpCode,
   HttpStatus,
   Patch,
   UploadedFile,
   UseInterceptors,
+  Logger,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiBody, ApiConsumes } from '@nestjs/swagger';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthService } from './auth.service';
 import {
@@ -31,6 +33,8 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 @ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
+
   constructor(private authService: AuthService) {}
 
   @Public()
@@ -59,8 +63,11 @@ export class AuthController {
   })
   @ApiResponse({ status: 400, description: 'Bad Request.' })
   @ApiResponse({ status: 401, description: 'Invalid credentials.' })
-  async login(@Body() dto: LoginDto, @Req() req: Request) {
-    return this.authService.login(dto, req.ip || '');
+  async login(@Body() dto: LoginDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const result = await this.authService.login(dto, req.ip || '');
+    const { refreshToken, ...responseWithoutRefresh } = result;
+    res.cookie('refresh_token', refreshToken, this.authService.getRefreshTokenCookieOptions());
+    return responseWithoutRefresh;
   }
 
   @UseGuards(JwtAuthGuard)
@@ -79,7 +86,8 @@ export class AuthController {
     }
   })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
-  async logout(@CurrentUser('_id') userId: string) {
+  async logout(@CurrentUser('_id') userId: string, @Res({ passthrough: true }) res: Response) {
+    res.clearCookie('refresh_token', { path: '/' });
     return this.authService.logout(userId);
   }
 
@@ -100,8 +108,15 @@ export class AuthController {
   })
   @ApiResponse({ status: 400, description: 'Bad Request.' })
   @ApiResponse({ status: 401, description: 'Invalid refresh token.' })
-  async refresh(@Body() body: { refreshToken: string }) {
-    return this.authService.refreshTokens(body.refreshToken);
+  async refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    this.logger.debug(
+      `Refresh cookies present=${Boolean(req.cookies)} headerCookie=${Boolean(req.headers?.cookie)}`,
+    );
+    const refreshToken = req.cookies?.['refresh_token'] || req.body?.refreshToken;
+    const tokens = await this.authService.refreshTokens(refreshToken);
+    res.cookie('refresh_token', tokens.refreshToken, this.authService.getRefreshTokenCookieOptions());
+    const { refreshToken: _, ...responseWithoutRefresh } = tokens;
+    return responseWithoutRefresh;
   }
 
   @Public()

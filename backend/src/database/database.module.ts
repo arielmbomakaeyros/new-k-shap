@@ -18,7 +18,10 @@ import {
   DisbursementTypeSchema,
 } from './schemas/disbursement-type.schema';
 import { Beneficiary, BeneficiarySchema } from './schemas/beneficiary.schema';
-import { DisbursementTemplate, DisbursementTemplateSchema } from './schemas/disbursement-template.schema';
+import {
+  DisbursementTemplate,
+  DisbursementTemplateSchema,
+} from './schemas/disbursement-template.schema';
 import { AuditLog, AuditLogSchema } from './schemas/audit-log.schema';
 import {
   Notification,
@@ -38,7 +41,20 @@ import {
   ReminderSettings,
   ReminderSettingsSchema,
 } from './schemas/reminder-settings.schema';
-import { PlatformSettings, PlatformSettingsSchema } from './schemas/platform-settings.schema';
+import {
+  PlatformSettings,
+  PlatformSettingsSchema,
+} from './schemas/platform-settings.schema';
+import { FileUpload, FileUploadSchema } from './schemas/file-upload.schema';
+import {
+  PaymentMethod,
+  PaymentMethodSchema,
+} from './schemas/payment-method.schema';
+import { Export, ExportSchema } from './schemas/export.schema';
+import {
+  WorkflowTemplate,
+  WorkflowTemplateSchema,
+} from './schemas/workflow-template.schema';
 import { tenantFilterPlugin } from '../common/tenancy/tenant-filter.plugin';
 
 function applyTenantPlugin(schema: any) {
@@ -55,17 +71,33 @@ const schemas = [
   { name: Office.name, schema: applyTenantPlugin(OfficeSchema) },
   { name: Disbursement.name, schema: applyTenantPlugin(DisbursementSchema) },
   { name: Collection.name, schema: applyTenantPlugin(CollectionSchema) },
-  { name: DisbursementType.name, schema: applyTenantPlugin(DisbursementTypeSchema) },
+  {
+    name: DisbursementType.name,
+    schema: applyTenantPlugin(DisbursementTypeSchema),
+  },
   { name: Beneficiary.name, schema: applyTenantPlugin(BeneficiarySchema) },
-  { name: DisbursementTemplate.name, schema: applyTenantPlugin(DisbursementTemplateSchema) },
+  {
+    name: DisbursementTemplate.name,
+    schema: applyTenantPlugin(DisbursementTemplateSchema),
+  },
   { name: AuditLog.name, schema: applyTenantPlugin(AuditLogSchema) },
   { name: Notification.name, schema: applyTenantPlugin(NotificationSchema) },
   { name: ChatMessage.name, schema: applyTenantPlugin(ChatMessageSchema) },
   { name: DeletedDataRegistry.name, schema: DeletedDataRegistrySchema },
   { name: ErrorLog.name, schema: ErrorLogSchema },
-  { name: EmailSettings.name, schema: EmailSettingsSchema },
-  { name: ReminderSettings.name, schema: ReminderSettingsSchema },
+  { name: EmailSettings.name, schema: applyTenantPlugin(EmailSettingsSchema) },
+  {
+    name: ReminderSettings.name,
+    schema: applyTenantPlugin(ReminderSettingsSchema),
+  },
   { name: PlatformSettings.name, schema: PlatformSettingsSchema },
+  { name: FileUpload.name, schema: applyTenantPlugin(FileUploadSchema) },
+  { name: PaymentMethod.name, schema: applyTenantPlugin(PaymentMethodSchema) },
+  { name: Export.name, schema: applyTenantPlugin(ExportSchema) },
+  {
+    name: WorkflowTemplate.name,
+    schema: applyTenantPlugin(WorkflowTemplateSchema),
+  },
 ];
 
 @Module({

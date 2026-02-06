@@ -1,6 +1,6 @@
 'use client';
 
-import { ReactNode } from 'react';
+import { ReactNode, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { useTranslation } from '@/node_modules/react-i18next';
@@ -11,6 +11,7 @@ import { useLogout } from '@/src/hooks/queries';
 import { LanguageSwitcher } from '../LanguageSwitcher';
 import { ThemeSwitcher } from '@/components/theme-switcher';
 import { NotificationsDropdown } from '@/src/components/notifications/NotificationsDropdown';
+import { Menu, X } from 'lucide-react';
 // import { ThemeSwitcher } from '../theme-switcher';
 // import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 
@@ -37,6 +38,7 @@ export function CompanyLayout({ children, companyName = 'Company' }: CompanyLayo
   const pathname = usePathname();
   const { user } = useAuthStore();
   const logoutMutation = useLogout();
+  const [showMobileNav, setShowMobileNav] = useState(false);
 
   const handleLogout = () => {
     logoutMutation.mutate();
@@ -48,6 +50,13 @@ export function CompanyLayout({ children, companyName = 'Company' }: CompanyLayo
       <header className="glass sticky top-0 z-50 border-b border-white/20">
         <div className="mx-auto max-w-7xl px-4 py-4 flex items-center justify-between sm:px-6 lg:px-8">
           <div className="flex items-center gap-4">
+            <button
+              className="md:hidden rounded-lg p-2 text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              onClick={() => setShowMobileNav(!showMobileNav)}
+              aria-label={t('navigation.menu', { defaultValue: 'Menu' })}
+            >
+              {showMobileNav ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
             <Link href="/" className="flex items-center gap-2 cursor-pointer">
               <h1 className="text-2xl font-bold gradient-text">K-shap</h1>
             </Link>
@@ -57,7 +66,7 @@ export function CompanyLayout({ children, companyName = 'Company' }: CompanyLayo
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <span className="text-sm text-muted-foreground">{user?.firstName} {user?.lastName}</span>
+            <span className="hidden sm:inline text-sm text-muted-foreground">{user?.firstName} {user?.lastName}</span>
             <NotificationsDropdown />
             <LanguageSwitcher />
             <ThemeSwitcher />
@@ -68,9 +77,32 @@ export function CompanyLayout({ children, companyName = 'Company' }: CompanyLayo
         </div>
       </header>
 
+      {/* Mobile Navigation */}
+      {showMobileNav && (
+        <div className="md:hidden border-b border-white/20 glass-subtle">
+          <nav className="space-y-1 p-4">
+            {companyNavigation.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setShowMobileNav(false)}
+                className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 cursor-pointer ${
+                  pathname === item.href
+                    ? 'gradient-bg-primary text-white shadow-md glow-primary'
+                    : 'text-foreground hover:bg-white/20 dark:hover:bg-white/10'
+                }`}
+              >
+                <span>{item.icon}</span>
+                <span>{item.name}</span>
+              </Link>
+            ))}
+          </nav>
+        </div>
+      )}
+
       <div className="flex min-h-[calc(100vh-80px)]">
         {/* Sidebar */}
-        <aside className="w-64 glass-subtle border-r border-white/20">
+        <aside className="hidden md:block w-64 glass-subtle border-r border-white/20">
           <nav className="space-y-1 p-4">
             {companyNavigation.map((item) => (
               <Link

@@ -226,7 +226,7 @@ export default function ProfilePage() {
           </div>
 
           <div className="flex justify-end">
-            <Button onClick={handleSave} disabled={updateProfile.isPending}>
+            <Button className='gradient-bg-primary text-white' onClick={handleSave} disabled={updateProfile.isPending}>
               {updateProfile.isPending ? t('common.saving', { defaultValue: 'Saving...' }) : t('common.save', { defaultValue: 'Save' })}
             </Button>
           </div>

@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 // import { collectionsService } from '@/services/collections.service';
 import { queryKeys } from './keys';
 import { Collection, CollectionFilters, collectionsService, CreateCollectionDto, UpdateCollectionDto } from '@/src/services';
+import { handleMutationError } from '@/src/lib/mutationError';
 
 /**
  * Hook for fetching collections list with pagination and filters
@@ -43,6 +44,7 @@ export function useCreateCollection() {
       queryClient.invalidateQueries({ queryKey: queryKeys.collections.lists() });
       queryClient.invalidateQueries({ queryKey: queryKeys.reports.dashboard() });
     },
+    onError: (error) => handleMutationError(error, 'Failed to create collection'),
   });
 }
 
@@ -74,6 +76,7 @@ export function useUpdateCollection() {
       return { previousCollection };
     },
     onError: (_err, { id }, context) => {
+      handleMutationError(_err, 'Failed to update collection');
       if (context?.previousCollection) {
         queryClient.setQueryData(
           queryKeys.collections.detail(id),
@@ -102,5 +105,6 @@ export function useDeleteCollection() {
       queryClient.invalidateQueries({ queryKey: queryKeys.collections.lists() });
       queryClient.invalidateQueries({ queryKey: queryKeys.reports.dashboard() });
     },
+    onError: (error) => handleMutationError(error, 'Failed to delete collection'),
   });
 }

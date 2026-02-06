@@ -75,6 +75,7 @@ export {
   useRejectDisbursement,
   useCancelDisbursement,
   useForceCompleteDisbursement,
+  useSubmitDisbursement,
 } from './useDisbursements';
 
 // Payment Methods hooks
@@ -111,6 +112,9 @@ export {
   useCollectionsSummary,
 } from './useReports';
 
+// Chat hooks
+export { useChatMessages, useChatParticipants } from './useChat';
+
 // Permissions hooks
 export {
   usePermissions,
@@ -124,6 +128,10 @@ export {
   useUpdateCompanyInfo,
   useUpdateWorkflowSettings,
   useUpdateEmailNotificationSettings,
+  useWorkflowTemplates,
+  useActivateWorkflowTemplate,
+  useCreateWorkflowTemplate,
+  useDeleteWorkflowTemplate,
 } from './useSettings';
 
 export * from './useBeneficiaries';

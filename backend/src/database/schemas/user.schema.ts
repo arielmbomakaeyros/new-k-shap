@@ -100,4 +100,5 @@ export const UserSchema = SchemaFactory.createForClass(User);
 
 UserSchema.index({ email: 1 });
 UserSchema.index({ company: 1, isDeleted: 1 });
+UserSchema.index({ company: 1, createdAt: -1, isDeleted: 1 });
 UserSchema.index({ isKaeyrosUser: 1 });

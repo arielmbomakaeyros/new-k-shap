@@ -78,8 +78,15 @@ export async function proxyRequest(
       backendUrl = `${backendUrl}?${queryString}`;
     }
 
-    // Get authorization header
+    // Get authorization + cookie headers
     const authHeader = request.headers.get('authorization');
+    let cookieHeader = request.headers.get('cookie');
+    if (!cookieHeader && request.cookies) {
+      const cookies = request.cookies.getAll();
+      if (cookies.length) {
+        cookieHeader = cookies.map((cookie) => `${cookie.name}=${cookie.value}`).join('; ');
+      }
+    }
 
     // Parse request body for non-GET requests
     let body: unknown = undefined;
@@ -101,6 +108,7 @@ export async function proxyRequest(
     // Build axios config
     const headers: Record<string, string> = {
       ...(authHeader && { Authorization: authHeader }),
+      ...(cookieHeader && { Cookie: cookieHeader }),
       ...options.headers,
     };
 
@@ -112,6 +120,9 @@ export async function proxyRequest(
       const fetchHeaders = new Headers();
       if (authHeader) {
         fetchHeaders.set('Authorization', authHeader);
+      }
+      if (cookieHeader) {
+        fetchHeaders.set('Cookie', cookieHeader);
       }
       if (options.headers) {
         Object.entries(options.headers).forEach(([key, value]) => {
@@ -139,10 +150,15 @@ export async function proxyRequest(
           responseHeaders.set('Content-Disposition', disposition);
         }
 
-        return new NextResponse(buffer, {
-          status: fetchResponse.status,
-          headers: responseHeaders,
-        });
+      const binaryResponse = new NextResponse(buffer, {
+        status: fetchResponse.status,
+        headers: responseHeaders,
+      });
+      const setCookie = fetchResponse.headers.get('set-cookie');
+      if (setCookie) {
+        binaryResponse.headers.set('set-cookie', setCookie);
+      }
+      return binaryResponse;
       }
 
       let responseData = await fetchResponse.json();
@@ -150,7 +166,12 @@ export async function proxyRequest(
         responseData = options.transformResponse(responseData);
       }
 
-      return NextResponse.json(responseData, { status: fetchResponse.status });
+      const jsonResponse = NextResponse.json(responseData, { status: fetchResponse.status });
+      const setCookie = fetchResponse.headers.get('set-cookie');
+      if (setCookie) {
+        jsonResponse.headers.set('set-cookie', setCookie);
+      }
+      return jsonResponse;
     }
 
     const config: AxiosRequestConfig = {
@@ -183,10 +204,19 @@ export async function proxyRequest(
         responseHeaders.set('Content-Disposition', disposition);
       }
 
-      return new NextResponse(response.data, {
+      const binaryResponse = new NextResponse(response.data, {
         status: response.status,
         headers: responseHeaders,
       });
+      const setCookie = response.headers?.['set-cookie'];
+      if (setCookie) {
+        if (Array.isArray(setCookie)) {
+          setCookie.forEach((cookie) => binaryResponse.headers.append('set-cookie', cookie));
+        } else {
+          binaryResponse.headers.set('set-cookie', setCookie);
+        }
+      }
+      return binaryResponse;
     }
 
     // Transform response if needed
@@ -195,7 +225,16 @@ export async function proxyRequest(
       responseData = options.transformResponse(responseData);
     }
 
-    return NextResponse.json(responseData, { status: response.status });
+    const jsonResponse = NextResponse.json(responseData, { status: response.status });
+    const setCookie = response.headers?.['set-cookie'];
+    if (setCookie) {
+      if (Array.isArray(setCookie)) {
+        setCookie.forEach((cookie) => jsonResponse.headers.append('set-cookie', cookie));
+      } else {
+        jsonResponse.headers.set('set-cookie', setCookie);
+      }
+    }
+    return jsonResponse;
   } catch (error) {
     return handleProxyError(error);
   }

@@ -3,7 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
-import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 
 // Core modules
 import { DatabaseModule } from './database/database.module';
@@ -34,9 +34,14 @@ import { ReportsModule } from './modules/reports/reports.module';
 import { KaeyrosModule } from './modules/kaeyros/kaeyros.module';
 import { FileUploadModule } from './modules/file-upload/file-upload.module';
 import { PlatformSettingsModule } from './modules/platform-settings/platform-settings.module';
+import { CurrencyModule } from './modules/currency/currency.module';
+import { ErrorLog, ErrorLogSchema } from './database/schemas/error-log.schema';
 
 // Jobs
 import { JobsModule } from './jobs/jobs.module';
+
+// Filters
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
 // Guards
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
@@ -111,8 +116,17 @@ import { TenantContextInterceptor } from './common/interceptors/tenant-context.i
     FileUploadModule,
     JobsModule,
     PlatformSettingsModule,
+    CurrencyModule,
+    MongooseModule.forFeature([
+      { name: ErrorLog.name, schema: ErrorLogSchema },
+    ]),
   ],
   providers: [
+    // Global exception filter (DI-based for DB access)
+    {
+      provide: APP_FILTER,
+      useClass: AllExceptionsFilter,
+    },
     // Global guards (order matters!)
     {
       provide: APP_GUARD,

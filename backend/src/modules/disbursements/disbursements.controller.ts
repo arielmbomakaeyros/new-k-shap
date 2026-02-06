@@ -29,6 +29,7 @@ import {
   PaymentType,
   DisbursementPriority,
 } from './dto';
+import { UserRole } from '../../database/schemas/enums';
 import { DisbursementResponseDto } from '../../common/dto/disbursement-response.dto';
 import { SuccessResponseDto } from '../../common/dto/success-response.dto';
 import {
@@ -237,11 +238,35 @@ export class DisbursementsController {
     @Query('endDate') endDate?: string,
     @Query('tags') tags?: string,
   ) {
-    const companyId = req.user?.isKaeyrosUser
+    const user = req.user;
+    const companyId = user?.isKaeyrosUser
       ? undefined
-      : req.user?.company
-        ? (req.user.company._id || req.user.company).toString()
+      : user?.company
+        ? (user.company._id || user.company).toString()
         : undefined;
+
+    const roleFilters: { createdBy?: string; department?: string } = {};
+    const systemRoles = user?.systemRoles || [];
+    const hasElevatedRole =
+      user?.isKaeyrosUser ||
+      systemRoles.includes(UserRole.COMPANY_SUPER_ADMIN) ||
+      systemRoles.includes(UserRole.VALIDATOR) ||
+      systemRoles.includes(UserRole.CASHIER);
+    if (!hasElevatedRole) {
+      if (systemRoles.includes(UserRole.DEPARTMENT_HEAD)) {
+        const deptIds = (user?.departments || [])
+          .map((d: any) => d?._id || d)
+          .filter(Boolean);
+        roleFilters.department = deptIds.length
+          ? deptIds.join(',')
+          : '000000000000000000000000';
+      } else if (systemRoles.includes(UserRole.AGENT)) {
+        roleFilters.createdBy = user?._id?.toString();
+      } else {
+        roleFilters.createdBy = user?._id?.toString();
+      }
+    }
+
     return this.disbursementsService.findAll(companyId, {
       page,
       limit,
@@ -249,7 +274,7 @@ export class DisbursementsController {
       sortOrder,
       search,
       status,
-      department,
+      department: roleFilters.department || department,
       office,
       beneficiary,
       disbursementType,
@@ -263,6 +288,7 @@ export class DisbursementsController {
       startDate,
       endDate,
       tags,
+      createdBy: roleFilters.createdBy,
     });
   }
 
@@ -292,18 +318,42 @@ export class DisbursementsController {
     @Query('endDate') endDate?: string,
     @Query('tags') tags?: string,
   ) {
-    const companyId = req.user?.isKaeyrosUser
+    const user = req.user;
+    const companyId = user?.isKaeyrosUser
       ? undefined
-      : req.user?.company
-        ? (req.user.company._id || req.user.company).toString()
+      : user?.company
+        ? (user.company._id || user.company).toString()
         : undefined;
+
+    const roleFilters: { createdBy?: string; department?: string } = {};
+    const systemRoles = user?.systemRoles || [];
+    const hasElevatedRole =
+      user?.isKaeyrosUser ||
+      systemRoles.includes(UserRole.COMPANY_SUPER_ADMIN) ||
+      systemRoles.includes(UserRole.VALIDATOR) ||
+      systemRoles.includes(UserRole.CASHIER);
+    if (!hasElevatedRole) {
+      if (systemRoles.includes(UserRole.DEPARTMENT_HEAD)) {
+        const deptIds = (user?.departments || [])
+          .map((d: any) => d?._id || d)
+          .filter(Boolean);
+        roleFilters.department = deptIds.length
+          ? deptIds.join(',')
+          : '000000000000000000000000';
+      } else if (systemRoles.includes(UserRole.AGENT)) {
+        roleFilters.createdBy = user?._id?.toString();
+      } else {
+        roleFilters.createdBy = user?._id?.toString();
+      }
+    }
+
     const normalizedFormat = (format || 'csv').toLowerCase();
     const exportOptions = {
       sortBy,
       sortOrder,
       search,
       status,
-      department,
+      department: roleFilters.department || department,
       office,
       beneficiary,
       disbursementType,
@@ -317,6 +367,7 @@ export class DisbursementsController {
       startDate,
       endDate,
       tags,
+      createdBy: roleFilters.createdBy,
     };
 
     const datePart = new Date().toISOString().slice(0, 10);
@@ -377,7 +428,13 @@ export class DisbursementsController {
       : req.user?.company
         ? (req.user.company._id || req.user.company).toString()
         : undefined;
-    return this.disbursementsService.update(id, updateDisbursementDto, userId, companyId);
+    return this.disbursementsService.update(
+      id,
+      updateDisbursementDto,
+      userId,
+      companyId,
+      req.user,
+    );
   }
 
   @Delete(':id')
@@ -405,7 +462,7 @@ export class DisbursementsController {
       : req.user?.company
         ? (req.user.company._id || req.user.company).toString()
         : undefined;
-    return this.disbursementsService.remove(id, userId, companyId);
+    return this.disbursementsService.remove(id, userId, companyId, req.user);
   }
 
   @Post(':id/submit')
@@ -430,7 +487,7 @@ export class DisbursementsController {
       : req.user?.company
         ? (req.user.company._id || req.user.company).toString()
         : undefined;
-    return this.disbursementsService.submit(id, userId, companyId);
+    return this.disbursementsService.submit(id, userId, companyId, req.user);
   }
 
   @Post(':id/approve')
@@ -462,7 +519,39 @@ export class DisbursementsController {
       : req.user?.company
         ? (req.user.company._id || req.user.company).toString()
         : undefined;
-    return this.disbursementsService.approve(id, userId, notes, companyId);
+    return this.disbursementsService.approve(id, userId, notes, companyId, req.user);
+  }
+
+  @Post(':id/force-complete')
+  @ApiOperation({ summary: 'Force complete disbursement (validator/admin only)' })
+  @ApiParam({
+    name: 'id',
+    description: 'Disbursement ID',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiBody({
+    schema: { type: 'object', properties: { reason: { type: 'string' } } },
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Disbursement force completed successfully.',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - insufficient permissions.',
+  })
+  forceComplete(
+    @Param('id') id: string,
+    @Body('reason') reason: string,
+    @Req() req: any,
+  ) {
+    const userId = req.user?._id?.toString();
+    const companyId = req.user?.isKaeyrosUser
+      ? undefined
+      : req.user?.company
+        ? (req.user.company._id || req.user.company).toString()
+        : undefined;
+    return this.disbursementsService.forceComplete(id, userId, reason, companyId, req.user);
   }
 
   @Post(':id/reject')
@@ -498,7 +587,7 @@ export class DisbursementsController {
       : req.user?.company
         ? (req.user.company._id || req.user.company).toString()
         : undefined;
-    return this.disbursementsService.reject(id, userId, reason, companyId);
+    return this.disbursementsService.reject(id, userId, reason, companyId, req.user);
   }
 
   @Post(':id/cancel')
@@ -534,7 +623,7 @@ export class DisbursementsController {
       : req.user?.company
         ? (req.user.company._id || req.user.company).toString()
         : undefined;
-    return this.disbursementsService.cancel(id, userId, reason, companyId);
+    return this.disbursementsService.cancel(id, userId, reason, companyId, req.user);
   }
 
   @Get(':id')
@@ -561,6 +650,6 @@ export class DisbursementsController {
       : req.user?.company
         ? (req.user.company._id || req.user.company).toString()
         : undefined;
-    return this.disbursementsService.findOne(id, companyId);
+    return this.disbursementsService.findOne(id, companyId, req.user);
   }
 }

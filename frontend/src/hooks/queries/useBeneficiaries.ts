@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from './keys';
 import { beneficiariesService, BeneficiaryFilters } from '@/src/services/beneficiaries.service';
 import { Beneficiary, CreateBeneficiaryDto, UpdateBeneficiaryDto } from '@/src/services';
+import { handleMutationError } from '@/src/lib/mutationError';
 
 export function useBeneficiaries(filters?: BeneficiaryFilters) {
   return useQuery({
@@ -33,6 +34,7 @@ export function useCreateBeneficiary() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.beneficiaries.lists() });
     },
+    onError: (error) => handleMutationError(error, 'Failed to create beneficiary'),
   });
 }
 
@@ -42,6 +44,7 @@ export function useUpdateBeneficiary() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateBeneficiaryDto }) =>
       beneficiariesService.update(id, data),
+    onError: (error) => handleMutationError(error, 'Failed to update beneficiary'),
     onSettled: (_data, _error, { id }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.beneficiaries.detail(id) });
       queryClient.invalidateQueries({ queryKey: queryKeys.beneficiaries.lists() });
@@ -57,5 +60,6 @@ export function useDeleteBeneficiary() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.beneficiaries.lists() });
     },
+    onError: (error) => handleMutationError(error, 'Failed to delete beneficiary'),
   });
 }

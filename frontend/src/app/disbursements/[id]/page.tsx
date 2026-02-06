@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { useTranslation } from '@/node_modules/react-i18next';
 import { Button } from '@/components/ui/button';
@@ -9,26 +9,51 @@ import { WorkflowTimeline } from '@/src/components/disbursement/WorkflowTimeline
 import { ApprovalDialog } from '@/src/components/disbursement/ApprovalDialog';
 import { ProtectedRoute } from '@/src/components/ProtectedRoute';
 import { ProtectedLayout } from '@/src/components/layout/ProtectedLayout';
-import { useDisbursement } from '@/src/hooks/queries/useDisbursements';
+import { useDisbursement, useForceCompleteDisbursement } from '@/src/hooks/queries/useDisbursements';
+import { useRoles } from '@/src/hooks/queries/useRoles';
 import { formatPrice } from '@/src/lib/format';
 import QRCode from 'qrcode';
+import { useAuthStore } from '@/src/store/authStore';
 
 function DisbursementDetailContent() {
   const router = useRouter();
   const params = useParams();
   const searchParams = useSearchParams();
   const { t } = useTranslation();
+  const { user } = useAuthStore();
   const [showApprovalDialog, setShowApprovalDialog] = useState(false);
   const [qrUrl, setQrUrl] = useState<string | null>(null);
 
   const id = params.id as string;
-  const { data: disbursement, isLoading, error } = useDisbursement(id);
+  const { data: disbursement, isLoading, error, refetch } = useDisbursement(id);
+  const forceComplete = useForceCompleteDisbursement();
 
 
 
-  const canApprove = ['pending_dept_head', 'pending_validator', 'pending_cashier'].includes(
-    disbursement?.status || ''
-  );
+  const { data: rolesData } = useRoles();
+  const resolvedSystemRoles = useMemo(() => {
+    if (user?.systemRoles?.length) return user.systemRoles;
+    const rolesList = rolesData?.data || [];
+    const roleIds = (user?.roles || []).map((r: any) => r?._id || r?.id || r);
+    return roleIds
+      .map((id: string) => rolesList.find((role: any) => (role._id || role.id) === id)?.systemRoleType)
+      .filter(Boolean);
+  }, [user, rolesData]);
+  const roles = resolvedSystemRoles || [];
+  const isDeptHead = roles.includes('department_head');
+  const isValidator = roles.includes('validator');
+  const isCashier = roles.includes('cashier');
+  const isCompanyAdmin = roles.includes('company_super_admin');
+
+  const canApprove =
+    (disbursement?.status === 'pending_dept_head' && (isDeptHead || isCompanyAdmin)) ||
+    (disbursement?.status === 'pending_validator' && (isValidator || isCompanyAdmin)) ||
+    (disbursement?.status === 'pending_cashier' && (isCashier || isCompanyAdmin));
+
+  const canForceComplete =
+    disbursement?.status &&
+    disbursement.status !== 'completed' &&
+    (isValidator || isCompanyAdmin);
   const stage =
     disbursement?.status === 'pending_validator'
       ? 'validator'
@@ -86,6 +111,14 @@ function DisbursementDetailContent() {
         <div className="flex gap-3">
           {canApprove && (
             <Button onClick={() => setShowApprovalDialog(true)}>{t('disbursements.approveReview')}</Button>
+          )}
+          {canForceComplete && (
+            <Button
+              variant="outline"
+              onClick={() => forceComplete.mutate({ id, reason: 'Force completed by validator' })}
+            >
+              {t('disbursements.forceComplete', { defaultValue: 'Force Complete' })}
+            </Button>
           )}
           {canApprove && (
             <Button variant="outline" onClick={handleGenerateQr}>
@@ -237,7 +270,7 @@ function DisbursementDetailContent() {
           onClose={() => setShowApprovalDialog(false)}
           onSuccess={() => {
             setShowApprovalDialog(false);
-            router.refresh();
+            refetch();
           }}
         />
       )}

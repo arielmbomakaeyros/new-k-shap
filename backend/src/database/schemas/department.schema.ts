@@ -33,3 +33,4 @@ export class Department extends BaseEntity {
 export const DepartmentSchema = SchemaFactory.createForClass(Department);
 
 DepartmentSchema.index({ company: 1, isDeleted: 1 });
+DepartmentSchema.index({ company: 1, createdAt: -1, isDeleted: 1 });

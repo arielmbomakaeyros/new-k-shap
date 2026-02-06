@@ -1,15 +1,23 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Notification } from '../../database/schemas/notification.schema';
+import { Company } from '../../database/schemas/company.schema';
+import { User } from '../../database/schemas/user.schema';
 import { CreateNotificationDto, UpdateNotificationDto } from './dto';
 import { NotificationsGateway } from './notifications.gateway';
+import { EmailService } from '../../email/email.service';
 
 @Injectable()
 export class NotificationsService {
+  private readonly logger = new Logger(NotificationsService.name);
+
   constructor(
     @InjectModel(Notification.name) private notificationModel: Model<Notification>,
+    @InjectModel(Company.name) private companyModel: Model<Company>,
+    @InjectModel(User.name) private userModel: Model<User>,
     private readonly notificationsGateway: NotificationsGateway,
+    private readonly emailService: EmailService,
   ) {}
 
   private mapCreatePayload(createNotificationDto: CreateNotificationDto, companyId?: string | null) {
@@ -61,12 +69,51 @@ export class NotificationsService {
         savedNotification.user.toString(),
         savedNotification.toObject(),
       );
+
+      // Send email notification if enabled
+      this.sendEmailNotification(
+        savedNotification.user.toString(),
+        companyId,
+        createNotificationDto,
+      ).catch((err) => {
+        this.logger.warn(`Email notification failed: ${err.message}`);
+      });
     }
     return savedNotification;
   }
 
+  private async sendEmailNotification(
+    userId: string,
+    companyId: string | null | undefined,
+    dto: CreateNotificationDto,
+  ) {
+    // Check company email channel
+    if (companyId) {
+      const company = await this.companyModel.findById(companyId).lean();
+      if (!company?.notificationChannels?.email) return;
+    }
+
+    // Check user preferences
+    const user = await this.userModel.findById(userId).lean();
+    if (!user || !user.notificationPreferences?.email) return;
+
+    await this.emailService.send({
+      to: user.email,
+      subject: dto.title,
+      template: 'notification',
+      context: {
+        title: dto.title,
+        content: dto.content,
+        userName: `${user.firstName || ''} ${user.lastName || ''}`.trim(),
+      },
+    });
+  }
+
   async findAll(companyId?: string | null) {
-    const filter = companyId ? { company: new Types.ObjectId(companyId) } : {};
+    const filter = {
+      isDeleted: false,
+      ...(companyId ? { company: new Types.ObjectId(companyId) } : {}),
+    };
     return this.notificationModel.find(filter as any);
   }
 
@@ -74,6 +121,7 @@ export class NotificationsService {
     const filter: Record<string, any> = {
       user: new Types.ObjectId(userId),
       isRead: false,
+      isDeleted: false,
     };
 
     if (companyId) {
@@ -84,16 +132,20 @@ export class NotificationsService {
   }
 
   async findOne(id: string, companyId?: string | null) {
-    const filter = companyId
-      ? { _id: new Types.ObjectId(id), company: new Types.ObjectId(companyId) }
-      : { _id: new Types.ObjectId(id) };
+    const filter = {
+      _id: new Types.ObjectId(id),
+      isDeleted: false,
+      ...(companyId ? { company: new Types.ObjectId(companyId) } : {}),
+    };
     return this.notificationModel.findOne(filter as any);
   }
 
   async update(id: string, updateNotificationDto: UpdateNotificationDto, companyId?: string | null) {
-    const filter = companyId
-      ? { _id: new Types.ObjectId(id), company: new Types.ObjectId(companyId) }
-      : { _id: new Types.ObjectId(id) };
+    const filter = {
+      _id: new Types.ObjectId(id),
+      isDeleted: false,
+      ...(companyId ? { company: new Types.ObjectId(companyId) } : {}),
+    };
     return this.notificationModel.findOneAndUpdate(
       filter as any,
       this.mapUpdatePayload(updateNotificationDto),
@@ -102,9 +154,11 @@ export class NotificationsService {
   }
 
   async remove(id: string, companyId?: string | null) {
-    const filter = companyId
-      ? { _id: new Types.ObjectId(id), company: new Types.ObjectId(companyId) }
-      : { _id: new Types.ObjectId(id) };
+    const filter = {
+      _id: new Types.ObjectId(id),
+      isDeleted: false,
+      ...(companyId ? { company: new Types.ObjectId(companyId) } : {}),
+    };
     return this.notificationModel.findOneAndDelete(filter as any);
   }
 }

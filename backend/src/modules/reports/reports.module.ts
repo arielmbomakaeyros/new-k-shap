@@ -5,6 +5,8 @@ import { ReportsController } from './reports.controller';
 import { Disbursement, DisbursementSchema } from '../../database/schemas/disbursement.schema';
 import { Collection, CollectionSchema } from '../../database/schemas/collection.schema';
 import { User, UserSchema } from '../../database/schemas/user.schema';
+import { Department, DepartmentSchema } from '../../database/schemas/department.schema';
+import { Company, CompanySchema } from '../../database/schemas/company.schema';
 
 @Module({
   imports: [
@@ -12,6 +14,8 @@ import { User, UserSchema } from '../../database/schemas/user.schema';
       { name: Disbursement.name, schema: DisbursementSchema },
       { name: Collection.name, schema: CollectionSchema },
       { name: User.name, schema: UserSchema },
+      { name: Department.name, schema: DepartmentSchema },
+      { name: Company.name, schema: CompanySchema },
     ]),
   ],
   controllers: [ReportsController],

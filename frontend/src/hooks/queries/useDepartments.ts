@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from './keys';
 import { DepartmentFilters, departmentsService } from '@/src/services/departments.service';
 import { CreateDepartmentDto, Department, UpdateDepartmentDto } from '@/src/services';
+import { handleMutationError } from '@/src/lib/mutationError';
 // import type { CreateDepartmentDto, UpdateDepartmentDto, Department } from '@/services/types';
 
 /**
@@ -44,6 +45,7 @@ export function useCreateDepartment() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.departments.lists() });
     },
+    onError: (error) => handleMutationError(error, 'Failed to create department'),
   });
 }
 
@@ -70,6 +72,7 @@ export function useUpdateDepartment() {
       return { previousDepartment };
     },
     onError: (_err, { id }, context) => {
+      handleMutationError(_err, 'Failed to update department');
       if (context?.previousDepartment) {
         queryClient.setQueryData(
           queryKeys.departments.detail(id),
@@ -95,5 +98,6 @@ export function useDeleteDepartment() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.departments.lists() });
     },
+    onError: (error) => handleMutationError(error, 'Failed to delete department'),
   });
 }

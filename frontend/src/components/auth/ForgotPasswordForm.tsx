@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useTranslation } from '@/node_modules/react-i18next';
 import { Button } from '@/components/ui/button';
-import { useApi } from '@/src/hooks/useApi';
+import { useForgotPassword } from '@/src/hooks/queries';
 // import { useApi } from '@/hooks/useApi';
 
 const forgotSchema = z.object({
@@ -17,9 +17,7 @@ type ForgotFormData = z.infer<typeof forgotSchema>;
 
 export function ForgotPasswordForm() {
   const { t } = useTranslation();
-  const { fetchAPI } = useApi();
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { mutateAsync: forgotPassword, isPending, error } = useForgotPassword();
   const [success, setSuccess] = useState(false);
 
   const {
@@ -31,20 +29,11 @@ export function ForgotPasswordForm() {
   });
 
   const onSubmit = async (data: ForgotFormData) => {
-    setIsLoading(true);
-    setError(null);
-
     try {
-      await fetchAPI('/auth/forgot-password', {
-        method: 'POST',
-        body: JSON.stringify({ email: data.email }),
-      });
-
+      await forgotPassword({ email: data.email });
       setSuccess(true);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to send reset email');
-    } finally {
-      setIsLoading(false);
+    } catch {
+      // Error is surfaced via react-query's `error` state.
     }
   };
 
@@ -61,7 +50,7 @@ export function ForgotPasswordForm() {
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       {error && (
         <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-          {error}
+          {(error as Error).message || 'Failed to send reset email'}
         </div>
       )}
 
@@ -85,8 +74,8 @@ export function ForgotPasswordForm() {
         Enter your email address and we'll send you a link to reset your password.
       </p>
 
-      <Button type="submit" className="w-full" disabled={isLoading}>
-        {isLoading ? t('common.loading') : 'Send Reset Link'}
+      <Button type="submit" className="w-full" disabled={isPending}>
+        {isPending ? t('common.loading') : 'Send Reset Link'}
       </Button>
     </form>
   );

@@ -1,4 +1,5 @@
 import { BaseService, buildQueryString } from './base.service';
+import { api } from '../lib/axios';
 import type { PaymentMethod, CreatePaymentMethodDto, UpdatePaymentMethodDto, QueryParams } from './types';
 
 export interface PaymentMethodFilters extends QueryParams {
@@ -17,14 +18,14 @@ class PaymentMethodsService extends BaseService<
   async findAll(params?: PaymentMethodFilters): Promise<any> {
     const queryString = buildQueryString(params);
     const response = await api.get<any>(`${this.basePath}${queryString}`);
-    if (Array.isArray(response)) {
+    if (Array.isArray(response?.data)) {
       return {
         success: true,
-        data: response,
+        data: response.data,
         pagination: {
           page: 1,
-          limit: response.length,
-          total: response.length,
+          limit: response.data.length,
+          total: response.data.length,
           totalPages: 1,
         },
       };

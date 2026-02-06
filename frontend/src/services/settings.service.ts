@@ -60,6 +60,23 @@ class SettingsService {
     return response;
   }
 
+  // Workflow Templates
+  async getWorkflowTemplates() {
+    return api.get<any>(`${this.basePath}/workflow-templates`);
+  }
+
+  async activateWorkflowTemplate(id: string) {
+    return api.patch<any>(`${this.basePath}/workflow-templates/${id}/activate`, {});
+  }
+
+  async createWorkflowTemplate(data: { name: string; description?: string; steps: any[] }) {
+    return api.post<any>(`${this.basePath}/workflow-templates`, data);
+  }
+
+  async deleteWorkflowTemplate(id: string) {
+    return api.delete<any>(`${this.basePath}/workflow-templates/${id}`);
+  }
+
   /**
    * Get all settings (legacy)
    */

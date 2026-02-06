@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Body, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, UseGuards, Req } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -177,5 +177,74 @@ export class SettingsController {
   ) {
     const companyId = req.user?.company;
     return this.settingsService.updateCompanyPreferences(companyId, updateDto);
+  }
+
+  @Get('workflow-templates')
+  @ApiOperation({ summary: 'Get available workflow templates' })
+  @ApiResponse({ status: 200, description: 'Workflow templates retrieved successfully.' })
+  async getWorkflowTemplates(@Req() req: any) {
+    const companyId = req.user?.company ? (req.user.company._id || req.user.company).toString() : null;
+    return this.settingsService.getWorkflowTemplates(companyId);
+  }
+
+  @Patch('workflow-templates/:id/activate')
+  @RequirePermissions('settings:update')
+  @ApiOperation({ summary: 'Set active workflow template for company' })
+  @ApiResponse({ status: 200, description: 'Workflow template activated.' })
+  async setActiveWorkflowTemplate(
+    @Req() req: any,
+    @Param('id') templateId: string,
+  ) {
+    const companyId = req.user?.company ? (req.user.company._id || req.user.company).toString() : null;
+    return this.settingsService.setActiveWorkflowTemplate(companyId, templateId);
+  }
+
+  @Post('workflow-templates')
+  @RequirePermissions('settings:update')
+  @ApiOperation({ summary: 'Create a custom workflow template' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string' },
+        description: { type: 'string' },
+        steps: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              order: { type: 'number' },
+              name: { type: 'string' },
+              roleRequired: { type: 'string' },
+              isOptional: { type: 'boolean' },
+              description: { type: 'string' },
+              statusOnPending: { type: 'string' },
+              statusOnComplete: { type: 'string' },
+            },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 201, description: 'Workflow template created.' })
+  async createWorkflowTemplate(
+    @Req() req: any,
+    @Body() dto: { name: string; description?: string; steps: any[] },
+  ) {
+    const companyId = req.user?.company ? (req.user.company._id || req.user.company).toString() : null;
+    const userId = req.user?.sub || req.user?._id;
+    return this.settingsService.createCustomWorkflowTemplate(companyId, userId, dto);
+  }
+
+  @Delete('workflow-templates/:id')
+  @RequirePermissions('settings:update')
+  @ApiOperation({ summary: 'Delete a custom workflow template' })
+  @ApiResponse({ status: 200, description: 'Workflow template deleted.' })
+  async deleteWorkflowTemplate(
+    @Req() req: any,
+    @Param('id') templateId: string,
+  ) {
+    const companyId = req.user?.company ? (req.user.company._id || req.user.company).toString() : null;
+    return this.settingsService.deleteWorkflowTemplate(companyId, templateId);
   }
 }

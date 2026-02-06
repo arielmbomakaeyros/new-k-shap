@@ -103,28 +103,37 @@ export class RolesService {
   }
 
   async findAll(companyId?: string | null) {
-    const filter = companyId ? { company: new Types.ObjectId(companyId) } : {};
+    const filter = {
+      isDeleted: false,
+      ...(companyId ? { company: new Types.ObjectId(companyId) } : {}),
+    };
     return this.roleModel.find(filter as any).populate('permissions');
   }
 
   async findOne(id: string, companyId?: string | null) {
-    const filter = companyId
-      ? { _id: new Types.ObjectId(id), company: new Types.ObjectId(companyId) }
-      : { _id: new Types.ObjectId(id) };
+    const filter = {
+      _id: new Types.ObjectId(id),
+      isDeleted: false,
+      ...(companyId ? { company: new Types.ObjectId(companyId) } : {}),
+    };
     return this.roleModel.findOne(filter as any).populate('permissions');
   }
 
   async update(id: string, updateRoleDto: any, companyId?: string | null) {
-    const filter = companyId
-      ? { _id: new Types.ObjectId(id), company: new Types.ObjectId(companyId) }
-      : { _id: new Types.ObjectId(id) };
+    const filter = {
+      _id: new Types.ObjectId(id),
+      isDeleted: false,
+      ...(companyId ? { company: new Types.ObjectId(companyId) } : {}),
+    };
     return this.roleModel.findOneAndUpdate(filter as any, updateRoleDto, { new: true }).populate('permissions');
   }
 
   async remove(id: string, companyId?: string | null) {
-    const filter = companyId
-      ? { _id: new Types.ObjectId(id), company: new Types.ObjectId(companyId) }
-      : { _id: new Types.ObjectId(id) };
+    const filter = {
+      _id: new Types.ObjectId(id),
+      isDeleted: false,
+      ...(companyId ? { company: new Types.ObjectId(companyId) } : {}),
+    };
     return this.roleModel.findOneAndDelete(filter as any);
   }
 }

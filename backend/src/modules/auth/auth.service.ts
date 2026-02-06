@@ -12,6 +12,7 @@ import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
 import { User } from '../../database/schemas/user.schema';
 import { Company } from '../../database/schemas/company.schema';
+import { Role } from '../../database/schemas/role.schema';
 import { EmailService } from '../../email/email.service';
 import { JwtPayload } from '../../common/interfaces';
 import { getEmailSubject } from '../../common/i18n/email';
@@ -31,6 +32,7 @@ export class AuthService {
   constructor(
     @InjectModel(User.name) private userModel: Model<User>,
     @InjectModel(Company.name) private companyModel: Model<Company>,
+    @InjectModel(Role.name) private roleModel: Model<Role>,
     private jwtService: JwtService,
     private configService: ConfigService,
     private emailService: EmailService,
@@ -72,6 +74,9 @@ export class AuthService {
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid email or password');
     }
+
+    // Ensure system roles are derived before token + response
+    await this.applyDerivedSystemRoles(user);
 
     // Generate tokens
     const tokens = await this.generateTokens(user);
@@ -141,6 +146,7 @@ export class AuthService {
       }
     }
 
+    await this.applyDerivedSystemRoles(user);
     const tokens = await this.generateTokens(user);
 
     user.refreshToken = tokens.refreshToken;
@@ -288,6 +294,7 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
 
+    await this.applyDerivedSystemRoles(user);
     return this.sanitizeUser(user);
   }
 
@@ -311,12 +318,14 @@ export class AuthService {
 
     await user.save();
 
+    await this.applyDerivedSystemRoles(user);
     return this.sanitizeUser(user);
   }
 
   async updateProfileAvatar(userId: string, file: Express.Multer.File, updaterUser: any) {
     const updated = await this.usersService.updateAvatar(userId, file, updaterUser);
-    return this.sanitizeUser(updated);
+    await this.applyDerivedSystemRoles(updated as any);
+    return this.sanitizeUser(updated as any);
   }
 
   private async generateTokens(user: User) {
@@ -347,6 +356,16 @@ export class AuthService {
     };
   }
 
+  getRefreshTokenCookieOptions() {
+    return {
+      httpOnly: true,
+      secure: this.configService.get('NODE_ENV') === 'production',
+      sameSite: 'lax' as const,
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    };
+  }
+
   private sanitizeUser(user: User) {
     const userObj = user.toObject();
     delete userObj.password;
@@ -356,5 +375,36 @@ export class AuthService {
     delete userObj.passwordResetToken;
     delete userObj.passwordResetExpiry;
     return userObj;
+  }
+
+  private async applyDerivedSystemRoles(user: User) {
+    if (!user) return;
+    const derivedSystemRoles = new Set<string>((user.systemRoles as string[]) || []);
+    const roles: any[] = (user.roles as any[]) || [];
+
+    for (const role of roles) {
+      if (role?.systemRoleType) {
+        derivedSystemRoles.add(role.systemRoleType);
+      }
+    }
+
+    if (!derivedSystemRoles.size && roles.length) {
+      const roleIds = roles
+        .map((role) => (typeof role === 'string' ? role : role?._id))
+        .filter(Boolean);
+      if (roleIds.length) {
+        const roleDocs = await this.roleModel
+          .find({ _id: { $in: roleIds } })
+          .select('systemRoleType')
+          .lean();
+        roleDocs.forEach((roleDoc: any) => {
+          if (roleDoc?.systemRoleType) {
+            derivedSystemRoles.add(roleDoc.systemRoleType);
+          }
+        });
+      }
+    }
+
+    (user as any).systemRoles = Array.from(derivedSystemRoles);
   }
 }

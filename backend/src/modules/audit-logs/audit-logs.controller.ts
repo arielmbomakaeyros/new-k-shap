@@ -109,7 +109,19 @@ export class AuditLogsController {
       : user?.company
         ? (user.company._id || user.company).toString()
         : null;
-    return this.auditLogsService.findAll(companyId);
+    return this.auditLogsService.findAll(companyId, {
+      page,
+      limit,
+      sortBy,
+      sortOrder,
+      search,
+      userId,
+      action,
+      resourceType,
+      resourceId,
+      startDate,
+      endDate,
+    });
   }
 
   @Get(':id')
