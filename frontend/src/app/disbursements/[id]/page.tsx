@@ -55,7 +55,7 @@ function DisbursementDetailContent() {
     setQrUrl(dataUrl);
   };
 
-    if (isLoading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -123,20 +123,20 @@ function DisbursementDetailContent() {
                 <div>
                   <p className="text-sm text-muted-foreground">{t('disbursements.beneficiary', { defaultValue: 'Beneficiary' })}</p>
                   <p className="mt-1 font-medium text-foreground">
-                    {disbursement.beneficiary?.name || disbursement.beneficiary?.email || '—'}
+                    {typeof disbursement.beneficiary === 'object' ? (disbursement.beneficiary?.name || disbursement.beneficiary?.email || '—') : (disbursement.beneficiary || '—')}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">{t('disbursements.type', { defaultValue: 'Type' })}</p>
-                  <p className="mt-1 font-medium text-foreground">{disbursement.disbursementType?.name || '—'}</p>
+                  <p className="mt-1 font-medium text-foreground">{typeof disbursement.disbursementType === 'object' ? (disbursement.disbursementType?.name || '—') : (disbursement.disbursementType || '—')}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">{t('users.department')}</p>
-                  <p className="mt-1 font-medium text-foreground">{disbursement.department?.name || '—'}</p>
+                  <p className="mt-1 font-medium text-foreground">{typeof disbursement.department === 'object' ? (disbursement.department?.name || '—') : (disbursement.department || '—')}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">{t('users.office')}</p>
-                  <p className="mt-1 font-medium text-foreground">{disbursement.office?.name || '—'}</p>
+                  <p className="mt-1 font-medium text-foreground">{typeof disbursement.office === 'object' ? (disbursement.office?.name || '—') : (disbursement.office || '—')}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">{t('disbursements.paymentMethod', { defaultValue: 'Payment Method' })}</p>

@@ -12,6 +12,7 @@ export interface ReportFilters extends DateRange {
   department?: string;
   office?: string;
   companyId?: string;
+  period?: string;
 }
 
 class ReportsService {

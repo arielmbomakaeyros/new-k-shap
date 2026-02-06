@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useTranslation } from '@/node_modules/react-i18next';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -7,11 +8,14 @@ import { useAuthStore } from '@/src/store/authStore';
 import { ProtectedRoute } from '@/src/components/ProtectedRoute';
 import { ProtectedLayout } from '@/src/components/layout/ProtectedLayout';
 import { formatPrice } from '@/src/lib/format';
+import { useDashboardReport } from '@/src/hooks/queries';
 
 export default function DashboardPage() {
   const { t } = useTranslation();
   const router = useRouter();
   const { user } = useAuthStore();
+  const [period, setPeriod] = useState<'today' | 'this_week' | 'this_month' | 'this_year'>('this_month');
+  const { data: dashboardData, isLoading } = useDashboardReport({ period });
 
   // Check user roles for conditional rendering
   const isKaeyrosAdmin = user?.systemRoles?.some(role =>
@@ -35,27 +39,58 @@ export default function DashboardPage() {
               })}
             </p>
           </div>
+          <div className="mt-4 flex items-center gap-2">
+            <label className="text-sm text-muted-foreground">
+              {t('dashboard.period', { defaultValue: 'Period' })}
+            </label>
+            <select
+              value={period}
+              onChange={(e) => setPeriod(e.target.value as typeof period)}
+              className="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground"
+            >
+              <option value="today">{t('dashboard.periods.today', { defaultValue: 'Today' })}</option>
+              <option value="this_week">{t('dashboard.periods.thisWeek', { defaultValue: 'This week' })}</option>
+              <option value="this_month">{t('dashboard.periods.thisMonth', { defaultValue: 'This month' })}</option>
+              <option value="this_year">{t('dashboard.periods.thisYear', { defaultValue: 'This year' })}</option>
+            </select>
+          </div>
 
           <div className="mt-8 grid gap-6 md:grid-cols-4">
-            <div className="glass-card rounded-xl p-6 hover:glow-primary transition-all duration-300">
-              <div className="text-sm text-muted-foreground">{t('navigation.disbursements')}</div>
-              <div className="mt-2 text-3xl font-bold gradient-text">0</div>
-            </div>
+            {isLoading ? (
+              Array.from({ length: 4 }).map((_, idx) => (
+                <div
+                  key={idx}
+                  className="rounded-xl p-6 border border-border bg-muted/50 animate-pulse"
+                >
+                  <div className="h-4 w-24 rounded bg-muted" />
+                  <div className="mt-4 h-8 w-20 rounded bg-muted" />
+                </div>
+              ))
+            ) : (
+              <>
+                <div className="rounded-xl p-6 transition-all duration-300 bg-gradient-to-br from-blue-50 via-white to-blue-100 border border-blue-100 hover:shadow-lg dark:from-blue-900/30 dark:via-slate-900 dark:to-blue-950/40 dark:border-blue-900/40">
+                  <div className="text-sm text-blue-700 dark:text-blue-200">{t('navigation.disbursements')}</div>
+                  <div className="mt-2 text-3xl font-bold text-blue-900 dark:text-blue-50">{dashboardData?.totalDisbursements ?? 0}</div>
+                </div>
 
-            <div className="glass-card rounded-xl p-6 hover:glow-secondary transition-all duration-300">
-              <div className="text-sm text-muted-foreground">{t('navigation.collections')}</div>
-              <div className="mt-2 text-3xl font-bold gradient-text">{formatPrice(0)}</div>
-            </div>
+                <div className="rounded-xl p-6 transition-all duration-300 bg-gradient-to-br from-emerald-50 via-white to-emerald-100 border border-emerald-100 hover:shadow-lg dark:from-emerald-900/30 dark:via-slate-900 dark:to-emerald-950/40 dark:border-emerald-900/40">
+                  <div className="text-sm text-emerald-700 dark:text-emerald-200">{t('navigation.collections')}</div>
+                  <div className="mt-2 text-3xl font-bold text-emerald-900 dark:text-emerald-50">
+                    {formatPrice(dashboardData?.totalCollectionsAmount ?? 0)}
+                  </div>
+                </div>
 
-            <div className="glass-card rounded-xl p-6 hover:glow-accent transition-all duration-300">
-              <div className="text-sm text-muted-foreground">{t('dashboard.pendingApprovals', { defaultValue: 'Pending Approvals' })}</div>
-              <div className="mt-2 text-3xl font-bold gradient-text">0</div>
-            </div>
+                <div className="rounded-xl p-6 transition-all duration-300 bg-gradient-to-br from-amber-50 via-white to-amber-100 border border-amber-100 hover:shadow-lg dark:from-amber-900/30 dark:via-slate-900 dark:to-amber-950/40 dark:border-amber-900/40">
+                  <div className="text-sm text-amber-700 dark:text-amber-200">{t('dashboard.pendingApprovals', { defaultValue: 'Pending Approvals' })}</div>
+                  <div className="mt-2 text-3xl font-bold text-amber-900 dark:text-amber-50">{dashboardData?.pendingApprovals ?? 0}</div>
+                </div>
 
-            <div className="glass-card rounded-xl p-6 hover:glow-primary transition-all duration-300">
-              <div className="text-sm text-muted-foreground">{t('navigation.users', { defaultValue: 'Users' })}</div>
-              <div className="mt-2 text-3xl font-bold gradient-text">0</div>
-            </div>
+                <div className="rounded-xl p-6 transition-all duration-300 bg-gradient-to-br from-violet-50 via-white to-violet-100 border border-violet-100 hover:shadow-lg dark:from-violet-900/30 dark:via-slate-900 dark:to-violet-950/40 dark:border-violet-900/40">
+                  <div className="text-sm text-violet-700 dark:text-violet-200">{t('navigation.users', { defaultValue: 'Users' })}</div>
+                  <div className="mt-2 text-3xl font-bold text-violet-900 dark:text-violet-50">{dashboardData?.totalUsers ?? 0}</div>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Navigation Cards */}

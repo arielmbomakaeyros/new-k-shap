@@ -190,6 +190,13 @@
     "beneficiary": "Bénéficiaire",
     "disbursementDate": "Date de décaissement",
     "paymentMethod": "Méthode de paiement",
+    "priorityLabel": "Priorité",
+    "priority": {
+      "low": "Faible",
+      "medium": "Moyenne",
+      "high": "Élevée",
+      "urgent": "Urgente"
+    },
     "referenceNumber": "Numéro de référence",
     "notes": "Notes",
     "approver": "Approbateur",

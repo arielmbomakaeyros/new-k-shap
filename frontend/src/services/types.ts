@@ -248,6 +248,7 @@ export interface ApprovalStep {
 }
 
 export interface Disbursement extends BaseEntity {
+  _id?: string;
   company: string | Company;
   referenceNumber: string;
   amount: number;
@@ -545,20 +546,9 @@ export interface CreateExportDto {
 // Report Types
 export interface DashboardReport {
   totalDisbursements: number;
-  totalCollections: number;
+  totalCollectionsAmount: number;
   pendingApprovals: number;
-  disbursementsByStatus: Record<string, number>;
-  collectionsByPaymentType: Record<string, number>;
-  monthlyTrends: {
-    month: string;
-    disbursements: number;
-    collections: number;
-  }[];
-  topDepartments: {
-    departmentId: string;
-    departmentName: string;
-    total: number;
-  }[];
+  totalUsers: number;
 }
 
 export interface DisbursementSummary {

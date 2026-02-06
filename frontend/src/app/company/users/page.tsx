@@ -1221,9 +1221,11 @@ function CompanyUsersContent() {
         <ConfirmModal
           isOpen={!!confirmDeactivate}
           onClose={() => setConfirmDeactivate(null)}
-          onConfirm={() =>
-            confirmDeactivate && handleDeactivateUser(confirmDeactivate)
-          }
+          onConfirm={() => {
+            if (confirmDeactivate) {
+              return handleDeactivateUser(confirmDeactivate);
+            }
+          }}
           title={t("users.deactivateTitle", {
             defaultValue: "Deactivate User",
           })}
@@ -1243,9 +1245,11 @@ function CompanyUsersContent() {
         <ConfirmModal
           isOpen={!!confirmReactivate}
           onClose={() => setConfirmReactivate(null)}
-          onConfirm={() =>
-            confirmReactivate && handleReactivateUser(confirmReactivate)
-          }
+          onConfirm={() => {
+            if (confirmReactivate) {
+              return handleReactivateUser(confirmReactivate);
+            }
+          }}
           title={t("users.reactivateTitle", {
             defaultValue: "Reactivate User",
           })}
@@ -1265,10 +1269,11 @@ function CompanyUsersContent() {
         <ConfirmModal
           isOpen={!!confirmDelete}
           onClose={() => setConfirmDelete(null)}
-          onConfirm={() =>
-            confirmDelete &&
-            handleDeleteUser(confirmDelete.id || (confirmDelete as any)._id)
-          }
+          onConfirm={() => {
+            if (confirmDelete) {
+              return handleDeleteUser(confirmDelete.id || (confirmDelete as any)._id);
+            }
+          }}
           title={t("users.deleteTitle", { defaultValue: "Remove User" })}
           message={t("users.confirmRemove", {
             defaultValue:

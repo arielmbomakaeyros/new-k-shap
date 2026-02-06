@@ -1,11 +1,32 @@
-import { Controller, Get, Post, Body, Param, Delete, Query, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiBody, ApiQuery, ApiProperty } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Delete,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiParam,
+  ApiBody,
+  ApiQuery,
+  ApiProperty,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { ReportsService } from './reports.service';
 import { CreateReportDto, ReportType, ReportPeriod } from './dto';
 import { ReportResponseDto } from '../../common/dto/report-response.dto';
 import { SuccessResponseDto } from '../../common/dto/success-response.dto';
-import { PaginatedResponseDto, PaginationMetaDto } from '../../common/dto/paginated-response.dto';
+import {
+  PaginatedResponseDto,
+  PaginationMetaDto,
+} from '../../common/dto/paginated-response.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 class PaginatedReportsResponseDto extends PaginatedResponseDto<ReportResponseDto> {
@@ -31,7 +52,10 @@ export class ReportsController {
     description: 'Report generated successfully.',
     type: ReportResponseDto,
   })
-  @ApiResponse({ status: 400, description: 'Bad Request - Invalid report configuration.' })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad Request - Invalid report configuration.',
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
   create(@Body() createReportDto: CreateReportDto, @CurrentUser() user: any) {
@@ -45,14 +69,56 @@ export class ReportsController {
 
   @Get()
   @ApiOperation({ summary: 'Get all saved reports' })
-  @ApiQuery({ name: 'page', required: false, description: 'Page number', example: 1 })
-  @ApiQuery({ name: 'limit', required: false, description: 'Number of items per page', example: 10 })
-  @ApiQuery({ name: 'sortBy', required: false, description: 'Field to sort by', example: 'createdAt' })
-  @ApiQuery({ name: 'sortOrder', required: false, description: 'Sort order (asc/desc)', example: 'desc' })
-  @ApiQuery({ name: 'type', required: false, description: 'Filter by report type', enum: ReportType, example: 'disbursement_summary' })
-  @ApiQuery({ name: 'period', required: false, description: 'Filter by period', enum: ReportPeriod, example: 'this_month' })
-  @ApiQuery({ name: 'startDate', required: false, description: 'Filter by creation date (from)', example: '2024-01-01' })
-  @ApiQuery({ name: 'endDate', required: false, description: 'Filter by creation date (to)', example: '2024-12-31' })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description: 'Page number',
+    example: 1,
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Number of items per page',
+    example: 10,
+  })
+  @ApiQuery({
+    name: 'sortBy',
+    required: false,
+    description: 'Field to sort by',
+    example: 'createdAt',
+  })
+  @ApiQuery({
+    name: 'sortOrder',
+    required: false,
+    description: 'Sort order (asc/desc)',
+    example: 'desc',
+  })
+  @ApiQuery({
+    name: 'type',
+    required: false,
+    description: 'Filter by report type',
+    enum: ReportType,
+    example: 'disbursement_summary',
+  })
+  @ApiQuery({
+    name: 'period',
+    required: false,
+    description: 'Filter by period',
+    enum: ReportPeriod,
+    example: 'this_month',
+  })
+  @ApiQuery({
+    name: 'startDate',
+    required: false,
+    description: 'Filter by creation date (from)',
+    example: '2024-01-01',
+  })
+  @ApiQuery({
+    name: 'endDate',
+    required: false,
+    description: 'Filter by creation date (to)',
+    example: '2024-12-31',
+  })
   @ApiResponse({
     status: 200,
     description: 'List of reports retrieved successfully.',
@@ -81,7 +147,13 @@ export class ReportsController {
 
   @Get('dashboard')
   @ApiOperation({ summary: 'Get dashboard summary data' })
-  @ApiQuery({ name: 'period', required: false, description: 'Time period', enum: ReportPeriod, example: 'this_month' })
+  @ApiQuery({
+    name: 'period',
+    required: false,
+    description: 'Time period',
+    enum: ReportPeriod,
+    example: 'this_month',
+  })
   @ApiResponse({
     status: 200,
     description: 'Dashboard data retrieved successfully.',
@@ -114,15 +186,36 @@ export class ReportsController {
       : user?.company
         ? (user.company._id || user.company).toString()
         : null;
-    return this.reportsService.findAll(companyId);
+    return this.reportsService.getDashboardSummary(companyId, period);
   }
 
   @Get('disbursements/summary')
   @ApiOperation({ summary: 'Get disbursements summary report' })
-  @ApiQuery({ name: 'period', required: false, description: 'Time period', enum: ReportPeriod, example: 'this_month' })
-  @ApiQuery({ name: 'department', required: false, description: 'Filter by department', example: '507f1f77bcf86cd799439011' })
-  @ApiQuery({ name: 'status', required: false, description: 'Filter by status', example: 'completed' })
-  @ApiQuery({ name: 'groupBy', required: false, description: 'Group data by field', example: 'department' })
+  @ApiQuery({
+    name: 'period',
+    required: false,
+    description: 'Time period',
+    enum: ReportPeriod,
+    example: 'this_month',
+  })
+  @ApiQuery({
+    name: 'department',
+    required: false,
+    description: 'Filter by department',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    description: 'Filter by status',
+    example: 'completed',
+  })
+  @ApiQuery({
+    name: 'groupBy',
+    required: false,
+    description: 'Group data by field',
+    example: 'department',
+  })
   @ApiResponse({
     status: 200,
     description: 'Disbursements summary retrieved successfully.',
@@ -147,10 +240,31 @@ export class ReportsController {
 
   @Get('collections/summary')
   @ApiOperation({ summary: 'Get collections summary report' })
-  @ApiQuery({ name: 'period', required: false, description: 'Time period', enum: ReportPeriod, example: 'this_month' })
-  @ApiQuery({ name: 'department', required: false, description: 'Filter by department', example: '507f1f77bcf86cd799439011' })
-  @ApiQuery({ name: 'paymentType', required: false, description: 'Filter by payment type', example: 'cash' })
-  @ApiQuery({ name: 'groupBy', required: false, description: 'Group data by field', example: 'paymentType' })
+  @ApiQuery({
+    name: 'period',
+    required: false,
+    description: 'Time period',
+    enum: ReportPeriod,
+    example: 'this_month',
+  })
+  @ApiQuery({
+    name: 'department',
+    required: false,
+    description: 'Filter by department',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiQuery({
+    name: 'paymentType',
+    required: false,
+    description: 'Filter by payment type',
+    example: 'cash',
+  })
+  @ApiQuery({
+    name: 'groupBy',
+    required: false,
+    description: 'Group data by field',
+    example: 'paymentType',
+  })
   @ApiResponse({
     status: 200,
     description: 'Collections summary retrieved successfully.',
@@ -175,7 +289,11 @@ export class ReportsController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Get report by ID' })
-  @ApiParam({ name: 'id', description: 'Report ID', example: '507f1f77bcf86cd799439011' })
+  @ApiParam({
+    name: 'id',
+    description: 'Report ID',
+    example: '507f1f77bcf86cd799439011',
+  })
   @ApiResponse({
     status: 200,
     description: 'Report retrieved successfully.',
@@ -195,7 +313,11 @@ export class ReportsController {
 
   @Delete(':id')
   @ApiOperation({ summary: 'Delete report by ID' })
-  @ApiParam({ name: 'id', description: 'Report ID', example: '507f1f77bcf86cd799439011' })
+  @ApiParam({
+    name: 'id',
+    description: 'Report ID',
+    example: '507f1f77bcf86cd799439011',
+  })
   @ApiResponse({
     status: 200,
     description: 'Report deleted successfully.',

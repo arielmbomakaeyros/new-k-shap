@@ -72,7 +72,7 @@ export function LoginForm() {
         />
       </div>
 
-      <Button type="submit" className="w-full" disabled={isPending}>
+      <Button type="submit" className="w-full gradient-bg-primary text-white" disabled={isPending}>
         {isPending ? t('common.loading') : t('auth.login')}
       </Button>
     </form>

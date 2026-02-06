@@ -52,7 +52,7 @@ export default function Home() {
           transition={{ duration: 0.6, delay: 0.6 }}
         >
           <Link href="/auth/signup" className="cursor-pointer">
-            <Button size="lg">{t('auth.signup')}</Button>
+            <Button className='gradient-bg-primary text-white' size="lg">{t('auth.signup')}</Button>
           </Link>
           <Link href="/auth/login" className="cursor-pointer">
             <Button size="lg" variant="outline">
