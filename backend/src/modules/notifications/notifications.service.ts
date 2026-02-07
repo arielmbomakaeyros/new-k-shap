@@ -109,12 +109,67 @@ export class NotificationsService {
     });
   }
 
-  async findAll(companyId?: string | null) {
-    const filter = {
+  async findAll(companyId?: string | null, params?: any, userId?: string | null) {
+    const {
+      page = 1,
+      limit = 20,
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+      search,
+      recipientId,
+      type,
+      isRead,
+    } = params || {};
+
+    const filter: Record<string, any> = {
       isDeleted: false,
       ...(companyId ? { company: new Types.ObjectId(companyId) } : {}),
     };
-    return this.notificationModel.find(filter as any);
+
+    const targetUserId = recipientId || userId;
+    if (targetUserId) {
+      filter.user = new Types.ObjectId(targetUserId);
+    }
+
+    if (type) {
+      filter.type = type;
+    }
+
+    if (isRead !== undefined) {
+      if (isRead === 'true' || isRead === true) filter.isRead = true;
+      if (isRead === 'false' || isRead === false) filter.isRead = false;
+    }
+
+    if (search) {
+      const regex = new RegExp(search, 'i');
+      filter.$or = [
+        { title: regex },
+        { message: regex },
+      ];
+    }
+
+    const skip = (Number(page) - 1) * Number(limit);
+    const sortDirection = sortOrder === 'asc' ? 1 : -1;
+
+    const [data, total] = await Promise.all([
+      this.notificationModel
+        .find(filter as any)
+        .sort({ [sortBy]: sortDirection })
+        .skip(skip)
+        .limit(Number(limit))
+        .exec(),
+      this.notificationModel.countDocuments(filter as any),
+    ]);
+
+    return {
+      data,
+      pagination: {
+        total,
+        page: Number(page),
+        limit: Number(limit),
+        totalPages: Math.ceil(total / Number(limit)),
+      },
+    };
   }
 
   async countUnread(userId: string, companyId?: string | null) {
@@ -151,6 +206,25 @@ export class NotificationsService {
       this.mapUpdatePayload(updateNotificationDto),
       { new: true },
     );
+  }
+
+  async markAllAsRead(userId: string, companyId?: string | null, ids?: string[]) {
+    const filter: Record<string, any> = {
+      user: new Types.ObjectId(userId),
+      isDeleted: false,
+    };
+    if (companyId) {
+      filter.company = new Types.ObjectId(companyId);
+    }
+    if (ids?.length) {
+      filter._id = { $in: ids.map((id) => new Types.ObjectId(id)) };
+    }
+
+    await this.notificationModel.updateMany(
+      filter as any,
+      { $set: { isRead: true, readAt: new Date() } },
+    );
+    return { success: true };
   }
 
   async remove(id: string, companyId?: string | null) {

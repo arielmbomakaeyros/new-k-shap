@@ -793,6 +793,15 @@
     "english": "English",
     "french": "French"
   },
+  "chat": {
+    "searchUsers": "Search users...",
+    "viewDetails": "View details",
+    "userDetails": "User details",
+    "newMessages": "New messages"
+  },
+  "notifications": {
+    "markAll": "Mark all as read"
+  },
   "admin": {
     "platformOverview": "Platform Overview",
     "monitorManage": "Monitor and manage all companies and subscriptions",

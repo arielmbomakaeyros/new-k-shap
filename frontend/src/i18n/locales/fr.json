@@ -800,6 +800,15 @@
     "english": "Anglais",
     "french": "Français"
   },
+  "chat": {
+    "searchUsers": "Rechercher des utilisateurs...",
+    "viewDetails": "Voir les détails",
+    "userDetails": "Détails de l'utilisateur",
+    "newMessages": "Nouveaux messages"
+  },
+  "notifications": {
+    "markAll": "Tout marquer comme lu"
+  },
   "admin": {
     "platformOverview": "Aperçu de la plateforme",
     "monitorManage": "Surveiller et gérer toutes les entreprises et abonnements",

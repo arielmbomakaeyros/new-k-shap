@@ -6,12 +6,13 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useTranslation } from '@/node_modules/react-i18next';
 // import { useAuthStore } from '@/store/authStore';
 import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useAuthStore } from '@/src/store/authStore';
 import { useLogout } from '@/src/hooks/queries';
 import { LanguageSwitcher } from '../LanguageSwitcher';
 import { ThemeSwitcher } from '@/components/theme-switcher';
 import { NotificationsDropdown } from '@/src/components/notifications/NotificationsDropdown';
-import { Menu, X } from 'lucide-react';
+import { Menu, UserCircle, X } from 'lucide-react';
 // import { ThemeSwitcher } from '../theme-switcher';
 // import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 
@@ -66,13 +67,46 @@ export function CompanyLayout({ children, companyName = 'Company' }: CompanyLayo
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <span className="hidden sm:inline text-sm text-muted-foreground">{user?.firstName} {user?.lastName}</span>
             <NotificationsDropdown />
             <LanguageSwitcher />
             <ThemeSwitcher />
-            <Button variant="outline" size="sm" onClick={handleLogout}>
-              {t('navigation.logout')}
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="rounded-full" aria-label={t('navigation.profile')}>
+                  {user?.avatar ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={user.avatar}
+                      alt={user?.firstName || 'User'}
+                      className="h-8 w-8 rounded-full object-cover"
+                    />
+                  ) : (
+                    <UserCircle className="h-7 w-7" />
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-64">
+                <DropdownMenuLabel className="text-sm">
+                  <div className="font-semibold text-foreground">
+                    {user?.firstName} {user?.lastName}
+                  </div>
+                  <div className="text-xs text-muted-foreground">{user?.email}</div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link href="/profile" className="flex w-full items-center justify-between">
+                    <span>{t('navigation.profile')}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {user?.systemRoles?.[0]?.replace(/_/g, ' ') || t('navigation.userRole', { defaultValue: 'User' })}
+                    </span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">
+                  {t('navigation.logout')}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </header>

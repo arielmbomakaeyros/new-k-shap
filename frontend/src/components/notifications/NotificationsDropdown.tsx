@@ -3,9 +3,10 @@
 import { useMemo } from 'react';
 import { Bell } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { useTranslation } from '@/node_modules/react-i18next';
 import { Button } from '@/components/ui/button';
-import { useNotifications, useUnreadNotificationCount } from '@/src/hooks/queries';
+import { useMarkAllNotificationsRead, useMarkNotificationRead, useNotifications, useUnreadNotificationCount } from '@/src/hooks/queries';
 import { useNotificationsSocket } from '@/src/hooks/useNotificationsSocket';
 import { cn } from '@/lib/utils';
 
@@ -23,8 +24,11 @@ const normalizeNotifications = (response: any) => {
 };
 
 export const NotificationsDropdown = () => {
+  const { t } = useTranslation();
   useNotificationsSocket();
   const { data: unreadCount } = useUnreadNotificationCount();
+  const markNotificationRead = useMarkNotificationRead();
+  const markAllRead = useMarkAllNotificationsRead();
   const { data: notificationsData } = useNotifications({
     limit: MAX_ITEMS,
     sortBy: 'createdAt',
@@ -36,8 +40,18 @@ export const NotificationsDropdown = () => {
     [notificationsData]
   );
 
+  const markVisibleAsRead = () => {
+    const ids = notifications
+      .filter((n: any) => !(n.isRead ?? n.read))
+      .map((n: any) => n._id || n.id)
+      .filter(Boolean);
+    if (ids.length) {
+      markAllRead.mutate(ids as string[]);
+    }
+  };
+
   return (
-    <DropdownMenu>
+    <DropdownMenu onOpenChange={(open) => open && markVisibleAsRead()}>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" className="relative h-9 w-9 rounded-full">
           <Bell className="h-5 w-5" />
@@ -49,8 +63,14 @@ export const NotificationsDropdown = () => {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-96 p-0">
-        <div className="px-3 py-2">
+        <div className="px-3 py-2 flex items-center justify-between">
           <DropdownMenuLabel className="px-0">Notifications</DropdownMenuLabel>
+          <DropdownMenuItem
+            onClick={() => markAllRead.mutate()}
+            className="text-xs text-muted-foreground hover:text-foreground"
+          >
+            {t('notifications.markAll', { defaultValue: 'Mark all as read' })}
+          </DropdownMenuItem>
         </div>
         <DropdownMenuSeparator />
         <div className="max-h-80 overflow-auto">
@@ -67,8 +87,14 @@ export const NotificationsDropdown = () => {
             const isRead = notification.isRead ?? notification.read ?? false;
 
             return (
-              <div
+              <button
                 key={notification._id || notification.id}
+                onClick={() => {
+                  const id = notification._id || notification.id;
+                  if (id && !isRead) {
+                    markNotificationRead.mutate(id);
+                  }
+                }}
                 className={cn(
                   'border-b border-border px-4 py-3 text-sm last:border-b-0',
                   !isRead && 'bg-primary/5'
@@ -84,7 +110,7 @@ export const NotificationsDropdown = () => {
                 {timeLabel && (
                   <div className="mt-2 text-[11px] text-muted-foreground">{timeLabel}</div>
                 )}
-              </div>
+              </button>
             );
           })}
         </div>

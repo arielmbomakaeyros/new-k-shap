@@ -105,7 +105,18 @@ export class NotificationsController {
       : user?.company
         ? (user.company._id || user.company).toString()
         : null;
-    return this.notificationsService.findAll(companyId);
+    const userId = user?._id || user?.id || user?.sub;
+    return this.notificationsService.findAll(companyId, {
+      page,
+      limit,
+      sortBy,
+      sortOrder,
+      search,
+      recipientId,
+      type,
+      channel,
+      isRead,
+    }, userId);
   }
 
   @Get('unread-count')
@@ -195,6 +206,24 @@ export class NotificationsController {
         ? (user.company._id || user.company).toString()
         : null;
     return this.notificationsService.update(id, updateNotificationDto, companyId);
+  }
+
+  @Post('mark-read')
+  @ApiOperation({ summary: 'Mark notifications as read' })
+  @ApiBody({ schema: { type: 'object', properties: { ids: { type: 'array', items: { type: 'string' } } } } })
+  @ApiResponse({
+    status: 200,
+    description: 'Notifications marked as read.',
+    type: SuccessResponseDto,
+  })
+  markRead(@Body() body: { ids?: string[] }, @CurrentUser() user: any) {
+    const companyId = user?.isKaeyrosUser
+      ? null
+      : user?.company
+        ? (user.company._id || user.company).toString()
+        : null;
+    const userId = user?._id || user?.id || user?.sub;
+    return this.notificationsService.markAllAsRead(userId, companyId, body?.ids);
   }
 
   @Delete(':id')
